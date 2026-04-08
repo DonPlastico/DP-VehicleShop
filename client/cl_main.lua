@@ -1,0 +1,925 @@
+-- =================================================================
+-- OPTIMIZACIÓN: CACHÉ DE NATIVAS (Esto mejora el rendimiento drásticamente)
+-- =================================================================
+local isMenuOpen = false
+local spawnedShowroomVehicles = {}
+local nearbyVehicles = {}
+local isHudActive = false
+local spawnedNPCs = {}
+local showroomCam = nil
+local previewVehicleEntity = nil
+local DealerOwners = {}
+local spawnedAgencyNPCs = {}
+local currentActiveZone = nil
+local currentActiveText = nil
+local currentBossDealerId = nil -- Guardará la ID del concesionario al abrir el Boss Menu
+
+-- =================================================================
+-- INICIALIZACIÓN DEL FRAMEWORK (AÑADIR ESTO AQUÍ)
+-- =================================================================
+local Framework = {}
+if Config.Framework == 'qbcore' then
+    Framework.Core = exports['qb-core']:GetCoreObject()
+elseif Config.Framework == 'esx' then
+    TriggerEvent('esx:getSharedObject', function(obj)
+        Framework.Core = obj
+    end)
+elseif Config.Framework == 'new_esx' then
+    Framework.Core = exports.es_extended:getSharedObject()
+elseif Config.Framework == 'ox' then
+    Framework.Core = exports.ox_core:GetCoreObject()
+end
+
+-- =================================================================
+-- SECCIÓN 1: FUNCIONES AUXILIARES Y DATOS DEL JUGADOR (CACHÉ)
+-- =================================================================
+
+local PlayerData = {}
+local PlayerJob = {}
+
+-- Guardamos los datos del jugador una sola vez para evitar 0.99 ms de lag
+local function UpdateLocalPlayerData()
+    if Config.Framework == 'qbcore' and Framework.Core then
+        PlayerData = Framework.Core.Functions.GetPlayerData()
+        if PlayerData then
+            PlayerJob = PlayerData.job
+        end
+    elseif (Config.Framework == 'esx' or Config.Framework == 'new_esx') and Framework.Core then
+        PlayerData = Framework.Core.GetPlayerData()
+        if PlayerData then
+            PlayerJob = PlayerData.job
+        end
+    end
+end
+
+local function GetPlayerCoords()
+    local ped = PlayerPedId()
+    local pos = GetEntityCoords(ped)
+    return {
+        x = pos.x,
+        y = pos.y,
+        z = pos.z,
+        h = GetEntityHeading(ped)
+    }
+end
+
+-- Valida si el jugador es DUEÑO o JEFE tirando de la memoria Caché (0 lag)
+local function IsPlayerAuthorized(dealerName, dealerConfig)
+    local isOwner = false
+    local isBoss = false
+
+    if Config.Framework == 'qbcore' then
+        if PlayerData and PlayerData.citizenid and DealerOwners[dealerName] == PlayerData.citizenid then
+            isOwner = true
+        end
+        if PlayerJob and PlayerJob.name == dealerConfig.job and PlayerJob.isboss then
+            isBoss = true
+        end
+    elseif Config.Framework == 'esx' or Config.Framework == 'new_esx' then
+        if PlayerData and PlayerData.identifier and DealerOwners[dealerName] == PlayerData.identifier then
+            isOwner = true
+        end
+        if PlayerJob and PlayerJob.name == dealerConfig.job and PlayerJob.grade_name == 'boss' then
+            isBoss = true
+        end
+    end
+    return isOwner or isBoss
+end
+
+-- =================================================================
+-- SECCIÓN 2: LÓGICA DEL MENÚ NUI
+-- =================================================================
+
+local function SetMenuState(state)
+    if isMenuOpen == state then
+        return
+    end
+    isMenuOpen = state
+
+    SendNUIMessage({
+        action = 'setVisible',
+        status = state
+    })
+
+    if state then
+        SendNUIMessage({
+            action = 'loadTranslations',
+            translations = Config.Locales[Config.Language],
+            itemsPerPage = Config.ItemsPerPage
+        })
+    end
+    SetNuiFocus(state, state)
+end
+
+-- =================================================================
+-- SECCIÓN 3: GESTIÓN DE ENTIDADES
+-- =================================================================
+
+local function SpawnShowroomVehicle(vehicleData)
+    if not vehicleData.spawn_x or not vehicleData.spawn_y then
+        return
+    end
+
+    local modelName = vehicleData.model
+    local modelHash = GetHashKey(modelName)
+
+    if not IsModelInCdimage(modelHash) then
+        return
+    end
+
+    RequestModel(modelHash)
+    local timeout = 0
+    while not HasModelLoaded(modelHash) and timeout < 1500 do
+        Wait(10)
+        timeout = timeout + 10
+    end
+
+    if not HasModelLoaded(modelHash) then
+        return
+    end
+
+    local x, y, z, h = tonumber(vehicleData.spawn_x), tonumber(vehicleData.spawn_y), tonumber(vehicleData.spawn_z),
+        tonumber(vehicleData.spawn_h)
+    local vehicle = CreateVehicle(modelHash, x, y, z, h, false, false)
+
+    SetEntityAsMissionEntity(vehicle, true, true)
+    SetEntityInvincible(vehicle, true)
+    SetVehicleEngineOn(vehicle, false, true, true)
+    SetVehicleDoorsLocked(vehicle, 4)
+    SetVehicleTyresCanBurst(vehicle, false)
+    SetVehicleUndriveable(vehicle, true)
+    FreezeEntityPosition(vehicle, true)
+    SetModelAsNoLongerNeeded(modelHash)
+
+    spawnedShowroomVehicles[vehicleData.id] = {
+        entity = vehicle,
+        info = vehicleData
+    }
+end
+
+local function ClearShowroomVehicles()
+    for id, data in pairs(spawnedShowroomVehicles) do
+        if DoesEntityExist(data.entity) then
+            DeleteEntity(data.entity)
+        end
+    end
+    spawnedShowroomVehicles = {}
+    nearbyVehicles = {}
+end
+
+local function DeleteSpecificShowroomVehicle(vehicleId)
+    local data = spawnedShowroomVehicles[vehicleId]
+    if data and data.entity and DoesEntityExist(data.entity) then
+        DeleteEntity(data.entity)
+    end
+    spawnedShowroomVehicles[vehicleId] = nil
+end
+
+-- =================================================================
+-- SECCIÓN 3.5: GESTIÓN DE NPCs (VENDEDORES)
+-- =================================================================
+
+local function SpawnDealershipNPCs()
+    for dealerKey, data in pairs(Config.Dealerships) do
+        -- 1. NPC Vendedor (Solo si no existe ya)
+        if not spawnedNPCs[dealerKey] then
+            local model = GetHashKey(data.npc_model)
+            RequestModel(model)
+            while not HasModelLoaded(model) do
+                Wait(10)
+            end
+
+            local ped = CreatePed(0, model, data.coords_npc.x, data.coords_npc.y, data.coords_npc.z - 1.0,
+                data.coords_npc.w, false, false)
+            FreezeEntityPosition(ped, true)
+            SetEntityInvincible(ped, true)
+            SetBlockingOfNonTemporaryEvents(ped, true)
+            if data.npc_scenario then
+                TaskStartScenarioInPlace(ped, data.npc_scenario, 0, true)
+            end
+
+            spawnedNPCs[dealerKey] = ped -- Guardamos con su clave (ej: 'cars')
+        end
+
+        -- 2. NPC Agencia (Agente inmobiliario para COMPRAR la empresa. Solo si NO hay dueño)
+        if not DealerOwners[dealerKey] and data.npc_buy then
+            if not spawnedAgencyNPCs[dealerKey] then
+                local model = GetHashKey(Config.RealEstateNPC or 'a_m_y_business_03')
+                RequestModel(model)
+                while not HasModelLoaded(model) do
+                    Wait(10)
+                end
+
+                -- AHORA USA LAS COORDENADAS 'npc_buy' (Y su rotación 'w')
+                local ped = CreatePed(0, model, data.npc_buy.x, data.npc_buy.y, data.npc_buy.z - 1.0, data.npc_buy.w,
+                    false, false)
+
+                FreezeEntityPosition(ped, true)
+                SetEntityInvincible(ped, true)
+                SetBlockingOfNonTemporaryEvents(ped, true)
+                TaskStartScenarioInPlace(ped, "WORLD_HUMAN_CLIPBOARD", 0, true)
+
+                spawnedAgencyNPCs[dealerKey] = ped -- Guardamos con su clave
+            end
+        end
+    end
+end
+
+-- Función para borrar NPCs de forma segura
+local function DeleteDealershipNPCs()
+    -- Usamos pairs porque ahora son tablas asociativas (con nombres, no solo números)
+    for k, ped in pairs(spawnedNPCs) do
+        if DoesEntityExist(ped) then
+            DeleteEntity(ped)
+        end
+    end
+    spawnedNPCs = {}
+
+    for k, ped in pairs(spawnedAgencyNPCs) do
+        if DoesEntityExist(ped) then
+            DeleteEntity(ped)
+        end
+    end
+    spawnedAgencyNPCs = {}
+end
+
+-- =================================================================
+-- SECCIÓN 4: INICIALIZACIÓN Y SISTEMA ANTI-BUGS
+-- =================================================================
+
+local function InitializeClientLoad()
+    UpdateLocalPlayerData() -- Cargamos tus datos en la caché al iniciar
+    TriggerServerEvent('DP-VehicleShop:server:getVehicles')
+    TriggerServerEvent('DP-VehicleShop:server:getSpawns')
+    TriggerServerEvent('DP-VehicleShop:server:requestOwners')
+end
+
+-- AÑADE ESTOS EVENTOS JUSTO AQUÍ (Para actualizar si cambias de trabajo en vivo)
+RegisterNetEvent('QBCore:Client:OnJobUpdate', function(JobInfo)
+    PlayerJob = JobInfo
+end)
+
+RegisterNetEvent('QBCore:Player:SetPlayerData', function(val)
+    PlayerData = val
+end)
+
+RegisterNetEvent('esx:setJob', function(job)
+    PlayerJob = job
+end)
+
+-- Cuando el script se reinicia en vivo
+AddEventHandler('onResourceStart', function(resourceName)
+    if GetCurrentResourceName() == resourceName then
+        CreateThread(function()
+            Wait(1000)
+            InitializeClientLoad()
+        end)
+    end
+end)
+
+-- Cuando un jugador entra al servidor
+RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
+    InitializeClientLoad()
+end)
+
+-- Cuando el script se detiene/reinicia (SISTEMA ANTI-BUGS / FAILSAFE)
+AddEventHandler('onResourceStop', function(resourceName)
+    if GetCurrentResourceName() == resourceName then
+        -- 1. Limpiamos NPCs y coches de exposición del mundo
+        ClearShowroomVehicles()
+        DeleteDealershipNPCs()
+
+        -- ==========================================
+        -- 2. SALVAVIDAS: Si el jugador estaba en el Showroom
+        -- ==========================================
+        if previousCoords then
+            local ped = PlayerPedId()
+
+            -- A. Liberar el ratón y la UI
+            SetNuiFocus(false, false)
+
+            -- B. Destruir la cámara cinematográfica
+            if showroomCam then
+                RenderScriptCams(false, false, 0, true, true)
+                DestroyCam(showroomCam, false)
+                showroomCam = nil
+            end
+
+            -- C. Borrar el vehículo de previsualización que estaba mirando
+            if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+                DeleteEntity(previewVehicleEntity)
+                previewVehicleEntity = nil
+            end
+
+            -- D. Teletransportarlo de vuelta a la superficie
+            SetEntityCoords(ped, previousCoords.x, previousCoords.y, previousCoords.z, false, false, false, false)
+            SetEntityHeading(ped, previousCoords.w)
+
+            -- E. Devolverle su estado físico (visibilidad, gravedad, colisiones)
+            FreezeEntityPosition(ped, false)
+            SetEntityVisible(ped, true, true)
+            SetEntityCollision(ped, true, true)
+            SetPedCanRagdoll(ped, true)
+
+            -- F. Devolverle el Chat y el Minimapa
+            TriggerEvent('chat:client:showChat', true)
+            DisplayRadar(true)
+
+            -- Limpiamos la variable
+            previousCoords = nil
+        end
+    end
+end)
+
+-- =================================================================
+-- SECCIÓN 5: EVENTOS
+-- =================================================================
+
+RegisterNetEvent('DP-VehicleShop:client:openMenu', function()
+    SetMenuState(true)
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:enterShowroomMode', function(dealerName)
+    local ped = PlayerPedId()
+
+    -- 1. Capturamos sus coordenadas EXACTAS actuales con su heading (vector4)
+    local pos = GetEntityCoords(ped)
+    local head = GetEntityHeading(ped)
+    previousCoords = vector4(pos.x, pos.y, pos.z, head)
+
+    -- 2. NUEVAS Coordenadas de la "Void Room" / Habitación subterránea (con Heading)
+    local showroomCoords = vector4(1187.23, -3252.78, -49.0, 90.67)
+
+    -- 3. Teletransportar, congelar, invisibilizar y desactivar colisiones
+    SetEntityCoords(ped, showroomCoords.x, showroomCoords.y, showroomCoords.z, false, false, false, false)
+    SetEntityHeading(ped, showroomCoords.w)
+
+    FreezeEntityPosition(ped, true)
+    SetEntityVisible(ped, false, false)
+    SetEntityCollision(ped, false, false)
+    SetPedCanRagdoll(ped, false)
+
+    -- 4. CONGELAR LA CÁMARA EXACTA (Scripted Camera)
+    showroomCam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
+    -- 1. Subimos la cámara un poco más alto (z + 1.5)
+    SetCamCoord(showroomCam, showroomCoords.x, showroomCoords.y, showroomCoords.z + 1.5)
+    -- 2. Inclinamos la cámara hacia abajo poniendo el Pitch (primer valor) en negativo (-12.0)
+    SetCamRot(showroomCam, -12.0, 0.0, showroomCoords.w, 2)
+    SetCamActive(showroomCam, true)
+    RenderScriptCams(true, false, 0, true, true)
+
+    -- 5. Ocultar el Chat y el Minimapa
+    TriggerEvent('chat:client:showChat', false)
+    DisplayRadar(false)
+
+    -- 6. Abrimos el NUI del catálogo
+    SendNUIMessage({
+        action = 'openDealershipUI'
+    })
+
+    SetNuiFocus(true, true)
+end)
+
+-- Callback que llama JS cuando se pulsa Escape en el NUI
+RegisterNUICallback('closeShowroomMenu', function(data, cb)
+    TriggerEvent('DP-VehicleShop:client:exitShowroomMode')
+    cb('ok')
+end)
+
+-- Dejamos preparada la función para cuando cierre el NUI
+RegisterNetEvent('DP-VehicleShop:client:exitShowroomMode', function()
+    local ped = PlayerPedId()
+
+    -- 1. Deshabilitamos el foco NUI
+    SetNuiFocus(false, false)
+
+    -- 1.5. Borramos el coche de prueba al salir
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        DeleteEntity(previewVehicleEntity)
+        previewVehicleEntity = nil
+    end
+
+    -- 2. DESTRUIR LA CÁMARA y devolver la vista normal al jugador
+    if showroomCam then
+        RenderScriptCams(false, false, 0, true, true)
+        DestroyCam(showroomCam, false)
+        showroomCam = nil
+    end
+
+    -- 3. Lo devolvemos a sus coordenadas EXACTAS originales
+    if previousCoords then
+        SetEntityCoords(ped, previousCoords.x, previousCoords.y, previousCoords.z, false, false, false, false)
+        SetEntityHeading(ped, previousCoords.w)
+        previousCoords = nil
+    end
+
+    -- 4. Lo descongelamos, lo hacemos visible y tangible de nuevo
+    FreezeEntityPosition(ped, false)
+    SetEntityVisible(ped, true, true)
+    SetEntityCollision(ped, true, true)
+    SetPedCanRagdoll(ped, true)
+
+    -- 5. Mostrar el Chat y el Minimapa de vuelta
+    TriggerEvent('chat:client:showChat', true)
+    DisplayRadar(true)
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:sendVehicles', function(vehicleList)
+    ClearShowroomVehicles()
+    local nuiList = {}
+
+    for _, vehicleData in pairs(vehicleList) do
+        SpawnShowroomVehicle(vehicleData)
+        table.insert(nuiList, {
+            id = vehicleData.id,
+            model = vehicleData.model,
+            display_name = vehicleData.display_name,
+            setter_name = vehicleData.setter_name,
+            price = vehicleData.price,
+            date_added = tostring(vehicleData.date_added),
+            spawn_name = vehicleData.spawn_name,
+            spawn_x = vehicleData.spawn_x,
+            spawn_y = vehicleData.spawn_y,
+            spawn_z = vehicleData.spawn_z
+        })
+    end
+
+    SendNUIMessage({
+        action = 'sendVehicles',
+        vehicleList = nuiList
+    })
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:sendSpawns', function(spawnList)
+    SendNUIMessage({
+        action = 'sendSpawns',
+        spawnList = spawnList
+    })
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:deleteVehicleEntity', function(vehicleId)
+    DeleteSpecificShowroomVehicle(vehicleId)
+end)
+
+RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
+    InitializeClientLoad()
+end)
+
+-- =================================================================
+-- EVENTOS DEL MENÚ NUI (RECEPCIÓN DE DATOS Y APERTURA)
+-- =================================================================
+
+-- 1. Apertura del Jefe
+RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealerLabel, categories)
+    currentBossDealerId = dealerId
+
+    SendNUIMessage({
+        action = 'loadCategories',
+        categories = categories
+    })
+    SendNUIMessage({
+        action = 'openBossMenu',
+        dealerName = dealerLabel
+    })
+    SetNuiFocus(true, true)
+end)
+
+-- 2. Apertura del Showroom
+RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, categories)
+    -- 1. Le pasamos las categorías al Javascript PRIMERO
+    SendNUIMessage({
+        action = 'loadCategories',
+        categories = categories
+    })
+
+    -- 2. Recuperamos el nombre (Label) del concesionario como hacías en tu código original
+    local dealerLabel = (Config.Dealerships[dealerId] and Config.Dealerships[dealerId].label) or dealerId
+
+    -- 3. Llamamos a TU evento original, el que de verdad sabe poner las cámaras y los coches
+    TriggerEvent('DP-VehicleShop:client:enterShowroomMode', dealerLabel)
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:updateBossData', function(balance, logs)
+    SendNUIMessage({
+        action = 'updateBossData',
+        balance = balance,
+        transactions = logs
+    })
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:updateOwners', function(data)
+    -- Lógica para que el NPC se vaya caminando
+    for dealerKey, ped in pairs(spawnedAgencyNPCs) do
+        if data[dealerKey] and not DealerOwners[dealerKey] then
+            FreezeEntityPosition(ped, false)
+            SetEntityInvincible(ped, false)
+            SetBlockingOfNonTemporaryEvents(ped, false)
+            ClearPedTasksImmediately(ped)
+            TaskWanderStandard(ped, 10.0, 10)
+            spawnedAgencyNPCs[dealerKey] = nil
+            local pedToLeave = ped
+            SetTimeout(8000, function()
+                if DoesEntityExist(pedToLeave) then
+                    DeleteEntity(pedToLeave)
+                end
+            end)
+        end
+    end
+
+    -- Actualizamos la tabla de dueños
+    DealerOwners = data
+
+    -- Volvemos a generar NPCs por si acaso
+    SpawnDealershipNPCs()
+end)
+
+-- Este evento recibe las categorías actualizadas del servidor y refresca el UI al instante
+RegisterNetEvent('DP-VehicleShop:client:refreshCategories', function(categories)
+    SendNUIMessage({
+        action = 'loadCategories',
+        categories = categories
+    })
+end)
+
+-- =================================================================
+-- SECCIÓN 6: NUI CALLBACKS
+-- =================================================================
+
+-- Callback para cerrar cualquier menú genérico y liberar el ratón
+RegisterNUICallback('closeMenu', function(data, cb)
+    isMenuOpen = false -- Forzamos el estado a cerrado
+    SendNUIMessage({
+        action = 'setVisible',
+        status = false
+    })
+    SetNuiFocus(false, false) -- QUITAMOS EL CURSOR SÍ O SÍ
+    cb('ok')
+end)
+
+-- Callback específico para confirmar la compra del concesionario
+RegisterNUICallback('confirmPurchase', function(data, cb)
+    local dealerId = data.dealerId
+    if dealerId then
+        TriggerServerEvent('DP-VehicleShop:server:buyDealership', dealerId)
+    end
+    SetMenuState(false) -- Cerramos la UI y liberamos el ratón
+    cb('ok')
+end)
+
+RegisterNUICallback('requestSpawnCoords', function(data, cb)
+    SendNUIMessage({
+        action = 'updateCoords',
+        coords = GetPlayerCoords()
+    });
+    cb('ok')
+end)
+
+RegisterNUICallback('notifyClient', function(data, cb)
+    local msg = _L(data.messageKey or 'unknown_error')
+    TriggerEvent('QBCore:Notify', msg, data.type or 'error', 5000)
+    cb('ok')
+end)
+
+RegisterNUICallback('setSpawnPosition', function(data, cb)
+    TriggerServerEvent('DP-VehicleShop:server:setSpawn', data);
+    cb('ok')
+end)
+
+RegisterNUICallback('assignVehicle', function(data, cb)
+    TriggerServerEvent('DP-VehicleShop:server:assignVehicle', data);
+    cb('ok')
+end)
+
+RegisterNUICallback('deleteVehicle', function(data, cb)
+    TriggerServerEvent('DP-VehicleShop:server:deleteVehicle', data.id);
+    cb('ok')
+end)
+
+RegisterNUICallback('editVehicle', function(data, cb)
+    TriggerServerEvent('DP-VehicleShop:server:editVehicle', data);
+    cb('ok')
+end)
+
+RegisterNUICallback('previewVehicle', function(data, cb)
+    local modelName = data.model
+    local modelHash = GetHashKey(modelName)
+
+    -- 1. Si ya había un coche de prueba, lo borramos
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        DeleteEntity(previewVehicleEntity)
+        previewVehicleEntity = nil
+    end
+
+    -- Si el modelo no existe en el juego, no hacemos nada
+    if not IsModelInCdimage(modelHash) then
+        return cb('ok')
+    end
+
+    -- 2. Cargar modelo
+    RequestModel(modelHash)
+    local timeout = 0
+    while not HasModelLoaded(modelHash) and timeout < 1500 do
+        Wait(10)
+        timeout = timeout + 10
+    end
+
+    if not HasModelLoaded(modelHash) then
+        return cb('ok')
+    end
+
+    -- 3. Coordenadas de aparición MEJORADAS
+    local spawnCoords = vector4(1181.54, -3252.64, -49.5, 225.0)
+
+    -- 4. Spawnear el coche SOLO EN LOCAL (isNetwork = false)
+    previewVehicleEntity = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnCoords.w, false,
+        false)
+
+    SetEntityAsMissionEntity(previewVehicleEntity, true, true)
+    SetEntityInvincible(previewVehicleEntity, true)
+    SetVehicleEngineOn(previewVehicleEntity, true, true, true) -- Motor encendido (luces)
+    SetVehicleDoorsLocked(previewVehicleEntity, 4)
+
+    -- 5. ESTANDARIZAR EL VEHÍCULO (Siempre igual, sin aleatoriedad)    
+    -- Poner Colores: Primario 0 (Negro Metálico), Secundario 0
+    SetVehicleColours(previewVehicleEntity, 0, 0)
+    -- Poner Perlado y llantas en Negro (0)
+    SetVehicleExtraColours(previewVehicleEntity, 0, 0)
+
+    -- Limpiar suciedad
+    SetVehicleDirtLevel(previewVehicleEntity, 0.0)
+
+    -- Quitar todos los "Extras" aleatorios (Techos, alerones variables, etc)
+    for i = 1, 14 do
+        if DoesExtraExist(previewVehicleEntity, i) then
+            SetVehicleExtra(previewVehicleEntity, i, true) -- 'true' apaga el extra
+        end
+    end
+
+    -- Quitar pegatinas (Liveries) aleatorias
+    SetVehicleModKit(previewVehicleEntity, 0)
+    SetVehicleLivery(previewVehicleEntity, -1)
+
+    FreezeEntityPosition(previewVehicleEntity, true)
+
+    SetModelAsNoLongerNeeded(modelHash)
+
+    cb('ok')
+end)
+
+RegisterNUICallback('closeBossMenu', function(data, cb)
+    SetNuiFocus(false, false)
+    currentBossDealerId = nil
+    cb('ok')
+end)
+
+RegisterNUICallback('bossAction', function(data, cb)
+    if currentBossDealerId and data.action and data.amount then
+        local amountNum = tonumber(data.amount)
+        if amountNum and amountNum > 0 then
+            TriggerServerEvent('DP-VehicleShop:server:bossAction', currentBossDealerId, data.action, amountNum)
+        end
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('saveCategory', function(data, cb)
+    if currentBossDealerId then
+        TriggerServerEvent('DP-VehicleShop:server:saveCategory', currentBossDealerId, data)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('deleteCategory', function(data, cb)
+    if currentBossDealerId and data.id then
+        TriggerServerEvent('DP-VehicleShop:server:deleteCategory', currentBossDealerId, data.id)
+    end
+    cb('ok')
+end)
+
+-- =================================================================
+-- SECCIÓN 7: HILOS DE EJECUCIÓN OPTIMIZADOS
+-- =================================================================
+
+CreateThread(function()
+    while true do
+        Wait(0)
+        if isMenuOpen and IsControlJustReleased(0, 200) then
+            SetMenuState(false)
+        end
+    end
+end)
+
+-- [HILO 1: SELECTOR LENTO]
+-- Ajustado a 8.0 metros para reducir candidatos.
+CreateThread(function()
+    while true do
+        local myCoords = GetEntityCoords(PlayerPedId())
+        nearbyVehicles = {}
+        local count = 0
+
+        for id, data in pairs(spawnedShowroomVehicles) do
+            if DoesEntityExist(data.entity) then
+                local dist = #(myCoords - GetEntityCoords(data.entity))
+                -- [OPTIMIZACIÓN] Reducido de 15.0 a 8.0 para procesar menos
+                if dist < 8.0 then
+                    count = count + 1
+                    nearbyVehicles[count] = {
+                        id = id,
+                        entity = data.entity,
+                        info = data.info
+                    }
+                end
+            end
+        end
+
+        Wait(400) -- Ejecutar menos veces por segundo (aprox 2.5 veces)
+    end
+end)
+
+-- [HILO 2: RENDERIZADOR RÁPIDO]
+CreateThread(function()
+    while true do
+        local sleep = 1000
+
+        -- Solo si hay vehículos en el "pool" cercano
+        if #nearbyVehicles > 0 then
+            local myCoords = GetEntityCoords(PlayerPedId())
+            local visibleVehicles = {}
+            local shouldSendUpdate = false
+            local index = 0
+
+            for i = 1, #nearbyVehicles do
+                local data = nearbyVehicles[i]
+                local vehCoords = GetEntityCoords(data.entity)
+                local dist = #(myCoords - vehCoords)
+
+                -- Si estamos cerca, activamos modo frame
+                if dist < 5.0 then
+                    sleep = 0
+
+                    -- Solo calculamos pantalla si estamos en rango visual
+                    if dist < 3.5 then
+                        local tagHeight = vehCoords.z + 1.2
+                        local onScreen, screenX, screenY = GetScreenCoordFromWorldCoord(vehCoords.x, vehCoords.y,
+                            tagHeight)
+
+                        if onScreen then
+                            index = index + 1
+                            visibleVehicles[index] = {
+                                id = data.id,
+                                display_name = data.info.display_name,
+                                spawn_name = data.info.spawn_name,
+                                setter_name = data.info.setter_name,
+                                price = data.info.price,
+                                x = screenX,
+                                y = screenY
+                            }
+                            shouldSendUpdate = true
+                        end
+                    end
+                end
+            end
+
+            if shouldSendUpdate then
+                SendNUIMessage({
+                    action = 'updateHUD',
+                    vehicles = visibleVehicles
+                })
+                isHudActive = true
+            elseif isHudActive then
+                -- Limpieza si nos alejamos
+                SendNUIMessage({
+                    action = 'updateHUD',
+                    vehicles = {}
+                })
+                isHudActive = false
+            end
+        else
+            -- Limpieza si la lista de cercanos se vacía
+            if isHudActive then
+                SendNUIMessage({
+                    action = 'updateHUD',
+                    vehicles = {}
+                })
+                isHudActive = false
+            end
+        end
+
+        Wait(sleep)
+    end
+end)
+
+-- =================================================================
+-- SECCIÓN 8: ZONAS DE INTERACCIÓN (TEXTUI Y TECLAS)
+-- =================================================================
+
+CreateThread(function()
+    while true do
+        local sleep = 1000
+        local ped = PlayerPedId()
+        local pos = GetEntityCoords(ped)
+        local inZone = false
+        local zoneId = nil
+        local zoneText = ""
+
+        -- Recorremos todos los concesionarios configurados
+        for dealerName, data in pairs(Config.Dealerships) do
+
+            -- 1. Comprobar distancia al NPC (Para gestionar los coches)
+            if data.coords_npc then
+                local npcCoords = vector3(data.coords_npc.x, data.coords_npc.y, data.coords_npc.z)
+                local distNPC = #(pos - npcCoords)
+
+                if distNPC < 2.5 then
+                    sleep = 0
+                    inZone = true
+                    zoneId = "npc_" .. dealerName
+                    zoneText = "Hablar con el Vendedor"
+
+                    -- Si presiona la E
+                    if IsControlJustReleased(0, 38) then
+                        -- Iniciamos el modo catálogo/concesionario enviando el LABEL del concesionario
+                        TriggerServerEvent('DP-VehicleShop:server:requestShowroom', dealerName)
+                    end
+                    break -- Salimos del bucle para no procesar más zonas si ya estamos en una
+                end
+            end
+
+            -- 2. Comprobar Boss Menu (SE OCULTA TOTALMENTE SI NO ERES DUEÑO O JEFE)
+            if data.bossMenu then
+                -- Si la función devuelve false (no eres jefe ni dueño), el marker NO se dibuja
+                if IsPlayerAuthorized(dealerName, data) then
+                    local bossCoords = data.bossMenu
+                    local distBoss = #(pos - bossCoords)
+
+                    if distBoss < 10.0 then
+                        sleep = 0
+                        -- Marker Verde
+                        DrawMarker(2, bossCoords.x, bossCoords.y, bossCoords.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.2,
+                            0.2, 0, 0, 0, 255, false, false, 2, true, nil, nil, false)
+
+                        if distBoss < 1.5 then
+                            inZone = true
+                            zoneId = "boss_" .. dealerName
+                            zoneText = "Gestión de Empresa"
+
+                            if IsControlJustReleased(0, 38) then
+                                TriggerServerEvent('DP-VehicleShop:server:requestBossMenu', dealerName)
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- 3. Comprobar NPC de Compra (SOLO APARECE TEXTUI SI NO TIENE DUEÑO)
+            if data.npc_buy and not DealerOwners[dealerName] then
+                local buyCoords = vector3(data.npc_buy.x, data.npc_buy.y, data.npc_buy.z)
+                local distBuy = #(pos - buyCoords)
+
+                if distBuy < 2.5 then
+                    sleep = 0
+                    inZone = true
+                    zoneId = "buy_" .. dealerName
+                    zoneText = "Comprar Empresa (" .. data.label .. ")"
+
+                    if IsControlJustReleased(0, 38) then
+                        isMenuOpen = true
+                        SendNUIMessage({
+                            action = 'openBuyMenu',
+                            dealerId = dealerName,
+                            dealerLabel = data.label,
+                            price = Config.DefaultDealershipPrice
+                        })
+                        SetNuiFocus(true, true)
+                    end
+                end
+            end
+        end
+
+        -- =================================================================
+        -- LÓGICA DE MOSTRAR/OCULTAR DP-TextUI (SIN BUCLES)
+        -- =================================================================
+        if inZone then
+            -- Si la zona ha cambiado O el texto ha cambiado (por una compra)
+            if currentActiveZone ~= zoneId or currentActiveText ~= zoneText then
+
+                -- Si ya había algo mostrándose, lo borramos primero
+                if currentActiveZone then
+                    exports['DP-TextUI']:OcultarUI(currentActiveZone)
+                end
+
+                -- Guardamos el nuevo estado y mostramos
+                currentActiveZone = zoneId
+                currentActiveText = zoneText
+                exports['DP-TextUI']:MostrarUI(zoneId, zoneText, 'E', false)
+            end
+        elseif not inZone and currentActiveZone then
+            -- Si salimos de la zona, limpiamos todo
+            exports['DP-TextUI']:OcultarUI(currentActiveZone)
+            currentActiveZone = nil
+            currentActiveText = nil
+        end
+
+        Wait(sleep)
+    end
+end)

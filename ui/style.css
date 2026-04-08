@@ -1,0 +1,1713 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap');
+
+/* =================================================================
+   1. VARIABLES Y CONFIGURACIÓN GLOBAL
+   ================================================================= */
+:root {
+    /* Paleta de Colores */
+    --primary-color: rgba(255, 255, 255, 1);
+    /* Texto principal */
+    --secondary-color: rgba(255, 255, 255, 0.8);
+    /* Texto secundario / Iconos */
+    --bg-color: rgba(0, 0, 0, 1);
+    /* Fondo principal del menú */
+
+    /* Estados y Bordes */
+    --hover-color: rgba(255, 255, 255, 0.2);
+    /* Color al pasar el mouse */
+    --border-color: rgba(255, 255, 255, 0.1);
+    /* Líneas divisorias */
+    --hover-bg: rgb(0, 0, 0);
+    /* Fondo de tablas/elementos */
+
+    /* Propiedades Visuales */
+    --border-radius: 8px;
+    --box-shadow: 0 0 0.8vh black;
+    --transition: all 0.2s ease;
+    /* Suavizado de animaciones */
+    --focus-color: #2c77a8;
+}
+
+/* Reset básico para consistencia */
+* {
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
+}
+
+/* Configuración del Cuerpo (Transparente para FiveM) */
+body {
+    background-color: transparent;
+    user-select: none;
+    /* Evita que se seleccione texto al hacer click */
+    width: 100%;
+    height: 100%;
+    color: var(--primary-color);
+    overflow: hidden !important;
+    /* IMPORTANTE: Hidden para evitar scrollbars globales */
+}
+
+/* =================================================================
+   2. PERSONALIZACIÓN DEL SCROLLBAR (Barra de desplazamiento)
+   ================================================================= */
+::-webkit-scrollbar {
+    width: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--secondary-color);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* =================================================================
+   3. CONTENEDOR PRINCIPAL (EL MENÚ)
+   ================================================================= */
+.menu-container {
+    display: none;
+    /* Oculto por defecto, JS lo activa con 'flex' o 'block' */
+    position: absolute;
+
+    /* Posicionamiento: Centrado verticalmente, alineado a la derecha */
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    min-height: 54%;
+
+    /* Estilos Visuales */
+    background: var(--bg-color);
+    color: var(--primary-color);
+    opacity: 0.90;
+    border: 0.5px solid var(--border-color);
+    border-radius: 5px 0 0 5px;
+    box-shadow: var(--box-shadow);
+    padding: 10px;
+
+    /* Flexbox para estructura interna */
+    flex-direction: column;
+    transform-origin: right center;
+    box-sizing: border-box;
+    z-index: 100;
+}
+
+/* Efecto de desenfoque cuando se abre un modal */
+.menu-container.modal-active {
+    filter: blur(2px);
+    transition: filter 0.2s ease;
+}
+
+/* =================================================================
+   4. ENCABEZADO Y DESCRIPCIÓN
+   ================================================================= */
+.menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+h2 {
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+.search-and-description {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 20px;
+}
+
+.menu-description {
+    font-size: 14px;
+    color: var(--secondary-color);
+    line-height: 1.5;
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+/* =================================================================
+   5. COMPONENTE: BOTONES
+   ================================================================= */
+
+/* Botones de acción superior (Establecer Spawn, Asignar Vehículo) */
+.btn-action {
+    align-items: center;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: var(--primary-color);
+    padding: 10px;
+    border-radius: 3px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.btn-action:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-5px);
+    box-shadow: 0 0 10px rgb(255 255 255 / 20%);
+}
+
+/* Botones Primarios (Guardar, Confirmar) */
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--bg-color);
+    /* Texto negro sobre fondo blanco */
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+    font-size: 14px;
+    margin-right: 15px;
+}
+
+.btn-primary:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Botones Secundarios (Cancelar) */
+.btn-secondary {
+    background-color: var(--hover-color);
+    color: var(--primary-color);
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 14px;
+}
+
+.btn-secondary:hover {
+    background-color: var(--hover-color);
+    border-color: var(--secondary-color);
+}
+
+/* Botones de Icono (Editar, Eliminar en la tabla) */
+.btn-icon {
+    cursor: pointer;
+    padding: 7px;
+    border: none;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    transition: var(--transition);
+}
+
+.btn-icon:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 0 10px rgb(255 255 255 / 20%);
+}
+
+/* Botón especial para copiar coordenadas */
+.btn-copy {
+    height: 45px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    color: white;
+    background-color: var(--hover-color);
+    font-weight: 600;
+    box-sizing: border-box;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-copy:hover {
+    background-color: var(--hover-color);
+}
+
+/* =================================================================
+   6. COMPONENTE: TABLA DE DATOS
+   ================================================================= */
+.table-container {
+    overflow-x: auto;
+    /* Esto hace que la tabla ocupe todo el espacio vertical disponible */
+    flex-grow: 1;
+    /* Si la lista es muy larga, el scroll sale DENTRO de la tabla, no en todo el menú */
+    overflow-y: auto;
+
+    /* Pequeño margen para que no se pegue totalmente al botón */
+    margin-bottom: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    border-radius: 5px;
+    background-color: var(--hover-bg);
+}
+
+th,
+td {
+    max-width: 5px;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Estilos de Encabezado (TH) */
+thead th {
+    position: relative;
+    display: table-cell;
+    background-color: transparent;
+    color: var(--secondary-color);
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+/* Efectos Hover en Encabezados */
+thead th:hover:not(.active-sort) {
+    background: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 0 10px rgb(255 255 255 / 20%);
+    border-radius: 5px 5px 0 0;
+}
+
+/* Estado Activo (Columna ordenada actualmente) */
+thead th.active-sort {
+    color: var(--primary-color);
+    background-color: var(--hover-color);
+    border-radius: 5px 5px 0 0;
+}
+
+thead th.active-sort .sort-icon {
+    color: var(--primary-color);
+}
+
+/* Iconos de Ordenación (Flechas) */
+.sort-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--secondary-color);
+}
+
+/* Lógica de visualización de iconos (Controlada por clases JS) */
+thead th i.fa-sort-up,
+thead th i.fa-sort-down {
+    display: none;
+}
+
+thead th.sort-asc .sort-icon i.fa-sort-up {
+    display: inline-block;
+}
+
+thead th.sort-desc .sort-icon i.fa-sort-down {
+    display: inline-block;
+}
+
+thead th.active-sort .sort-icon i.fa-sort {
+    display: none;
+}
+
+/* Ocultar el icono neutro si está activo */
+
+/* Filas del cuerpo */
+tbody tr:hover {
+    background-color: var(--hover-color);
+}
+
+.centro {
+    text-align: center;
+}
+
+.no-data-row {
+    text-align: center;
+    font-style: italic;
+    color: var(--secondary-color);
+    padding: 20px !important;
+}
+
+/* =================================================================
+   7. COMPONENTE: INPUTS Y FORMULARIOS
+   ================================================================= */
+label {
+    font-weight: 500;
+    color: var(--secondary-color);
+    font-size: 14px;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+    width: 100%;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--hover-color);
+    color: var(--primary-color);
+    box-sizing: border-box;
+    transition: var(--transition);
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 1px var(--secondary-color);
+    outline: none;
+}
+
+/* Personalización del Select (Flecha custom) */
+select {
+    font-size: 14px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    /* Flecha SVG en base64 para que sea blanca */
+    background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="%23FFFFFF"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" fill-rule="evenodd"></path></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    padding-right: 30px;
+}
+
+select option {
+    background-color: #333;
+    color: white;
+    padding: 5px;
+}
+
+/* Buscador Específico */
+.search-container {
+    position: relative;
+    width: 300px;
+}
+
+#vehicle-search-input {
+    width: 100%;
+    padding: 8px 10px 8px 35px;
+    /* Espacio a la izquierda para el icono */
+    border-radius: 5px;
+    background-color: var(--hover-color);
+    border: 1px solid var(--border-color);
+    color: var(--primary-color);
+    font-size: 14px;
+    height: 40px;
+    box-sizing: border-box;
+    margin-bottom: 0 !important;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--secondary-color);
+    font-size: 14px;
+}
+
+/* =================================================================
+   8. COMPONENTE: MODALES (Ventanas Emergentes)
+   ================================================================= */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 40%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--bg-color);
+    color: var(--primary-color);
+    border-radius: 5px;
+    padding: 30px;
+    box-shadow: var(--box-shadow);
+    border: 1px solid var(--border-color);
+    width: 650px;
+    transition: var(--transition);
+}
+
+.modal-content h3 {
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.modal-content p {
+    font-size: 14px;
+    color: var(--secondary-color);
+    margin-bottom: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-actions-alt {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.coords-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.coord-box {
+    flex-grow: 1;
+    width: 0;
+}
+
+.coords-container input[type="text"] {
+    width: 100%;
+    height: 45px;
+    text-align: center;
+    padding: 10px 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: var(--hover-color);
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+/* =================================================================
+   9. COMPONENTE: PAGINACIÓN
+   ================================================================= */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+
+    /* Esto asegura que se pegue al fondo si 'flex-grow' fallase por alguna razón */
+    margin-top: auto;
+    padding-top: 10px;
+
+    /* Evita que el footer se aplaste si la ventana es muy pequeña */
+    flex-shrink: 0;
+
+    /* Borde superior opcional para separar visualmente el footer */
+    border-top: 1px solid var(--border-color);
+    width: 100%;
+}
+
+.page-button {
+    background-color: var(--hover-color);
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: var(--transition);
+}
+
+.page-button:hover:not(:disabled) {
+    background-color: var(--hover-color);
+    border-color: var(--secondary-color);
+}
+
+.page-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.current-page {
+    align-items: center;
+    font-size: 16px;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--primary-color);
+    padding: 10px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+/* =================================================================
+   10. ESTILOS PARA LAS ETIQUETAS FLOTANTES (HUD)
+   ================================================================= */
+
+/* Contenedor transparente que cubre toda la pantalla */
+#hud-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 50;
+    overflow: hidden;
+}
+
+/* La tarjeta individual de información del vehículo (Diseño unificado con el menú) */
+.vehicle-tag {
+    position: absolute;
+    min-width: 180px;
+    transform: translate(-50%, -100%);
+    font-family: 'Arial', sans-serif;
+
+    /* Estilos Visuales */
+    background: var(--bg-color);
+    color: var(--primary-color);
+    opacity: 0.90;
+    border: 0.5px solid var(--border-color);
+    border-radius: 5px;
+    box-shadow: var(--box-shadow);
+    padding: 10px;
+
+    /* Flexbox para estructura interna */
+    flex-direction: column;
+    transform-origin: right center;
+    box-sizing: border-box;
+    z-index: 100;
+}
+
+/* Título (Nombre del Coche) - Estilo de encabezado */
+.tag-title {
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Subtítulo (Nombre del Spot) - Estilo de descripción */
+.tag-spot {
+    color: var(--secondary-color);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Información extra (Autor) - Estilo de footer pequeño */
+.tag-info {
+    font-size: 12px;
+    color: var(--secondary-color);
+    display: flex;
+    align-items: center;
+    margin-top: 5px;
+}
+
+/* Nombre del autor resaltado */
+.tag-info strong {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* Estilo del precio en la etiqueta */
+.tag-price {
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 4px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 4px;
+}
+
+/* =================================================================
+   11. INTERFAZ DEL SHOWROOM (CATÁLOGO / MODO INVISIBLE)
+   ================================================================= */
+.showroom-ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    /* Permite hacer clic a través del fondo invisible */
+    z-index: 200;
+    /* Por encima de todo */
+}
+
+/* Bloque de texto — debajo del ojo, sin fondo */
+.top-block-text {
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: transparent;
+    padding: 0;
+    pointer-events: none;
+    border-radius: 0;
+    box-shadow: none;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4vw;
+}
+
+/* =================================================================
+   12. CARRUSEL INFERIOR DE VEHÍCULOS
+   ================================================================= */
+
+/* Contenedor principal del carrusel */
+.bottom-carousel-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    /* Apilamos de arriba hacia abajo */
+    align-items: center;
+    justify-content: flex-end;
+    /* Lo pegamos al fondo */
+    padding: 0 0.5vw;
+    pointer-events: none;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 60%, transparent 100%);
+    height: 14.5vw;
+    /* Altura ajustada para que quepa la barra nueva */
+    box-sizing: border-box;
+}
+
+/* ================== BARRA SUPERIOR ================== */
+.carousel-toolbar {
+    display: flex;
+    width: 90%;
+    /* Mismo ancho que el HR para que empiece justo donde empieza la línea */
+    justify-content: flex-start;
+    /* Alinea las cajas a la izquierda */
+    gap: 5px;
+    margin-bottom: 8px;
+    pointer-events: auto;
+}
+
+/* Estilos base de las cajas (Igual que las cards de vehículos) */
+.toolbar-box {
+    background: rgba(20, 20, 20, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    height: 1.8vw;
+    /* MÁS PEQUEÑO: Antes era 2.5vw */
+    transition: all 0.2s ease;
+}
+
+/* Caja de la lupa */
+.toolbar-search {
+    width: 1.8vw;
+    /* MÁS PEQUEÑO: Cuadrada perfecta */
+    font-size: 0.8vw;
+    cursor: pointer;
+}
+
+.toolbar-search:hover {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.6);
+}
+
+/* ================== HR SEPARADOR ================== */
+.carousel-divider {
+    width: 90%;
+    border: none;
+    height: 1px;
+    background-color: rgba(200, 200, 200, 0.5);
+    /* Gris tirando a blanco semitransparente */
+    margin: 0 0 5px 0;
+    /* 10px exactamente por encima de la fila del carrusel */
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+}
+
+/* ================== FILA DEL CARRUSEL ================== */
+.carousel-row {
+    display: flex;
+    width: 100%;
+    height: 70%;
+    /* Ocupa el espacio restante inferior */
+    align-items: center;
+    justify-content: center;
+}
+
+/* Botones de navegación (Flechas) */
+.carousel-nav-btn {
+    position: relative;
+    /* Volvemos a su posición natural, a los lados del carrusel */
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    width: 2.5vw;
+    height: 70%;
+    cursor: pointer;
+    font-size: 1.2vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+    pointer-events: auto;
+    flex-shrink: 0;
+    /* Impide que el botón se aplaste o se haga fino */
+}
+
+.carousel-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: white;
+}
+
+/* Envoltorio donde van las cards (El que hace scroll) */
+.carousel-wrapper {
+    display: flex;
+    gap: 0.5vw;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    flex-grow: 1;
+    height: 100%;
+    padding: 0.5vw 0;
+    margin: 0 0.5vw;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    pointer-events: auto;
+}
+
+.carousel-wrapper::-webkit-scrollbar {
+    display: none;
+    /* Chrome/Safari */
+}
+
+/* Estilo individual de cada Card de vehículo */
+.vehicle-card {
+    flex: 0 0 14vw;
+    /* Ancho ajustado para que queden rectangulares/apaisadas */
+    height: 100%;
+    background: rgba(20, 20, 20, 0.85);
+    /* Un poco más oscuro */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.vehicle-card:hover {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-3px);
+    /* Levanta un poquito menos */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.6);
+}
+
+/* Contenedor de la información superior (Marca y Modelo) */
+.card-header-info {
+    display: flex;
+    align-items: center;
+    /* Centrado verticalmente respecto al logo */
+    margin-bottom: 0.5vw;
+}
+
+/* Logo de la marca (Cuadrado pequeño) */
+.card-brand-logo {
+    width: 1.8vw;
+    height: 1.8vw;
+    background: transparent;
+    /* Fondo transparente, puedes poner un color si quieres cuadro sólido */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    margin-right: 0.5vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9vw;
+    color: white;
+}
+
+/* Textos de la marca y modelo */
+.card-text-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.card-brand-name {
+    color: white;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8vw;
+    /* Texto un poco más pequeño */
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.card-model-name {
+    color: #999;
+    font-family: 'Arial', sans-serif;
+    font-size: 0.65vw;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: -0.1vw;
+    /* Lo pega un poco a la marca */
+}
+
+/* Imagen grande del vehículo */
+.card-vehicle-image {
+    flex-grow: 1;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 0.8vw;
+    /* Para cuando tengas las imágenes PNG transparentes, aquí iría el background-image con background-size: contain */
+}
+
+/* Cambia el cursor en todo el carrusel al arrastrar */
+.carousel-wrapper.is-dragging {
+    cursor: grabbing !important;
+}
+
+/* APAGA los hovers y los clics en las cards MIENTRAS se está arrastrando */
+.carousel-wrapper.is-dragging .vehicle-card {
+    pointer-events: none !important;
+}
+
+/* Difuminado por ambos lados (En el medio) */
+.mask-both {
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 2vw, black calc(100% - 2vw), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 2vw, black calc(100% - 2vw), transparent 100%);
+}
+
+/* Difuminado solo a la derecha (Al principio) */
+.mask-right {
+    -webkit-mask-image: linear-gradient(to right, black 0%, black calc(100% - 2vw), transparent 100%);
+    mask-image: linear-gradient(to right, black 0%, black calc(100% - 2vw), transparent 100%);
+}
+
+/* Difuminado solo a la izquierda (Al final) */
+.mask-left {
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 2vw, black 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 2vw, black 100%);
+}
+
+/* Sin difuminado (Si hay muy pocos coches y no hay scroll) */
+.mask-none {
+    -webkit-mask-image: none;
+    mask-image: none;
+}
+
+/* Estado seleccionado de la card */
+.vehicle-card.selected {
+    border-color: #ffffff;
+    /* Borde blanco brillante */
+    background: rgba(40, 40, 40, 0.95);
+    transform: translateY(-5px);
+    /* Se queda levantada */
+    box-shadow: 0 5px 20px rgba(255, 255, 255, 0.2);
+    /* Resplandor */
+}
+
+/* Anulamos el efecto hover si ya está seleccionada para evitar parpadeos */
+.vehicle-card.selected:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(255, 255, 255, 0.2);
+}
+
+/* =================================================================
+   13. MENÚ DE COMPRA DE EMPRESA
+   ================================================================= */
+.buy-menu-height {
+    height: auto !important;
+    min-height: auto !important;
+    width: 400px !important;
+}
+
+.buy-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 10px;
+}
+
+.buy-question {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2vw;
+    text-align: center;
+    color: white;
+}
+
+.buy-warning {
+    font-size: 13px;
+    color: #bbb;
+    text-align: center;
+    font-style: italic;
+}
+
+.buy-details {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.buy-info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.info-label {
+    font-size: 11px;
+    color: #888;
+    font-weight: bold;
+}
+
+.info-value {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.info-value-price {
+    font-weight: bold;
+    font-size: 18px;
+    color: #2ecc71;
+}
+
+.btn-buy-large {
+    background: white;
+    color: black;
+    border: none;
+    padding: 15px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1vw;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+}
+
+.btn-buy-large:hover {
+    background: #2ecc71;
+    color: white;
+    transform: scale(1.02);
+}
+
+/* =================================================================
+   14. BOSS MENU (DASHBOARD)
+   ================================================================= */
+
+/* Ajuste del contenedor principal para que sea grande */
+.boss-menu-override {
+    max-width: none !important;
+    width: 60vw !important;
+    height: 80vh !important;
+    min-height: 54%;
+    display: flex;
+    flex-direction: column;
+    position: absolute !important;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    overflow: visible !important;
+    border-radius: 0 0 0 5px;
+}
+
+#boss-container .menu-header {
+    margin-bottom: -10px;
+    padding-bottom: 0;
+}
+
+/* Layout dividido: (Ya no hay sidebar aquí adentro) */
+.boss-layout {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow: hidden;
+    margin-top: 1vw;
+    width: 100%;
+    height: auto;
+}
+
+/* --- NAV LATERAL FLOTANTE (ESTILO DP-INVENTORY EXACTO) --- */
+.tabs-sidebar {
+    position: absolute;
+    left: -3.5vh;
+    top: -1px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg-color);
+    padding: 5px;
+    border: 0.5px solid var(--border-color);
+    border-right: none;
+    border-radius: 5px 0 0 5px;
+    box-shadow: var(--box-shadow);
+}
+
+.tab-btn {
+    width: 2.5vh;
+    height: 2.5vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.tab-btn.active {
+    background: var(--primary-color, white);
+    color: black;
+    /* Contraste con el fondo blanco del active */
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+/* --- CONTENIDO PRINCIPAL --- */
+.boss-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.boss-page {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+}
+
+.boss-page.active {
+    display: flex;
+}
+
+/* --- PANEL: 4 ESTADÍSTICAS SUPERIORES --- */
+.boss-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7.5px;
+    margin-bottom: 7.5px;
+    flex-shrink: 0;
+}
+
+.boss-stat-card {
+    background: rgba(20, 20, 20, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 7.5px;
+    display: flex;
+    align-items: center;
+    gap: 7.5px;
+}
+
+.stat-icon {
+    width: 2.5vw;
+    height: 2.5vw;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1vw;
+    color: white;
+}
+
+.stat-icon.alert {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+.stat-icon.success {
+    background: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+}
+
+.stat-icon.star {
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-title {
+    font-size: 0.7vw;
+    color: #aaa;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.stat-number {
+    font-size: 1.3vw;
+    font-weight: 900;
+    color: white;
+    font-family: 'Orbitron', sans-serif;
+}
+
+/* --- PANEL: 2 WIDGETS INFERIORES --- */
+.boss-widgets-row {
+    display: flex;
+    gap: 7.5px;
+    flex-grow: 1;
+    min-height: 0;
+    /* Evita desbordamiento */
+}
+
+.boss-widget {
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 7.5px;
+    display: flex;
+    flex-direction: column;
+}
+
+.reservation-widget {
+    flex: 0 0 30%;
+}
+
+.sales-widget {
+    flex: 1;
+}
+
+.widget-title {
+    font-size: 0.9vw;
+    color: white;
+    margin: 5px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* --- RESERVAS (ESTILO SHOWROOM) --- */
+.reservation-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 7.5px;
+    padding-right: 5px;
+    /* Espacio para el scrollbar */
+}
+
+.reservation-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.reservation-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+/* Base idéntica a .vehicle-card del carrusel */
+.reservation-card {
+    background: rgba(20, 20, 20, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 7.5px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s ease;
+}
+
+/* Forzamos un tamaño para la imagen en este contexto */
+.res-image-box {
+    min-height: 6vw;
+    margin-bottom: 7.5px;
+}
+
+/* Footer de la reserva */
+.res-footer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 7.5px;
+}
+
+.res-buyer-data {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 7.5px;
+    border-radius: 3px;
+}
+
+.res-buyer-name {
+    color: white;
+    font-size: 0.75vw;
+    font-weight: bold;
+}
+
+.res-buyer-name i {
+    color: #888;
+    margin-right: 0.3vw;
+}
+
+.res-price {
+    font-weight: bold;
+    color: #2ecc71;
+    font-size: 0.8vw;
+}
+
+.btn-accept-res {
+    background: white;
+    color: black;
+    border: none;
+    padding: 0.5vw;
+    border-radius: 3px;
+    font-weight: 900;
+    font-size: 0.7vw;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.btn-accept-res:hover {
+    background: #2ecc71;
+    color: white;
+}
+
+/* --- VENTAS LISTA Y FOOTER (FINITO) --- */
+.sales-table-container {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.sales-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.4vw;
+    /* Súper ajustado */
+    padding-top: 0.4vw;
+    border-top: 1px solid var(--border-color);
+}
+
+.sales-search {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.2vw 0.5vw;
+    /* Muy finito */
+}
+
+.sales-search i {
+    color: #888;
+    margin-right: 0.5vw;
+    font-size: 0.7vw;
+}
+
+.sales-search input {
+    background: transparent;
+    border: none;
+    color: white;
+    outline: none;
+    width: 12vw;
+    font-size: 0.75vw;
+}
+
+.sales-search input[type="text"] {
+    margin-bottom: 0;
+}
+
+.sales-pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+    color: white;
+    font-weight: bold;
+    font-size: 0.8vw;
+}
+
+.sales-pagination .btn-icon {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: none;
+    padding: 0.2vw 0.6vw;
+    /* Botones muy finos */
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.7vw;
+}
+
+.sales-pagination .btn-icon:hover {
+    background: var(--primary-color);
+    color: black;
+}
+
+/* =================================================================
+   15. BOSS MENU - PESTAÑA COMPAÑÍA
+   ================================================================= */
+
+.company-balance-widget {
+    flex: 0 0 30%;
+    max-width: 30%;
+    /* NO DEJA QUE CREZCA MÁS DEL 35% */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Evita que el contenido desborde hacia afuera */
+}
+
+.company-transactions-widget {
+    flex: 1;
+    /* Ocupa el resto */
+    display: flex;
+    flex-direction: column;
+}
+
+.widget-desc {
+    color: #aaa;
+    font-size: 0.75vw;
+    margin-bottom: 0.8vw;
+    font-style: italic;
+}
+
+/* Caja oscura grande para el dinero */
+.balance-display {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 2vw;
+    margin: 1vw 0;
+    text-align: center;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    /* Mantiene el contenido a raya */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.balance-label {
+    display: block;
+    color: #aaa;
+    font-size: 0.8vw;
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-bottom: 0.5vw;
+    letter-spacing: 1px;
+}
+
+.balance-amount {
+    display: block;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.8vw;
+    /* Tamaño base ligeramente más ajustado */
+    color: #2ecc71;
+    font-weight: 900;
+    text-shadow: 0 0 15px rgba(46, 204, 113, 0.4);
+    white-space: nowrap;
+    /* Evita que salte de línea */
+    width: 100%;
+    transition: font-size 0.1s ease;
+    /* Transición suave al encogerse */
+}
+
+/* Contenedor de botones de acción */
+.balance-actions {
+    display: flex;
+    gap: 1vw;
+    width: 100%;
+    margin-top: auto;
+    /* Empuja los botones al fondo */
+}
+
+/* Asegurar que el dinero NUNCA salte de línea */
+.balance-amount {
+    display: block;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 3vw;
+    color: #2ecc71;
+    font-weight: 900;
+    text-shadow: 0 0 15px rgba(46, 204, 113, 0.4);
+    white-space: nowrap;
+    /* <-- ESTO EVITA QUE SALTE A LA SIGUIENTE LÍNEA */
+}
+
+/* Botones específicos de dinero */
+.btn-deposit,
+.btn-withdraw {
+    flex: 1;
+    padding: 1vw;
+    border: none;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 0.8vw;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: white;
+}
+
+.btn-deposit {
+    background: rgba(46, 204, 113, 0.8);
+    border: 1px solid rgba(46, 204, 113, 0.5);
+}
+
+.btn-deposit:hover {
+    background: rgba(46, 204, 113, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+}
+
+.btn-withdraw {
+    background: rgba(231, 76, 60, 0.8);
+    border: 1px solid rgba(231, 76, 60, 0.5);
+}
+
+.btn-withdraw:hover {
+    background: rgba(231, 76, 60, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+}
+
+/* Colores para la tabla de transacciones */
+.text-deposit {
+    color: #2ecc71;
+    font-weight: bold;
+}
+
+.text-withdraw {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* =================================================================
+   16. SUB-PÁGINAS Y FORMULARIOS (PERSONAL / AJUSTES)
+   ================================================================= */
+.btn-back {
+    background: transparent;
+    color: #aaa;
+    border: 1px solid var(--border-color);
+    padding: 0.4vw 0.8vw;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.75vw;
+    transition: all 0.2s ease;
+}
+
+.btn-back:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* Layouts internos para formularios */
+.form-row {
+    display: flex;
+    gap: 1vw;
+    width: 100%;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Botón especial pequeño para copiar códigos */
+.btn-copy-sm {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 0.2vw 0.4vw;
+    margin-left: 0.5vw;
+    font-size: 0.7vw;
+    transition: all 0.2s ease;
+}
+
+.btn-copy-sm:hover {
+    background: #2ecc71;
+    color: black;
+}
+
+/* Centrar exclusivamente tablas específicas */
+.table-centered th,
+.table-centered td {
+    text-align: center !important;
+}
+
+/* --- ESTILOS DE SEGURIDAD PARA CÓDIGOS DE DESCUENTO --- */
+.discount-code-pill {
+    background: rgba(128, 128, 128, 0.15);
+    /* Background grisáceo */
+    color: white;
+    padding: 0.15vw 0.4vw;
+    /* Más pequeño y ajustado */
+    border-radius: 3px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65vw;
+    /* Letra más pequeña */
+    letter-spacing: 1px;
+    cursor: pointer;
+    filter: blur(3.5px);
+    /* Difuminado ajustado al nuevo tamaño */
+    user-select: none;
+    transition: filter 0.3s ease, background 0.3s ease, color 0.3s ease;
+    display: inline-block;
+    border: 1px solid rgba(128, 128, 128, 0.5);
+    /* Bordes grises */
+}
+
+/* Al hacer 1 clic (Revelado) - Gris más claro para que se lea bien */
+.discount-code-pill.revealed {
+    filter: blur(0);
+    background: rgba(128, 128, 128, 0.3);
+    border: 1px solid rgba(128, 128, 128, 0.8);
+    user-select: text;
+}
+
+/* Al hacer doble clic (Copiado temporal) - Blanco puro para dar feedback visual */
+.discount-code-pill.copied {
+    filter: blur(0);
+    background: rgba(255, 255, 255, 0.9);
+    color: black;
+    border-color: white;
+    font-weight: bold;
+}
+
+/* Texto de Expiración más pequeño */
+.expires-text {
+    color: #888;
+    font-size: 0.65vw;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+/* =================================================================
+   17. SHOWROOM FILTROS (CATEGORÍAS TEXTO PLANO)
+   ================================================================= */
+
+/* Forzamos que los elementos del toolbar estén separados por 5px exactos */
+.carousel-toolbar {
+    gap: 5px !important;
+}
+
+.toolbar-filters {
+    display: flex;
+    gap: 0.8vw;
+    /* Espacio entre categorías */
+    overflow-x: auto;
+    align-items: center;
+    /* Centrado vertical absoluto */
+    justify-content: flex-start;
+    padding: 0 1vw;
+    /* Espaciado interior (izq/der) para que respiren las letras */
+    margin: 0 !important;
+    /* Quitamos márgenes fantasma */
+    height: 1.8vw;
+    /* MISMA ALTURA EXACTA QUE LA LUPA */
+    flex: 0 1 auto;
+    /* HACE QUE SE AJUSTE A SU CONTENIDO SIN ESTIRARSE AL MÁXIMO */
+}
+
+/* Ocultamos la barra de scroll para que no ensucie el diseño */
+.toolbar-filters::-webkit-scrollbar {
+    display: none;
+}
+
+/* El texto de la categoría */
+.filter-text {
+    color: #666;
+    font-family: 'Exo 2', sans-serif;
+    font-size: 0.65vw;
+    font-weight: 400;
+    cursor: pointer;
+    transition: color 0.2s ease, text-shadow 0.2s ease, font-weight 0.2s ease;
+    white-space: nowrap;
+    margin: 0;
+    line-height: 1;
+    /* Centrado perfecto del texto */
+    display: flex;
+    align-items: center;
+}
+
+.filter-text:hover {
+    color: #aaa;
+}
+
+.filter-text.active {
+    color: white;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+/* =================================================================
+   19. ESTADOS VACÍOS (EMPTY STATES)
+   ================================================================= */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    min-height: 10vw;
+    /* Asegura un tamaño mínimo si está en un div */
+    text-align: center;
+    gap: 0.8vw;
+    padding: 2vw 0;
+}
+
+.empty-state-icon {
+    font-size: 4vw;
+    color: rgba(255, 255, 255, 0.05);
+    /* Muy transparente para que quede de fondo */
+    filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.02));
+}
+
+.empty-state-text {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 0.8vw;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
