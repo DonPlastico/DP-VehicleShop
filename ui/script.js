@@ -12,14 +12,15 @@ let originalFullList = [];
 let currentWorkingList = [];
 
 // Configuración de visualización
-let currentPage = 1;           // Página actual
-let itemsPerPage = 7;          // Elementos por página (se actualiza desde Lua)
-let sortColumn = 'date_added'; // Columna activa de ordenación
-let sortDirection = 'desc';    // 'asc' o 'desc'
-let currentFilter = '';        // Texto del buscador
-let isShowroomOpen = false;    // Controla si el catálogo de clientes está abierto
-let isBossMenuOpen = false;    // Controla si el Boss Menu está abierto
+let currentPage = 1;            // Página actual
+let itemsPerPage = 7;           // Elementos por página (se actualiza desde Lua)
+let sortColumn = 'date_added';  // Columna activa de ordenación
+let sortDirection = 'desc';     // 'asc' o 'desc'
+let currentFilter = '';         // Texto del buscador
+let isShowroomOpen = false;     // Controla si el catálogo de clientes está abierto
+let isBossMenuOpen = false;     // Controla si el Boss Menu está abierto
 let currentBossDealerName = ""; // Guarda el nombre de la empresa para los títulos
+let activeJobGrades = [];       // Guardará los rangos del trabajo del jugador para mostrar/ocultar categorías en el Boss Menu
 
 // =================================================================
 // SECCIÓN 2: SISTEMA DE TRADUCCIÓN Y FORMATO
@@ -600,9 +601,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Abre el menú de gestión (Boss Menu)
             case 'openBossMenu':
                 isBossMenuOpen = true;
+                // CAMBIAMOS data.dealerLabel por data.dealerName para que coincida con tu Lua
                 currentBossDealerName = data.dealerName;
+
                 document.getElementById('boss-dealer-title').innerText = currentBossDealerName;
-                document.getElementById('boss-back-btn').style.display = 'none'; // Ocultamos el volver al abrir
+                document.getElementById('boss-back-btn').style.display = 'none';
                 document.getElementById('boss-container').style.display = 'flex';
                 break;
             // Actualiza los datos financieros en tiempo real
@@ -652,6 +655,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('cat-name-input').value = '';
                     document.getElementById('cat-label-input').value = '';
                     document.getElementById('btn-cancel-cat').style.display = 'none';
+                }
+                break;
+            // Recibe los rangos de trabajo para mostrar/ocultar categorías en el Boss Menu
+            case 'loadJobGrades':
+                activeJobGrades = data.grades || [];
+                renderJobGrades();
+                break;
+            // Recibe la lista de vehículos reales filtrada para este concesionario
+            case 'loadBossStock':
+                globalStock = data.vehicles || [];
+
+                // Si la pestaña de vehículos está abierta justo ahora, la refrescamos al instante
+                if (document.getElementById('tab-vehicles') && document.getElementById('tab-vehicles').classList.contains('active')) {
+                    renderBossVehicles(document.getElementById('boss-vehicles-search').value);
                 }
                 break;
         }
@@ -923,6 +940,21 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         if (pageElement) {
             pageElement.classList.add('active');
         }
+
+        // Ocultar botón VOLVER y restaurar el título al cambiar de pestaña principal
+        const backBtn = document.getElementById('boss-back-btn');
+        if (backBtn) backBtn.style.display = 'none';
+
+        const titleEl = document.getElementById('boss-dealer-title');
+        if (titleEl) titleEl.innerText = currentBossDealerName;
+
+        // [AÑADIDO] Generar las tarjetas visuales de stock SOLO si entramos a esa pestaña
+        if (targetId === 'tab-vehicles') {
+            const searchInput = document.getElementById('boss-vehicles-search');
+            if (searchInput) searchInput.value = ''; // Limpiamos el buscador por si acaso
+
+            renderBossVehicles(); // Llamamos a la función que pinta el stock
+        }
     });
 });
 
@@ -952,7 +984,7 @@ let dummySales = [
 
 let salesWorkingList = [...dummySales];
 let salesCurrentPage = 1;
-const salesItemsPerPage = 19; // Ajustado para que quepan 8 ventas en la misma vista
+const salesItemsPerPage = 18; // Ajustado para que quepan 8 ventas en la misma vista
 
 // Renderizar Tabla
 function renderSalesTable() {
@@ -991,8 +1023,8 @@ function renderSalesTable() {
                 <td><strong>${sale.buyer}</strong></td>
                 <td>${sale.modelLabel}</td>
                 <td style="color:#aaa;">${sale.modelId}</td>
-                <td style="color:#2ecc71; font-weight:bold;">$ ${sale.price}</td>
-                <td style="font-size:0.8vw;">${sale.date}</td>
+                <td style="color:#fff; font-weight:bold;">$ ${sale.price}</td>
+                <td style="font-size:0.8vw; color:#aaa;">${sale.date}</td>
             </tr>
         `;
     });
@@ -1032,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let transWorkingList = [];
 let originalTransList = [];
 let transCurrentPage = 1;
-const transItemsPerPage = 18;
+const transItemsPerPage = 19;
 
 function renderTransactionsTable() {
     const tbody = document.getElementById('boss-transactions-tbody');
@@ -1199,11 +1231,11 @@ if (transferIdInput && transferSelect) {
 // --- 1. SANCIONADOS ---
 let dummySanc = [
     { name: 'Paco Fiestas', sanctions: 2, date: '08-04-2026' },
-    { name: 'Juan Nieve', sanctions: 1, date: '07-04-2026' }
+    { name: 'Juan Nieve', sanctions: 1, date: '07-04-2026' },
 ];
 let sancWorkingList = [...dummySanc];
 let sancCurrentPage = 1;
-const sancItemsPerPage = 16; // <-- AJUSTA ESTE NÚMERO A TU GUSTO
+const sancItemsPerPage = 15; // <-- AJUSTA ESTE NÚMERO A TU GUSTO
 
 function renderSancTable() {
     const tbody = document.getElementById('sanc-tbody');
@@ -1223,7 +1255,7 @@ function renderSancTable() {
     if (itemsToShow.length === 0) return tbody.innerHTML = `<tr><td colspan="3" style="border:none;"><div class="empty-state"><iconify-icon icon="solar:shield-warning-bold-duotone" class="empty-state-icon"></iconify-icon><span class="empty-state-text">Ningún empleado sancionado</span></div></td></tr>`;
 
     itemsToShow.forEach(s => {
-        tbody.innerHTML += `<tr><td><strong>${s.name}</strong></td><td style="color:#e74c3c;">${s.sanctions}</td><td style="font-size:0.7vw;">${s.date}</td></tr>`;
+        tbody.innerHTML += `<tr><td><strong>${s.name}</strong></td><td style="color:#fff; font-weight:bold;">${s.sanctions}</td><td style="font-size:0.7vw; color:#aaa;">${s.date}</td></tr>`;
     });
 }
 
@@ -1239,11 +1271,11 @@ document.getElementById('sanc-search')?.addEventListener('input', (e) => {
 // --- 2. EMPLEADOS ---
 let dummyEmp = [
     { name: 'Alex Casacas', rank: 'Jefe', salary: '2000' },
-    { name: 'Paca Sancada', rank: 'Vendedor', salary: '500' }
+    { name: 'Paca Sancada', rank: 'Vendedor', salary: '500' },
 ];
 let empWorkingList = [...dummyEmp];
 let empCurrentPage = 1;
-const empItemsPerPage = 9; // <-- AJUSTA ESTE NÚMERO A TU GUSTO
+const empItemsPerPage = 10; // <-- AJUSTA ESTE NÚMERO A TU GUSTO
 
 function renderEmpTable() {
     const tbody = document.getElementById('emp-tbody');
@@ -1266,8 +1298,8 @@ function renderEmpTable() {
         tbody.innerHTML += `<tr>
             <td><strong>${e.name}</strong></td>
             <td style="color:#aaa;">${e.rank}</td>
-            <td style="color:#2ecc71;">$ ${e.salary}</td>
-            <td class="centro"><button class="btn-icon"><i class="fa-solid fa-pen"></i></button></td>
+            <td style="color:#fff;">$ ${e.salary}</td>
+            <td class="centro"><button class="btn-icon" style="color:#aaa;"><i class="fa-solid fa-pen"></i></button></td>
         </tr>`;
     });
 }
@@ -1284,11 +1316,11 @@ document.getElementById('emp-search')?.addEventListener('input', (e) => {
 // --- 3. DESCUENTOS ---
 let dummyDisc = [
     { code: 'VERANO26', author: 'Alex', vehicles: 'TODOS', perc: 15, uses: 10, expires: 'ILIMITADO' },
-    { code: 'VIPZENT', author: 'Paca', vehicles: 'Zentorno', perc: 5, uses: 1, expires: '15-04-2026' }
+    { code: 'VIPZENT', author: 'Paca', vehicles: 'Zentorno', perc: 5, uses: 1, expires: '15-04-2026' },
 ];
 let discWorkingList = [...dummyDisc];
 let discCurrentPage = 1;
-const discItemsPerPage = 13; // <-- AJUSTA ESTE NÚMERO A TU GUSTO (La tabla es más alta)
+const discItemsPerPage = 15; // <-- AJUSTA ESTE NÚMERO A TU GUSTO (La tabla es más alta)
 
 function renderDiscTable() {
     const tbody = document.getElementById('disc-tbody');
@@ -1311,11 +1343,11 @@ function renderDiscTable() {
         tbody.innerHTML += `<tr>
             <td><span class="discount-code-pill" data-code="${d.code}">${d.code}</span></td>
             <td style="color:#aaa;">${d.author}</td>
-            <td>${d.vehicles}</td>
-            <td style="color:#2ecc71; font-weight:bold;">${d.perc}%</td>
-            <td>${d.uses}</td>
+            <td style="color:#ccc;">${d.vehicles}</td>
+            <td style="color:#fff; font-weight:bold;">${d.perc}%</td>
+            <td style="color:#aaa;">${d.uses}</td>
             <td><span class="expires-text">${d.expires}</span></td>
-            <td class="centro"><button class="btn-icon" style="color:#e74c3c;"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td class="centro"><button class="btn-icon" style="color:#aaa;"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
     });
 }
@@ -1399,12 +1431,12 @@ function renderBossCatsTable() {
             </td>
             <td style="text-align: left; padding-left: 1vw;">
                 <strong style="color: rgb(200 200 200); font-size: 0.8vw;">${c.label}</strong><br>
-                <span style="color: #2ecc71; font-size: 0.6vw; text-transform: lowercase;">${c.name}</span>
+                <span style="color: #888; font-size: 0.6vw; text-transform: lowercase;">${c.name}</span>
             </td>
             <td class="centro" style="white-space: nowrap;">
-                <button class="btn-icon" style="color:#2ecc71;" onclick="viewCategory(${c.id})" title="Mostrar Vehículos"><i class="fa-solid fa-eye"></i></button>
-                <button class="btn-icon" style="color:#3498db;" onclick="editDummyCat(${c.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn-icon" style="color:#e74c3c;" onclick="deleteCategory(${c.id})" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
+                <button class="btn-icon" style="color:#fff;" onclick="viewCategory(${c.id})" title="Mostrar Vehículos"><i class="fa-solid fa-eye"></i></button>
+                <button class="btn-icon" style="color:#ccc;" onclick="editDummyCat(${c.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-icon" style="color:#888;" onclick="deleteCategory(${c.id})" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
             </td>
         </tr>`;
     });
@@ -1437,17 +1469,16 @@ function editDummyCat(id) {
     const cat = activeCategories.find(c => c.id === id);
     if (cat) {
         document.getElementById('cat-modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar Categoría';
-        document.getElementById('cat-modal-desc').innerText = 'Modifica el nombre visible. El ID interno NO se puede cambiar.';
+        document.getElementById('cat-modal-desc').innerText = 'Modifica el nombre o ID. Si cambias el ID, todos los coches dentro se actualizarán solos.';
         document.getElementById('cat-id-input').value = cat.id;
+        document.getElementById('cat-old-name-input').value = cat.name; // Guardamos el viejo para el SQL
 
-        // Desactivar input del ID interno por seguridad
         const nameInput = document.getElementById('cat-name-input');
         nameInput.value = cat.name;
-        nameInput.disabled = true;
-        nameInput.style.opacity = '0.5';
+        nameInput.disabled = false; // [NUEVO] ¡Ahora sí dejamos editarlo!
+        nameInput.style.opacity = '1';
 
         document.getElementById('cat-label-input').value = cat.label;
-
         toggleModal('category-modal', true);
     }
 }
@@ -1464,6 +1495,7 @@ document.getElementById('btn-cancel-cat')?.addEventListener('click', () => {
 // Guardar Categoría desde el Modal
 document.getElementById('btn-save-cat')?.addEventListener('click', () => {
     const id = document.getElementById('cat-id-input').value;
+    const oldName = document.getElementById('cat-old-name-input').value;
     const name = document.getElementById('cat-name-input').value.trim().toLowerCase();
     const label = document.getElementById('cat-label-input').value.trim();
 
@@ -1474,20 +1506,49 @@ document.getElementById('btn-save-cat')?.addEventListener('click', () => {
         body: JSON.stringify({
             id: id ? parseInt(id) : null,
             name: name,
+            oldName: oldName, // Mandamos el nombre viejo al servidor
             label: label
         })
     });
 
-    toggleModal('category-modal', false); // Cierra el modal
+    toggleModal('category-modal', false);
 });
 
-// Eliminar Categoría (Sigue igual)
+// Eliminar Categoría (Con chequeo inteligente de Stock)
 function deleteCategory(id) {
+    const cat = activeCategories.find(c => c.id === id);
+    if (!cat) return;
+
+    // Miramos en nuestra variable global si hay coches usando esta categoría
+    const vehiclesInCat = globalStock.filter(v => v.category === cat.name);
+
+    if (vehiclesInCat.length > 0) {
+        // TIENE COCHES: Mostramos la advertencia de peligro
+        document.getElementById('delete-cat-modal-text').innerHTML = `La categoría <b>${cat.label.toUpperCase()}</b> contiene <b>${vehiclesInCat.length} modelos</b> en stock.<br><br>Si la eliminas, <b>SE BORRARÁN TODOS</b> y la empresa perderá el dinero invertido. ¿Continuar?`;
+        document.getElementById('cat-to-delete-id').value = cat.id;
+        document.getElementById('cat-to-delete-name').value = cat.name;
+        toggleModal('delete-category-modal', true);
+    } else {
+        // ESTÁ VACÍA: Disparamos a matar sin preguntar
+        fetch(`https://${GetParentResourceName()}/deleteCategory`, {
+            method: 'POST',
+            body: JSON.stringify({ id: cat.id, name: cat.name })
+        });
+    }
+}
+
+// Botón de SÍ, ELIMINAR TODO del nuevo modal
+document.getElementById('confirm-delete-cat-btn')?.addEventListener('click', () => {
+    const id = document.getElementById('cat-to-delete-id').value;
+    const name = document.getElementById('cat-to-delete-name').value;
+
     fetch(`https://${GetParentResourceName()}/deleteCategory`, {
         method: 'POST',
-        body: JSON.stringify({ id: id })
+        body: JSON.stringify({ id: parseInt(id), name: name })
     });
-}
+
+    toggleModal('delete-category-modal', false);
+});
 
 // Añadimos estas funciones al inicio
 document.addEventListener('DOMContentLoaded', () => {
@@ -1495,10 +1556,98 @@ document.addEventListener('DOMContentLoaded', () => {
     renderShowroomFilters();
 });
 
-// Función para el botón del "Ojito" (Próximamente)
+// Función para el botón del "Ojito" (Ver vehículos de una categoría)
 function viewCategory(id) {
-    console.log("Mostrando vehículos de la categoría " + id + " (Aún no implementado)");
-    // Aquí cargaremos los coches de esa categoría en el grid derecho en el futuro
+    // 1. Buscamos qué categoría hemos clickeado
+    const cat = activeCategories.find(c => c.id === id);
+    if (!cat) return;
+
+    // 2. Referenciamos la cuadrícula derecha y actualizamos su título
+    const grid = document.querySelector('.category-vehicles-grid');
+    const rightWidget = grid.parentElement;
+    const titleEl = rightWidget.querySelector('.widget-title');
+
+    titleEl.innerHTML = `<i class="fa-solid fa-car-side"></i> Vehículos en: <span style="color: #2ecc71;">${cat.label.toUpperCase()}</span>`;
+
+    // Le aplicamos las mismas clases CSS que tiene la cuadrícula grande para que se vea igual
+    grid.className = 'category-vehicles-grid boss-vehicles-grid';
+    grid.innerHTML = ''; // Limpiamos lo que hubiera antes
+
+    // 3. Filtramos el catálogo global buscando los que tengan esta categoría exacta
+    const filteredVehicles = globalStock.filter(v => v.category === cat.name);
+
+    // 4. Si no hay vehículos en esta categoría...
+    if (filteredVehicles.length === 0) {
+        grid.className = 'category-vehicles-grid'; // Quitamos el grid para centrar el mensaje
+        grid.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+                <iconify-icon icon="solar:car-broken-bold-duotone" class="empty-state-icon"></iconify-icon>
+                <span class="empty-state-text">No hay vehículos asignados a esta categoría</span>
+            </div>
+        `;
+        return;
+    }
+
+    // 5. Si hay vehículos, dibujamos las tarjetas mágicas (con el triple fallback de imágenes)
+    filteredVehicles.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'vehicle-card';
+        card.setAttribute('data-model', v.model);
+
+        const formattedPrice = new Intl.NumberFormat('es-ES').format(v.price || 0);
+        const stockNum = v.stock || 0;
+        const badgeBg = stockNum > 0 ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.05)';
+        const badgeColor = stockNum > 0 ? '#2ecc71' : '#888';
+        const badgeBorder = stockNum > 0 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
+        const primaryImg = `https://docs.fivem.net/vehicles/${v.model}.webp`;
+
+        card.innerHTML = `
+            <div class="card-header-info">
+                <div class="card-brand-logo"><i class="fa-solid fa-car"></i></div>
+                <div class="card-text-info">
+                    <span class="card-brand-name">${v.brand || 'Desconocido'}</span>
+                    <span class="card-model-name">${v.name || v.model}</span>
+                </div>
+                
+                <div style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; padding: 0.2vw 0.4vw; border-radius: 4px; font-size: 0.7vw; font-weight: 900; font-family: 'Orbitron', sans-serif; display: flex; align-items: center; gap: 0.3vw;">
+                    ${stockNum} <i class="fa-solid fa-cubes"></i>
+                </div>
+            </div>
+            
+            <div class="card-vehicle-image" style="position: relative; display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; overflow: hidden; padding: 0.5vw; background: rgba(0,0,0,0.2);">
+                <span style="position: absolute; top: 0.4vw; left: 0.4vw; font-size: 0.55vw; color: #666; background: rgba(0,0,0,0.5); padding: 0.2vw 0.4vw; border-radius: 3px; z-index: 2;">ID: ${v.model}</span>
+                
+                <iconify-icon class="no-image-placeholder" icon="tdesign:image-off-filled" style="position: absolute; font-size: 4vw; color: rgba(255,255,255,0.05); z-index: 0; display: none;"></iconify-icon>
+                
+                <img src="${primaryImg}" 
+                    alt="${v.model}" 
+                    style="max-width: 95%; max-height: 85%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1;"
+                    onerror="
+                        const tries = parseInt(this.getAttribute('data-tries') || '0');
+                        if (tries === 0) {
+                            this.setAttribute('data-tries', '1');
+                            this.src = './veh_custom/${v.model}.png'; 
+                        } else if (tries === 1) {
+                            this.setAttribute('data-tries', '2');
+                            this.src = './veh_custom/${v.model}.jpg'; 
+                        } else if (tries === 2) {
+                            this.setAttribute('data-tries', '3');
+                            this.src = './veh_custom/${v.model}.webp'; 
+                        } else {
+                            // Final del camino: ocultar imagen y mostrar icono
+                            this.style.display = 'none';
+                            const placeholder = this.parentElement.querySelector('.no-image-placeholder');
+                            if (placeholder) placeholder.style.display = 'block';
+                        }
+                    "
+                >
+                <span style="position: absolute; bottom: 0.4vw; right: 0.4vw; color: #fff; font-weight: 900; font-size: 0.9vw; text-shadow: 0 4px 10px rgba(0,0,0,1); z-index: 2; font-family: 'Orbitron', sans-serif;">
+                    $ ${formattedPrice}
+                </span>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
 }
 
 // Abrir Modal para NUEVA Categoría
@@ -1506,14 +1655,465 @@ function openNewCategoryModal() {
     document.getElementById('cat-modal-title').innerHTML = '<i class="fa-solid fa-folder-plus"></i> Nueva Categoría';
     document.getElementById('cat-modal-desc').innerText = 'Crea una nueva categoría para organizar los vehículos.';
     document.getElementById('cat-id-input').value = '';
+    document.getElementById('cat-old-name-input').value = ''; // Limpiamos
 
-    // Activar input del ID interno
     const nameInput = document.getElementById('cat-name-input');
     nameInput.value = '';
-    nameInput.disabled = false;
+    nameInput.disabled = false; // Activado
     nameInput.style.opacity = '1';
 
     document.getElementById('cat-label-input').value = '';
-
     toggleModal('category-modal', true);
 }
+
+// --- FUNCIONES DE PERMISOS / RANGOS ---
+function renderJobGrades() {
+    const list = document.getElementById('boss-ranks-list');
+    if (!list) return;
+
+    if (activeJobGrades.length === 0) {
+        list.innerHTML = `<div class="empty-state"><iconify-icon icon="solar:users-group-rounded-bold-duotone" class="empty-state-icon"></iconify-icon><span class="empty-state-text">No se encontraron rangos</span></div>`;
+        return;
+    }
+
+    list.innerHTML = '';
+    activeJobGrades.forEach(g => {
+        list.innerHTML += `
+            <div class="rank-list-item" id="rank-item-${g.grade}" onclick="selectJobGrade(${g.grade})">
+                <div style="display: flex; align-items: center; gap: 0.8vw;">
+                    <div style="background: rgba(255,255,255,0.1); width: 2vw; height: 2vw; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 0.9vw;">
+                        ${g.grade}
+                    </div>
+                    <div>
+                        <div style="color: white; font-weight: bold; font-size: 0.8vw;">${g.name}</div>
+                        <div style="color: #aaa; font-size: 0.65vw;">Configurar Permisos</div>
+                    </div>
+                </div>
+                <i class="fa-solid fa-chevron-right" style="color: #fff; font-size: 0.8vw; opacity: 0.5;"></i>
+            </div>
+        `;
+    });
+}
+
+// Función para los botones de Marcar Todos / Ninguno
+function toggleAllPermissions(state) {
+    document.querySelectorAll('.perm-checkbox').forEach(cb => {
+        cb.checked = state;
+    });
+}
+
+// Abrir Formulario para NUEVO Rango
+function openNewGradeForm() {
+    // Apagar cualquier rango que estuviera seleccionado
+    document.querySelectorAll('.rank-list-item').forEach(el => el.classList.remove('active'));
+
+    document.getElementById('grade-empty-state').style.display = 'none';
+    document.getElementById('grade-editor-form').style.display = 'flex';
+    document.getElementById('grade-editor-title').innerHTML = '<i class="fa-solid fa-folder-plus"></i> Nuevo Rango';
+
+    document.getElementById('grade-id-input').value = '';
+    document.getElementById('grade-is-new-input').value = 'true';
+
+    // Activar el input del Nivel
+    const levelInput = document.getElementById('grade-level-input');
+    levelInput.value = '';
+    levelInput.disabled = false;
+    levelInput.style.opacity = '1';
+
+    document.getElementById('grade-name-input').value = '';
+    document.getElementById('grade-payment-input').value = '';
+
+    // Interruptor de Jefe por defecto desactivado
+    document.getElementById('grade-isboss-input').checked = false;
+    document.getElementById('grade-isboss-input').dispatchEvent(new Event('change'));
+
+    // [MODIFICADO] Desmarcar todos los permisos por defecto
+    toggleAllPermissions(false);
+
+    // Ocultar botón de eliminar
+    document.getElementById('btn-delete-grade').style.display = 'none';
+}
+
+// Cargar datos en el Formulario para EDITAR Rango
+function selectJobGrade(gradeLevel) {
+    // Apagar todos los rangos y encender solo el que hemos clickeado
+    document.querySelectorAll('.rank-list-item').forEach(el => el.classList.remove('active'));
+    const selectedItem = document.getElementById(`rank-item-${gradeLevel}`);
+    if (selectedItem) selectedItem.classList.add('active');
+
+    // Buscamos los datos del rango
+    const gradeData = activeJobGrades.find(g => g.grade === gradeLevel);
+    if (!gradeData) return;
+
+    document.getElementById('grade-empty-state').style.display = 'none';
+    document.getElementById('grade-editor-form').style.display = 'flex';
+    document.getElementById('grade-editor-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar Rango';
+
+    document.getElementById('grade-id-input').value = gradeData.grade;
+    document.getElementById('grade-is-new-input').value = 'false';
+
+    // Desactivar el input del Nivel
+    const levelInput = document.getElementById('grade-level-input');
+    levelInput.value = gradeData.grade;
+    levelInput.disabled = true;
+    levelInput.style.opacity = '0.5';
+
+    // Rellenar los datos básicos
+    document.getElementById('grade-name-input').value = gradeData.name || '';
+    document.getElementById('grade-payment-input').value = gradeData.payment || 0;
+
+    // Activar/Desactivar Interruptor
+    document.getElementById('grade-isboss-input').checked = gradeData.isboss === true;
+    document.getElementById('grade-isboss-input').dispatchEvent(new Event('change'));
+
+    // [MODIFICADO] Cargar y rellenar los permisos del rango seleccionado
+    const perms = gradeData.permissions || {};
+    document.getElementById('perm-admin').checked = perms.admin === true;
+    document.getElementById('perm-funds').checked = perms.funds === true;
+    document.getElementById('perm-reservations').checked = perms.reservations === true;
+    document.getElementById('perm-discounts').checked = perms.discounts === true;
+    document.getElementById('perm-logs').checked = perms.logs === true;
+    document.getElementById('perm-bonus').checked = perms.bonus === true;
+    document.getElementById('perm-prices').checked = perms.prices === true;
+    document.getElementById('perm-fire').checked = perms.fire === true;
+    document.getElementById('perm-manage_staff').checked = perms.manage_staff === true;
+    document.getElementById('perm-hire').checked = perms.hire === true;
+
+    // Mostrar botón de eliminar
+    document.getElementById('btn-delete-grade').style.display = 'block';
+}
+
+// --- LISTENERS DE LOS BOTONES GUARDAR/ELIMINAR RANGOS ---
+document.addEventListener('DOMContentLoaded', () => {
+
+    // Efectos visuales del interruptor de Jefe (Escala de grises)
+    document.getElementById('grade-isboss-input')?.addEventListener('change', (e) => {
+        const container = document.getElementById('boss-toggle-container');
+        const desc = document.getElementById('boss-toggle-desc');
+        if (e.target.checked) {
+            container.classList.add('active');
+            desc.innerText = "¡Este rango controlará la empresa!";
+            desc.style.color = "#fff";
+        } else {
+            container.classList.remove('active');
+            desc.innerText = "Máximo 1 jefe por empresa";
+            desc.style.color = "#aaa";
+        }
+    });
+
+    // [MODIFICADO] Botón Guardar Cambios (Ahora incluye permisos)
+    document.getElementById('btn-save-grade')?.addEventListener('click', () => {
+        const isNew = document.getElementById('grade-is-new-input').value === 'true';
+        const level = document.getElementById('grade-level-input').value;
+        const name = document.getElementById('grade-name-input').value.trim();
+        const payment = document.getElementById('grade-payment-input').value;
+        const isboss = document.getElementById('grade-isboss-input').checked;
+
+        // Recopilamos el estado de TODAS las casillas de permisos
+        const currentPermissions = {
+            admin: document.getElementById('perm-admin').checked,
+            funds: document.getElementById('perm-funds').checked,
+            reservations: document.getElementById('perm-reservations').checked,
+            discounts: document.getElementById('perm-discounts').checked,
+            logs: document.getElementById('perm-logs').checked,
+            bonus: document.getElementById('perm-bonus').checked,
+            prices: document.getElementById('perm-prices').checked,
+            fire: document.getElementById('perm-fire').checked,
+            manage_staff: document.getElementById('perm-manage_staff').checked,
+            hire: document.getElementById('perm-hire').checked
+        };
+
+        if (level === '' || name === '' || payment === '') return; // Validación básica
+
+        // Enviamos los datos al Lua (Cliente)
+        fetch(`https://${GetParentResourceName()}/saveJobGrade`, {
+            method: 'POST',
+            body: JSON.stringify({
+                isNew: isNew,
+                grade: parseInt(level),
+                name: name,
+                payment: parseInt(payment),
+                isboss: isboss,
+                permissions: currentPermissions // ¡Añadimos el bloque de permisos al envío!
+            })
+        });
+    });
+
+    // 1. Botón "ELIMINAR RANGO" abre el modal de confirmación
+    document.getElementById('btn-delete-grade')?.addEventListener('click', () => {
+        const level = document.getElementById('grade-level-input').value;
+        const name = document.getElementById('grade-name-input').value;
+
+        if (level === '') return;
+
+        // Actualizamos el texto del modal para que muestre qué rango va a borrar
+        document.getElementById('delete-rank-modal-text').innerHTML = `¿Estás seguro de que deseas eliminar el rango <b>${name} (Nivel ${level})</b>?<small style="display:block; margin-top:0.5vw; color:#aaa;">Esta acción es irreversible.</small>`;
+
+        toggleModal('delete-rank-confirm-modal', true);
+    });
+
+    // 2. Botón "SÍ, ELIMINAR" dentro del modal envía la orden al servidor
+    document.getElementById('confirm-delete-rank-btn')?.addEventListener('click', () => {
+        const level = document.getElementById('grade-level-input').value;
+        if (level === '') return;
+
+        fetch(`https://${GetParentResourceName()}/deleteJobGrade`, {
+            method: 'POST',
+            body: JSON.stringify({
+                grade: parseInt(level)
+            })
+        });
+
+        // Cerramos modal y formulario
+        toggleModal('delete-rank-confirm-modal', false);
+    });
+});
+
+// =================================================================
+// VARIABLE GLOBAL DEL STOCK REAL Y PAGINACIÓN INFINITA
+// =================================================================
+let globalStock = []; // Aquí se guardarán los coches que mande el Lua
+let currentFilteredStock = []; // Lo que estamos viendo actualmente en la búsqueda
+let currentLoadedCount = 0; // Cuántos hemos dibujado hasta ahora
+const VEHICLE_BATCH_SIZE = 65; // De cuántos en cuántos van a ir cargando
+
+// 1. Función principal que prepara la búsqueda
+function renderBossVehicles(searchTerm = '') {
+    const grid = document.getElementById('boss-vehicles-grid');
+    if (!grid) return;
+
+    grid.innerHTML = ''; // Limpiamos la cuadrícula al buscar
+    currentLoadedCount = 0; // Reiniciamos el contador de carga
+
+    // Lógica de filtrado por búsqueda
+    const term = searchTerm.toLowerCase().trim();
+    currentFilteredStock = globalStock.filter(v =>
+        (v.brand && v.brand.toLowerCase().includes(term)) ||
+        (v.name && v.name.toLowerCase().includes(term)) ||
+        (v.model && v.model.toLowerCase().includes(term))
+    );
+
+    // Mensaje si no hay resultados en la búsqueda
+    if (currentFilteredStock.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: #aaa; margin-top: 2vw; font-size: 0.9vw;">No hay vehículos disponibles con esos datos.</div>`;
+        return;
+    }
+
+    // Cargamos la primera "tanda" de 65 vehículos
+    loadMoreVehicles();
+}
+
+// 2. Función que añade físicamente las tarjetas al DOM (Lazy Load)
+function loadMoreVehicles() {
+    const grid = document.getElementById('boss-vehicles-grid');
+    if (!grid) return;
+
+    // Recortamos el trozo de vehículos que toca cargar ahora
+    const nextBatch = currentFilteredStock.slice(currentLoadedCount, currentLoadedCount + VEHICLE_BATCH_SIZE);
+
+    nextBatch.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'vehicle-card';
+        card.setAttribute('data-model', v.model);
+
+        // Formateamos el precio para que se vea bonito ($ 100,000)
+        const formattedPrice = new Intl.NumberFormat('es-ES').format(v.price || 0);
+
+        // Lógica de colores del Badge de Stock
+        const stockNum = v.stock || 0;
+        const badgeBg = stockNum > 0 ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.05)';
+        const badgeColor = stockNum > 0 ? '#2ecc71' : '#888';
+        const badgeBorder = stockNum > 0 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
+
+        // La URL de los coches Vanilla (Nube de FiveM)
+        const primaryImg = `https://docs.fivem.net/vehicles/${v.model}.webp`;
+
+        card.innerHTML = `
+            <div class="card-header-info">
+                <div class="card-brand-logo"><i class="fa-solid fa-car"></i></div>
+                <div class="card-text-info">
+                    <span class="card-brand-name">${v.brand || 'Desconocido'}</span>
+                    <span class="card-model-name">${v.name || v.model}</span>
+                </div>
+                
+                <div style="margin-left: auto; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; padding: 0.2vw 0.4vw; border-radius: 4px; font-size: 0.7vw; font-weight: 900; font-family: 'Orbitron', sans-serif; display: flex; align-items: center; gap: 0.3vw;">
+                    ${stockNum} <i class="fa-solid fa-cubes"></i>
+                </div>
+            </div>
+            
+            <div class="card-vehicle-image" style="position: relative; display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; overflow: hidden; padding: 0.5vw; background: rgba(0,0,0,0.2);">
+    
+                <span style="position: absolute; top: 0.4vw; left: 0.4vw; font-size: 0.55vw; color: #666; background: rgba(0,0,0,0.5); padding: 0.2vw 0.4vw; border-radius: 3px; z-index: 2;">ID: ${v.model}</span>
+                
+                <iconify-icon class="no-image-placeholder" icon="tdesign:image-off-filled" style="position: absolute; font-size: 4vw; color: rgba(255,255,255,0.05); z-index: 0; display: none;"></iconify-icon>
+                
+                <img src="${primaryImg}" 
+                    alt="${v.model}" 
+                    style="max-width: 95%; max-height: 85%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1;"
+                    onerror="
+                        const tries = parseInt(this.getAttribute('data-tries') || '0');
+                        if (tries === 0) {
+                            this.setAttribute('data-tries', '1');
+                            this.src = './veh_custom/${v.model}.png'; 
+                        } else if (tries === 1) {
+                            this.setAttribute('data-tries', '2');
+                            this.src = './veh_custom/${v.model}.jpg'; 
+                        } else if (tries === 2) {
+                            this.setAttribute('data-tries', '3');
+                            this.src = './veh_custom/${v.model}.webp'; 
+                        } else {
+                            // 2. Si todo falla: ocultamos la imagen y MOSTRALOS el icono
+                            this.style.display = 'none'; 
+                            const placeholder = this.parentElement.querySelector('.no-image-placeholder');
+                            if (placeholder) placeholder.style.display = 'block';
+                        }
+                    "
+                >
+                
+                <span style="position: absolute; bottom: 0.4vw; right: 0.4vw; color: #fff; font-weight: 900; font-size: 0.9vw; text-shadow: 0 4px 10px rgba(0,0,0,1); z-index: 2; font-family: 'Orbitron', sans-serif;">
+                    $ ${formattedPrice}
+                </span>
+            </div>
+        `;
+
+        card.addEventListener('click', () => {
+            openOrderStockModal(v); // Llamamos a la nueva función pasándole todos los datos del coche
+        });
+
+        grid.appendChild(card);
+    });
+
+    // Actualizamos el contador para saber dónde nos hemos quedado
+    currentLoadedCount += nextBatch.length;
+}
+
+// 3. Evento en vivo: Filtrar vehículos al escribir en el buscador
+document.getElementById('boss-vehicles-search')?.addEventListener('input', (e) => {
+    renderBossVehicles(e.target.value);
+});
+
+// 4. Evento para detectar cuándo llegamos al final del scroll y cargar más
+document.getElementById('boss-vehicles-grid')?.addEventListener('scroll', function () {
+    // Si nos acercamos a 50px del fondo y aún quedan coches por mostrar...
+    if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
+        if (currentLoadedCount < currentFilteredStock.length) {
+            loadMoreVehicles(); // Inyectamos los siguientes 65 silenciosamente
+        }
+    }
+});
+
+// =================================================================
+// LÓGICA DE PEDIDO DE STOCK (COMPRAS AL POR MAYOR)
+// =================================================================
+
+function openOrderStockModal(vehicle) {
+    document.getElementById('order-stock-title').innerHTML = `<i class="fa-solid fa-truck-fast"></i> Pedir Stock: ${vehicle.name || vehicle.model}`;
+    document.getElementById('order-stock-model').value = vehicle.model;
+    document.getElementById('order-stock-retail-price').value = vehicle.price || 0;
+
+    // Etiqueta del precio Retail original
+    const formattedRetail = new Intl.NumberFormat('es-ES').format(vehicle.price || 0);
+    document.getElementById('order-stock-retail').innerText = `$ ${formattedRetail}`;
+
+    document.getElementById('order-stock-amount').value = 1;
+
+    // Rellenar el selector con las categorías de esta empresa
+    const catSelect = document.getElementById('order-stock-category');
+    catSelect.innerHTML = '';
+    if (!activeCategories || activeCategories.length === 0) {
+        catSelect.innerHTML = `<option value="">⚠️ No hay categorías creadas</option>`;
+    } else {
+        activeCategories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.name;
+            opt.innerText = cat.label;
+            catSelect.appendChild(opt);
+        });
+    }
+
+    // Forzar el primer cálculo para que muestre los datos de 1 unidad
+    calculateOrderTotal();
+    toggleModal('order-stock-modal', true);
+}
+
+// Función matemática en vivo (Descuento Escalonado)
+function calculateOrderTotal() {
+    let qtyInput = document.getElementById('order-stock-amount');
+    let qty = parseInt(qtyInput?.value);
+
+    if (isNaN(qty) || qty < 1) {
+        qty = 1; // Base de seguridad
+    }
+
+    const retailPrice = parseInt(document.getElementById('order-stock-retail-price').value) || 0;
+
+    // 1. Descuento Fijo de Empresa (25%)
+    const baseDiscount = 0.25;
+
+    // 2. Sistema de Descuento Escalonado
+    let bulkDiscount = 0;
+
+    if (qty >= 1000) {
+        bulkDiscount = 0.22; // +22% para pedidos enormes (1000+)
+    } else if (qty >= 750) {
+        bulkDiscount = 0.18; // +18% para pedidos enormes (750+)
+    } else if (qty >= 500) {
+        bulkDiscount = 0.15; // +15% para pedidos enormes (500+)
+    } else if (qty >= 300) {
+        bulkDiscount = 0.12; // +12% para pedidos enormes (300+)
+    } else if (qty >= 100) {
+        bulkDiscount = 0.08; // +8% para pedidos grandes (100+)
+    } else if (qty >= 50) {
+        bulkDiscount = 0.05; // +5% para pedidos medianos (50+)
+    } else if (qty >= 10) {
+        bulkDiscount = 0.02; // +2% para pedidos pequeños (10+)
+    }
+    // Si es menor a 10, bulkDiscount se mantiene en 0.
+
+    // Suma de descuentos (Máximo 37% total)
+    const totalDiscount = baseDiscount + bulkDiscount;
+
+    // Costo Base con Descuento Fijo (Para mostrar que NO cambia con la cantidad)
+    const baseUnitCost = Math.floor(retailPrice * (1 - baseDiscount));
+
+    // Costo Final con el Descuento Escalonado aplicado
+    const finalUnitCost = Math.floor(retailPrice * (1 - totalDiscount));
+    const totalOrderCost = finalUnitCost * qty;
+
+    // Actualización visual en milisegundos
+    document.getElementById('order-stock-discount-badge').innerText = `25% Base + ${(bulkDiscount * 100).toFixed(0)}% Por Volumen`;
+
+    // Mantenemos el costo base visualmente estable, mostrando el ahorro final en el total
+    document.getElementById('order-stock-unit-cost').innerText = `$ ${new Intl.NumberFormat('es-ES').format(baseUnitCost)}`;
+    document.getElementById('order-stock-total').innerText = `$ ${new Intl.NumberFormat('es-ES').format(totalOrderCost)}`;
+}
+
+// Escuchar cambios en el input numérico en tiempo real
+document.getElementById('order-stock-amount')?.addEventListener('input', calculateOrderTotal);
+
+document.getElementById('btn-confirm-order')?.addEventListener('click', () => {
+    const model = document.getElementById('order-stock-model').value;
+    const retailPrice = document.getElementById('order-stock-retail-price').value;
+    const amount = document.getElementById('order-stock-amount').value;
+    const category = document.getElementById('order-stock-category').value;
+
+    // Validación básica de seguridad
+    if (!category) {
+        console.log("[Error] Debes seleccionar una categoría o crear una primero.");
+        return;
+    }
+
+    // Enviamos el paquete de datos al cl_main.lua
+    fetch(`https://${GetParentResourceName()}/orderStock`, {
+        method: 'POST',
+        body: JSON.stringify({
+            model: model,
+            retailPrice: parseInt(retailPrice) || 0,
+            amount: parseInt(amount) || 1,
+            category: category
+        })
+    });
+
+    // Cerramos el modal instantáneamente tras darle al botón
+    toggleModal('order-stock-modal', false);
+});

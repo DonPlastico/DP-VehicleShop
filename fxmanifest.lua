@@ -9,7 +9,7 @@ game 'gta5'
 
 -- Metadatos del recurso (Información visible en la consola o monitor)
 author 'DP-Scripts'
-description 'Script de escaparate PDM para Cardealers con multi-framework y localización'
+description 'Script de escaparate PDM y Gestión de Empresas (Exclusivo QBCore)'
 version '1.2.5'
 
 -- =================================================================

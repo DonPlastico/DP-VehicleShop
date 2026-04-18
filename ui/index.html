@@ -10,8 +10,6 @@
     <script src="https://kit.fontawesome.com/610ae1a27e.js" crossorigin="anonymous"></script>
     <script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
     <link rel="stylesheet" href="style.css">
-
-    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -78,7 +76,10 @@
 
                         <div class="boss-widget reservation-widget"
                             style="display: flex; flex-direction: column; margin-bottom: 0;">
-                            <h3 class="widget-title"><i class="fa-solid fa-bell"></i> Reservas Pendientes</h3>
+                            <h3 class="widget-title">
+                                <i class="fa-solid fa-bell"></i>
+                                Reservas Pendientes
+                            </h3>
 
                             <div class="reservation-list" id="boss-reservation-list"
                                 style="overflow-y: auto; flex-grow: 1; padding-right: 0.5vw;">
@@ -137,8 +138,7 @@
                                                     <div class="empty-state">
                                                         <iconify-icon icon="solar:bill-list-bold-duotone"
                                                             class="empty-state-icon"></iconify-icon>
-                                                        <span class="empty-state-text">
-                                                            Aún no hay ventas registradas
+                                                        <span class="empty-state-text"> Aún no hay ventas registradas
                                                         </span>
                                                     </div>
                                                 </td>
@@ -170,7 +170,10 @@
                     <div class="boss-widgets-row">
 
                         <div class="boss-widget company-balance-widget">
-                            <h3 class="widget-title"><i class="fa-solid fa-vault"></i> Balance de la Empresa</h3>
+                            <h3 class="widget-title">
+                                <i class="fa-solid fa-vault"></i>
+                                Balance de la Empresa
+                            </h3>
                             <p class="widget-desc">El saldo actual solo puede gestionarse mediante tu cuenta bancaria.
                             </p>
 
@@ -195,20 +198,23 @@
                                 <button class="btn-secondary" onclick="openSubTab('tab-company-staff')"
                                     style="display: flex; align-items: center; justify-content: center;">
                                     <iconify-icon icon="material-symbols:finance-chip"
-                                        style="font-size: 1.2vw; margin-right: 0.4vw;"></iconify-icon> Gestión del
-                                    Personal
+                                        style="font-size: 1.2vw; margin-right: 0.4vw;"></iconify-icon>
+                                    Gestión del Personal
                                 </button>
                                 <button class="btn-secondary" onclick="openSubTab('tab-company-settings')"
                                     style="display: flex; align-items: center; justify-content: center;">
                                     <iconify-icon icon="material-symbols:business-chip"
-                                        style="font-size: 1.2vw; margin-right: 0.4vw;"></iconify-icon> Ajustes de
-                                    Empresa
+                                        style="font-size: 1.2vw; margin-right: 0.4vw;"></iconify-icon>
+                                    Ajustes de Empresa
                                 </button>
                             </div>
                         </div>
 
                         <div class="boss-widget company-transactions-widget">
-                            <h3 class="widget-title"><i class="fa-solid fa-money-bill-transfer"></i> Transacciones</h3>
+                            <h3 class="widget-title">
+                                <i class="fa-solid fa-money-bill-transfer"></i>
+                                Transacciones
+                            </h3>
                             <p class="widget-desc">Historial de depósitos y retiros de la empresa.</p>
 
                             <div class="sales-table-container">
@@ -247,7 +253,10 @@
                 <div id="tab-company-staff" class="boss-page">
                     <div class="boss-widgets-row" style="height: 10%; margin-bottom: 10px;">
                         <div class="boss-widget" style="flex: 1.5;">
-                            <h3 class="widget-title"><i class="fa-solid fa-user-plus"></i> Contratar Personal</h3>
+                            <h3 class="widget-title">
+                                <i class="fa-solid fa-user-plus"></i>
+                                Contratar Personal
+                            </h3>
                             <div class="form-row">
                                 <div class="form-group" style="flex: 1;">
                                     <input type="text" id="hire-id-input" placeholder="ID del Jugador"
@@ -266,12 +275,16 @@
                                     placeholder="INGRESAR EL SALARIO INICIAL ($)"
                                     style="text-align: center; font-weight: bold; margin-bottom: 0;">
                             </div>
-                            <button class="btn-primary" style="margin-top: auto; width: 100%; margin-right: 0;">ENVIAR
-                                SOLICITUD DE EMPLEO</button>
+                            <button class="btn-primary" style="margin-top: auto; width: 100%; margin-right: 0;">
+                                ENVIAR SOLICITUD DE EMPLEO
+                            </button>
                         </div>
 
                         <div class="boss-widget" style="flex: 1;">
-                            <h3 class="widget-title"><i class="fa-solid fa-user-minus"></i> Sanción Salarial</h3>
+                            <h3 class="widget-title">
+                                <i class="fa-solid fa-user-minus"></i>
+                                Sanción Salarial
+                            </h3>
                             <div class="form-group">
                                 <select id="sanction-employee-select" style="margin-bottom: 0;">
                                     <option value="0">-- Seleccionar Empleado --</option>
@@ -284,14 +297,18 @@
                                     style="text-align: center; margin-bottom: 0;">
                             </div>
                             <button class="btn-primary"
-                                style="background-color: #e74c3c; margin-top: auto; width: 100%; margin-right: 0;">SANCIONAR
-                                EMPLEADO</button>
+                                style="background-color: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff; margin-top: auto; width: 100%; margin-right: 0;">
+                                SANCIONAR EMPLEADO
+                            </button>
                         </div>
                     </div>
 
                     <div class="boss-widgets-row" style="height: calc(65% - 2vw);">
                         <div class="boss-widget" style="flex: 1;">
-                            <h3 class="widget-title"><i class="fa-solid fa-clipboard-user"></i> Sancionados</h3>
+                            <h3 class="widget-title">
+                                <i class="fa-solid fa-clipboard-user"></i>
+                                Sancionados
+                            </h3>
                             <div class="sales-table-container">
                                 <table class="custom-table table-centered">
                                     <thead>
@@ -305,20 +322,27 @@
                                 </table>
                             </div>
                             <div class="sales-footer">
-                                <div class="sales-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text"
-                                        id="sanc-search" placeholder="Buscar..."></div>
+                                <div class="sales-search">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" id="sanc-search" placeholder="Buscar...">
+                                </div>
                                 <div class="sales-pagination">
-                                    <button id="sanc-prev" class="btn-icon"><i
-                                            class="fa-solid fa-chevron-left"></i></button>
+                                    <button id="sanc-prev" class="btn-icon">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
                                     <span id="sanc-page">1 / 1</span>
-                                    <button id="sanc-next" class="btn-icon"><i
-                                            class="fa-solid fa-chevron-right"></i></button>
+                                    <button id="sanc-next" class="btn-icon">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="boss-widget" style="flex: 1.5;">
-                            <h3 class="widget-title"><i class="fa-solid fa-address-card"></i> Empleados</h3>
+                            <h3 class="widget-title">
+                                <i class="fa-solid fa-address-card"></i>
+                                Empleados
+                            </h3>
                             <div class="sales-table-container">
                                 <table class="custom-table table-centered">
                                     <thead>
@@ -333,14 +357,18 @@
                                 </table>
                             </div>
                             <div class="sales-footer">
-                                <div class="sales-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text"
-                                        id="emp-search" placeholder="Buscar empleado..."></div>
+                                <div class="sales-search">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" id="emp-search" placeholder="Buscar empleado...">
+                                </div>
                                 <div class="sales-pagination">
-                                    <button id="emp-prev" class="btn-icon"><i
-                                            class="fa-solid fa-chevron-left"></i></button>
+                                    <button id="emp-prev" class="btn-icon">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
                                     <span id="emp-page">1 / 1</span>
-                                    <button id="emp-next" class="btn-icon"><i
-                                            class="fa-solid fa-chevron-right"></i></button>
+                                    <button id="emp-next" class="btn-icon">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -353,7 +381,9 @@
                             style="flex: 0 0 35%; display: flex; flex-direction: column; gap: 1vw; padding-right: 0.5vw; height: 100%;">
 
                             <div class="boss-widget" style="height: auto;">
-                                <h3 class="widget-title"><i class="fa-solid fa-file-signature"></i> Transferir Empresa
+                                <h3 class="widget-title">
+                                    <i class="fa-solid fa-file-signature"></i>
+                                    Transferir Empresa
                                 </h3>
                                 <div class="form-row" style="margin-bottom: 0.5vw;">
                                     <input type="text" id="transfer-id-input" placeholder="ID Jugador"
@@ -369,10 +399,13 @@
                             </div>
 
                             <div class="boss-widget" style="height: auto;">
-                                <h3 class="widget-title"><i class="fa-solid fa-sack-dollar"></i> Distribuir Bonificación
+                                <h3 class="widget-title">
+                                    <i class="fa-solid fa-sack-dollar"></i>
+                                    Distribuir Bonificación
                                 </h3>
-                                <p class="widget-desc" style="margin-bottom: 0.5vw;">Otorga un extra a TODOS los
-                                    empleados (Min: 1$ | Max: 10.000$)</p>
+                                <p class="widget-desc" style="margin-bottom: 0.5vw;">
+                                    Otorga un extra a TODOS los empleados (Min: 1$ | Max: 10.000$)
+                                </p>
                                 <div class="form-row">
                                     <input type="number" placeholder="Cantidad ($)" style="flex: 1; margin-bottom: 0;">
                                     <button class="btn-primary" style="margin-right: 0;">ENVIAR</button>
@@ -380,10 +413,13 @@
                             </div>
 
                             <div class="boss-widget" style="height: auto;">
-                                <h3 class="widget-title"><i class="fa-solid fa-arrow-trend-up"></i> Aumentar Precio Base
+                                <h3 class="widget-title">
+                                    <i class="fa-solid fa-arrow-trend-up"></i>
+                                    Aumentar Precio Base
                                 </h3>
-                                <p class="widget-desc" style="margin-bottom: 0.5vw;">Aumenta el precio de TODOS los
-                                    vehículos a la vez.</p>
+                                <p class="widget-desc" style="margin-bottom: 0.5vw;">
+                                    Aumenta el precio de TODOS los vehículos a la vez.
+                                </p>
                                 <div class="form-row">
                                     <input type="number" placeholder="Porcentaje (%)"
                                         style="flex: 1; margin-bottom: 0;">
@@ -394,19 +430,28 @@
                             <hr
                                 style="width: 90%; border: none; border-top: 1px solid var(--border-color); margin: auto auto 0 auto;">
 
-                            <div class="boss-widget" style="height: auto; border-color: #e74c3c; margin-bottom: 0;">
-                                <h3 class="widget-title" style="color: #e74c3c;"><i class="fa-solid fa-skull"></i>
-                                    Eliminar Registros</h3>
-                                <p class="widget-desc" style="color: #ff9999; margin-bottom: 0.5vw;">ESTA ACCION BORRARÁ
-                                    TODOS LOS MENSAJES Y REGISTROS DE ESTA EMPRESA. NO ES REVERSIBLE.</p>
+                            <div class="boss-widget"
+                                style="height: auto; border-color: rgba(255,255,255,0.2); margin-bottom: 0;">
+                                <h3 class="widget-title" style="color: #fff;">
+                                    <i class="fa-solid fa-skull"></i>
+                                    Eliminar Registros
+                                </h3>
+                                <p class="widget-desc" style="color: #aaa; margin-bottom: 0.5vw;">
+                                    ESTA ACCIÓN BORRARÁ TODOS LOS MENSAJES Y REGISTROS DE ESTA EMPRESA.
+                                    NO ES REVERSIBLE.
+                                </p>
                                 <button class="btn-primary"
-                                    style="background-color: #e74c3c; width: 100%; margin-right: 0;">ELIMINAR
-                                    TODO</button>
+                                    style="background-color: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 100%; margin-right: 0;">
+                                    ELIMINAR TODO
+                                </button>
                             </div>
                         </div>
 
                         <div class="boss-widget" style="flex: 1;">
-                            <h3 class="widget-title"><i class="fa-solid fa-tags"></i> Descuentos Activos</h3>
+                            <h3 class="widget-title">
+                                <i class="fa-solid fa-tags"></i>
+                                Descuentos Activos
+                            </h3>
                             <div class="sales-table-container">
                                 <table class="custom-table table-centered">
                                     <thead>
@@ -424,14 +469,18 @@
                                 </table>
                             </div>
                             <div class="sales-footer">
-                                <div class="sales-search"><i class="fa-solid fa-magnifying-glass"></i><input type="text"
-                                        id="disc-search" placeholder="Buscar..."></div>
+                                <div class="sales-search">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" id="disc-search" placeholder="Buscar...">
+                                </div>
                                 <div class="sales-pagination">
-                                    <button id="disc-prev" class="btn-icon"><i
-                                            class="fa-solid fa-chevron-left"></i></button>
+                                    <button id="disc-prev" class="btn-icon">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
                                     <span id="disc-page">1 / 1</span>
-                                    <button id="disc-next" class="btn-icon"><i
-                                            class="fa-solid fa-chevron-right"></i></button>
+                                    <button id="disc-next" class="btn-icon">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -443,11 +492,13 @@
 
                         <div class="boss-widget" style="flex: 1; display: flex; flex-direction: column;">
                             <div
-                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vw;">
-                                <h3 class="widget-title" style="margin-bottom: 0;"><i class="fa-solid fa-list-ol"></i>
-                                    Categorías Activas</h3>
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vw; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5vw;">
+                                <h3 class="widget-title" style="margin-bottom: 0; border: none; padding: 0;">
+                                    <i class="fa-solid fa-list-ol"></i>
+                                    Categorías Activas
+                                </h3>
                                 <button class="btn-icon"
-                                    style="background: #2ecc71; color: black; border-radius: 4px; padding: 0.3vw 0.6vw; font-weight: bold; font-size: 0.7vw;"
+                                    style="background: #fff; color: black; border-radius: 4px; padding: 0.3vw 0.6vw; font-weight: bold; font-size: 0.7vw;"
                                     onclick="openNewCategoryModal()">
                                     <i class="fa-solid fa-plus"></i> NUEVA
                                 </button>
@@ -484,11 +535,252 @@
                 </div>
 
                 <div id="tab-vehicles" class="boss-page">
-                    <h3 style="color:#aaa;">Sección Vehículos (Próximamente)</h3>
+                    <div class="boss-widget"
+                        style="height: 100%; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 0;">
+
+                        <div
+                            style="display: flex;justify-content: space-between;align-items: center;border-bottom: 1px solid var(--border-color);padding-bottom: 5px;margin-bottom: 5px;flex-shrink: 0;">
+                            <h3 class="widget-title" style="margin: 0; border: none; padding: 0;">
+                                <i class="fa-solid fa-car-side"></i> Gestión de Vehículos
+                            </h3>
+
+                            <div
+                                style="height: 2.2vw; width: 18vw; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; display: flex; align-items: center; padding: 0 0.8vw; transition: all 0.2s ease;">
+                                <i class="fa-solid fa-magnifying-glass" style="font-size: 0.8vw; color: #aaa;"></i>
+                                <input type="text" id="boss-vehicles-search" placeholder="Buscar vehículo..."
+                                    style="background: transparent;border: none;color: white;font-size: 0.75vw;margin-left: 0.5vw;outline: none;width: 100%;font-family: 'Orbitron', sans-serif;padding: 5px;position: relative;top: 10.5px;">
+                            </div>
+                        </div>
+
+                        <div id="boss-vehicles-grid" class="boss-vehicles-grid">
+                        </div>
+                    </div>
                 </div>
 
                 <div id="tab-permissions" class="boss-page">
-                    <h3 style="color:#aaa;">Sección Permisos (Próximamente)</h3>
+                    <div class="boss-widgets-row" style="height: 100%;">
+
+                        <div class="boss-widget"
+                            style="flex: 1; display: flex; flex-direction: column; margin-bottom: 0;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vw; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5vw;">
+                                <h3 class="widget-title" style="margin-bottom: 0; border: none; padding: 0;">
+                                    <i class="fa-solid fa-users-gear"></i> Rangos del Trabajo
+                                </h3>
+                                <button class="btn-icon"
+                                    style="background: #fff; color: black; border-radius: 4px; padding: 0.3vw 0.6vw; font-weight: bold; font-size: 0.7vw;"
+                                    onclick="openNewGradeForm()">
+                                    <i class="fa-solid fa-plus"></i> NUEVO
+                                </button>
+                            </div>
+                            <p class="widget-desc" style="margin-bottom: 1vw;">Selecciona un rango para editarlo.</p>
+
+                            <div id="boss-ranks-list" style="overflow-y: auto; flex-grow: 1; padding-right: 0.5vw;">
+                                <div class="empty-state">
+                                    <iconify-icon icon="solar:users-group-rounded-bold-duotone"
+                                        class="empty-state-icon"></iconify-icon>
+                                    <span class="empty-state-text">Cargando rangos...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1.5; display: flex; flex-direction: column; gap: 0.8vw; height: 100%;">
+
+                            <div id="grade-empty-state" class="boss-widget"
+                                style="flex-grow: 1; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); border: 1px dashed rgba(255,255,255,0.15); margin-bottom: 0;">
+                                <div class="empty-state">
+                                    <iconify-icon icon="solar:shield-keyhole-bold-duotone"
+                                        class="empty-state-icon"></iconify-icon>
+                                    <span class="empty-state-text">Selecciona o crea un rango a la izquierda</span>
+                                </div>
+                            </div>
+
+                            <div id="grade-editor-form"
+                                style="display: none; flex-direction: column; gap: 0.8vw; height: 100%;">
+
+                                <div class="boss-widget" style="flex-shrink: 0; margin-bottom: 0;">
+                                    <h3 class="widget-title" id="grade-editor-title" style="margin-bottom: 1vw;">
+                                        <i class="fa-solid fa-list-check"></i> Editor de Rango
+                                    </h3>
+
+                                    <input type="hidden" id="grade-id-input">
+                                    <input type="hidden" id="grade-is-new-input" value="false">
+
+                                    <div class="form-row" style="margin-bottom: 0.8vw;">
+                                        <div class="form-group" style="flex: 0.5;">
+                                            <label
+                                                style="color:#aaa; font-size:0.75vw; font-weight:bold; margin-bottom: 0.3vw;">
+                                                Nivel
+                                            </label>
+                                            <input type="number" id="grade-level-input" placeholder="Ej: 0" disabled
+                                                style="opacity: 0.5; margin-bottom: 0;">
+                                        </div>
+                                        <div class="form-group" style="flex: 1.5;">
+                                            <label
+                                                style="color:#aaa; font-size:0.75vw; font-weight:bold; margin-bottom: 0.3vw;">
+                                                Nombre del Rango
+                                            </label>
+                                            <input type="text" id="grade-name-input" placeholder="Ej: Vendedor Junior"
+                                                style="margin-bottom: 0;">
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row" style="margin-bottom: 0.8vw;">
+                                        <div class="form-group" style="flex: 1;">
+                                            <label
+                                                style="color:#aaa; font-size:0.75vw; font-weight:bold; margin-bottom: 0.3vw;">
+                                                Salario (Pago al cobrar)
+                                            </label>
+                                            <input type="number" id="grade-payment-input" placeholder="Ej: 150"
+                                                style="margin-bottom: 0;">
+                                        </div>
+                                        <div class="form-group" style="flex: 1; justify-content: flex-end;">
+                                            <label class="switch-container" id="boss-toggle-container">
+                                                <div class="switch">
+                                                    <input type="checkbox" id="grade-isboss-input">
+                                                    <span class="slider"></span>
+                                                </div>
+                                                <div>
+                                                    <span class="switch-text">Rango de JEFE (Boss)</span>
+                                                    <span class="switch-subtext" id="boss-toggle-desc"
+                                                        style="font-size: 0.55vw;">Máximo 1 jefe</span>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="boss-widget"
+                                    style="flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 0;">
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8vw; flex-shrink: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5vw;">
+                                        <h3 class="widget-title" style="margin-bottom: 0; border: none; padding: 0;">
+                                            <i class="fa-solid fa-key"></i> Matriz de Permisos
+                                        </h3>
+                                        <div style="display: flex; gap: 0.5vw;">
+                                            <button class="btn-perm-action grant-all"
+                                                onclick="toggleAllPermissions(true)"><i
+                                                    class="fa-solid fa-check-double"></i> MARCAR TODOS</button>
+                                            <button class="btn-perm-action revoke-all"
+                                                onclick="toggleAllPermissions(false)"><i class="fa-solid fa-xmark"></i>
+                                                NINGUNO</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="permissions-grid" id="permissions-checkboxes">
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:shield-keyhole-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Administración</span>
+                                                <span class="perm-desc">Crear o modificar rangos y permisos</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-admin">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:wallet-money-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Finanzas</span>
+                                                <span class="perm-desc">Retirar y depositar en la cuenta</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-funds">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:bell-bing-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Reservas</span>
+                                                <span class="perm-desc">Aceptar o rechazar solicitudes</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-reservations">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:ticket-sale-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Descuentos</span>
+                                                <span class="perm-desc">Iniciar campañas promocionales</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-discounts">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:trash-bin-trash-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Purgar Registros</span>
+                                                <span class="perm-desc">Eliminar historiales de la empresa</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-logs">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:wad-of-money-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Bonificaciones</span>
+                                                <span class="perm-desc">Otorgar bonos al personal</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-bonus">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:graph-up-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Precios Base</span>
+                                                <span class="perm-desc">Incrementar precios de venta</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-prices">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:user-cross-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Despidos</span>
+                                                <span class="perm-desc">Despedir miembros del personal</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-fire">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:medal-star-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Gestionar Personal</span>
+                                                <span class="perm-desc">Ascender o descender empleados</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-manage_staff">
+                                        </label>
+                                        <label class="permission-item">
+                                            <div class="perm-icon"><iconify-icon
+                                                    icon="solar:user-plus-bold-duotone"></iconify-icon></div>
+                                            <div class="perm-texts">
+                                                <span class="perm-title">Contrataciones</span>
+                                                <span class="perm-desc">Contratar a nuevos trabajadores</span>
+                                            </div>
+                                            <input type="checkbox" class="perm-checkbox" id="perm-hire">
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="boss-widget"
+                                    style="flex-direction: row; flex-shrink: 0; padding: 0.8vw; justify-content: space-between; align-items: center; margin-bottom: 0;">
+
+                                    <button class="btn-secondary" id="btn-delete-grade"
+                                        style="display: none; margin: 0; border-color: rgba(255,255,255,0.2); color: #aaa; font-weight: bold;">
+                                        ELIMINAR RANGO
+                                    </button>
+
+                                    <div style="display: flex; gap: 0.8vw; margin-left: auto;">
+                                        <button class="btn-primary" id="btn-save-grade"
+                                            style="margin: 0; background-color: #fff; color: #000; font-weight: 900;">
+                                            GUARDAR CAMBIOS
+                                        </button>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </main>
         </div>
@@ -497,8 +789,10 @@
     <div id="buy-container" class="menu-container buy-menu-height" style="display:none;">
         <div class="buy-content">
             <h3 class="buy-question">¿Quieres comprar esta empresa?</h3>
-            <p class="buy-warning">Esta acción no se puede revertir. Asegúrate de estar seguro antes de proceder con la
-                adquisición legal del inmueble y la licencia comercial.</p>
+            <p class="buy-warning">
+                Esta acción no se puede revertir. Asegúrate de estar seguro antes de proceder con la
+                adquisición legal del inmueble y la licencia comercial.
+            </p>
 
             <div class="buy-details">
                 <div class="buy-info-row">
@@ -683,61 +977,150 @@
 
     <!-- MODAL: Depositar Dinero -->
     <div id="deposit-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="border-top: 4px solid #2ecc71;">
-            <h3>Depositar</h3>
-            <p>Ingresa dinero a la empresa (Se descontará de tu cuenta bancaria).</p>
-            <input type="number" id="deposit-amount" placeholder="Cantidad a depositar...">
+        <div class="modal-content">
+            <h3>Depositar Fondos</h3>
+            <p>Ingresa la cantidad que deseas transferir a la cuenta de la empresa.</p>
+            <input type="number" id="deposit-amount" placeholder="0.00">
             <div class="modal-actions">
-                <button class="btn-deposit" id="confirm-deposit-btn"
-                    style="padding: 10px 15px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; margin-right: 10px;">DEPOSITAR</button>
                 <button class="btn-secondary modal-close-btn" data-modal="deposit-modal">Cancelar</button>
+                <button class="btn-primary" id="confirm-deposit-btn" style="background:#fff; color:#000;">
+                    Ingresar Dinero
+                </button>
             </div>
         </div>
     </div>
 
     <!-- MODAL: Retirar Dinero -->
     <div id="withdraw-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="border-top: 4px solid #e74c3c;">
-            <h3>Retirar</h3>
-            <p>Retira dinero de la empresa (Se añadirá a tu cuenta bancaria).</p>
-            <input type="number" id="withdraw-amount" placeholder="Cantidad a retirar...">
+        <div class="modal-content">
+            <h3>Retirar Fondos</h3>
+            <p>Extrae fondos de la empresa hacia tu cuenta personal.</p>
+            <input type="number" id="withdraw-amount" placeholder="0.00">
             <div class="modal-actions">
-                <button class="btn-withdraw" id="confirm-withdraw-btn"
-                    style="padding: 10px 15px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; margin-right: 10px;">RETIRAR</button>
                 <button class="btn-secondary modal-close-btn" data-modal="withdraw-modal">Cancelar</button>
+                <button class="btn-primary" id="confirm-withdraw-btn" style="background:#fff; color:#000;">
+                    Retirar Dinero
+                </button>
             </div>
         </div>
     </div>
 
     <div id="category-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="border-top: 4px solid #3498db; width: 25vw;">
-            <h3 id="cat-modal-title"><i class="fa-solid fa-folder-plus"></i> Nueva Categoría</h3>
-            <p id="cat-modal-desc" style="color: #aaa; margin-bottom: 1vw; font-size: 0.85vw;">
-                Crea una nueva categoría para organizar los vehículos.
+        <div class="modal-content">
+            <h3 id="cat-modal-title">Categoría</h3>
+            <p id="cat-modal-desc">Configura los detalles internos de la categoría.</p>
+            <input type="hidden" id="cat-id-input">
+            <input type="hidden" id="cat-old-name-input">
+            <div style="text-align: left;">
+                <label style="color:#666; font-size:0.6vw; font-weight:bold; text-transform: uppercase;">
+                    ID Interno
+                </label>
+                <input type="text" id="cat-name-input" placeholder="ej: super">
+                <label style="color:#666; font-size:0.6vw; font-weight:bold; text-transform: uppercase;">
+                    Etiqueta Visible
+                </label>
+                <input type="text" id="cat-label-input" placeholder="ej: Súper Deportivos">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary modal-close-btn" data-modal="category-modal">Descartar</button>
+                <button class="btn-primary" id="btn-save-cat" style="background:#fff; color:#000;">
+                    Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-rank-confirm-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h3>Eliminar Rango</h3>
+            <p id="delete-rank-modal-text">¿Estás seguro de que deseas eliminar este rango?</p>
+            <div class="modal-actions">
+                <button class="btn-secondary modal-close-btn" data-modal="delete-rank-confirm-modal">Volver</button>
+                <button class="btn-primary" id="confirm-delete-rank-btn" style="background:#555; color:#fff;">
+                    Confirmar Borrado
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="order-stock-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h3 id="order-stock-title">
+                <i class="fa-solid fa-truck-fast"></i>
+                Pedir Stock
+            </h3>
+            <p>
+                Como empresa, tienes un
+                <b>25% de descuento base</b>
+                garantizado sobre el precio de mercado, y sumas un
+                <b>1% extra</b>
+                por cada 10 unidades pedidas (hasta un 10% extra max).
             </p>
 
-            <input type="hidden" id="cat-id-input">
-
-            <div class="form-group" style="text-align: left; margin-bottom: 1vw;">
-                <label style="color:#aaa; font-size:0.75vw; font-weight:bold; margin-bottom: 0.3vw;">
-                    ID Interno (Ej: sports, suvs)
-                </label>
-                <input type="text" id="cat-name-input" placeholder="Sin espacios ni mayúsculas">
+            <div
+                style="background: rgba(44, 119, 168, 0.1); border: 1px solid rgba(44, 119, 168, 0.3); padding: 0.8vw; border-radius: 4px; margin-bottom: 1.5vw;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vw;">
+                    <span style="color: #aaa; font-size: 0.65vw; text-transform: uppercase;">
+                        Precio de Mercado (Retail)
+                    </span>
+                    <span id="order-stock-retail"
+                        style="color: #aaa; font-size: 0.75vw; text-decoration: line-through;">$ 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vw;">
+                    <span style="color: #2ecc71; font-size: 0.65vw; font-weight: bold; text-transform: uppercase;">
+                        Descuento Aplicado
+                    </span>
+                    <span id="order-stock-discount-badge"
+                        style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; padding: 0.2vw 0.5vw; border-radius: 4px; font-size: 0.65vw; font-weight: bold;">
+                        25% Base + 0% Mayor
+                    </span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(44, 119, 168, 0.3); padding-top: 0.5vw;">
+                    <span style="color: #2c77a8; font-size: 0.65vw; font-weight: bold; text-transform: uppercase;"><i
+                            class="fa-solid fa-industry"></i> Tu Costo (Unidad)</span>
+                    <span id="order-stock-unit-cost"
+                        style="color: #fff; font-size: 0.9vw; font-weight: 900; font-family: 'Orbitron', sans-serif;">
+                        $ 0
+                    </span>
+                </div>
             </div>
 
-            <div class="form-group" style="text-align: left; margin-bottom: 1.5vw;">
-                <label style="color:#aaa; font-size:0.75vw; font-weight:bold; margin-bottom: 0.3vw;">
-                    Nombre Visible (Ej: Deportivos)
-                </label>
-                <input type="text" id="cat-label-input" placeholder="Nombre que verá el cliente">
-            </div>
+            <label style="color:#666; font-size:0.6vw; font-weight:bold; text-transform: uppercase;">
+                Cantidad a pedir
+            </label>
+            <input type="number" id="order-stock-amount" placeholder="1" min="1" value="1" style="margin-bottom: 1vw;">
+
+            <label style="color:#666; font-size:0.6vw; font-weight:bold; text-transform: uppercase;">
+                Asignar a Categoría
+            </label>
+            <select id="order-stock-category"
+                style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: white; padding: 0.8vw; border-radius: 4px; font-family: 'Orbitron', sans-serif; outline: none; margin-bottom: 1vw; font-size: 0.75vw; cursor: pointer;">
+            </select>
+
+            <input type="hidden" id="order-stock-model">
+            <input type="hidden" id="order-stock-retail-price">
 
             <div class="modal-actions">
-                <button class="btn-primary" id="btn-save-cat"
-                    style="padding: 10px 15px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; margin-right: 10px;">
-                    GUARDAR
+                <button class="btn-secondary modal-close-btn" data-modal="order-stock-modal">Cancelar</button>
+                <button class="btn-primary" id="btn-confirm-order" style="background:#fff; color:#000;">
+                    Comprar (<span id="order-stock-total">$ 0</span>)
                 </button>
-                <button class="btn-secondary modal-close-btn" data-modal="category-modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-category-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h3><i class="fa-solid fa-triangle-exclamation" style="color: #e74c3c;"></i> ¡ADVERTENCIA!</h3>
+            <p id="delete-cat-modal-text">Esta categoría contiene vehículos.</p>
+            <input type="hidden" id="cat-to-delete-id">
+            <input type="hidden" id="cat-to-delete-name">
+            <div class="modal-actions">
+                <button class="btn-secondary modal-close-btn" data-modal="delete-category-modal">Cancelar</button>
+                <button class="btn-primary" id="confirm-delete-cat-btn" style="background:#e74c3c; color:#fff;">
+                    Sí, Eliminar Todo
+                </button>
             </div>
         </div>
     </div>

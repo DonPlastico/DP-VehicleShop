@@ -12,7 +12,8 @@ local DealerOwners = {}
 local spawnedAgencyNPCs = {}
 local currentActiveZone = nil
 local currentActiveText = nil
-local currentBossDealerId = nil -- Guardará la ID del concesionario al abrir el Boss Menu
+local currentBossDealerId = nil
+local ShowroomVehicleData = {}
 
 -- =================================================================
 -- INICIALIZACIÓN DEL FRAMEWORK (AÑADIR ESTO AQUÍ)
@@ -120,41 +121,58 @@ local function SpawnShowroomVehicle(vehicleData)
         return
     end
 
-    local modelName = vehicleData.model
-    local modelHash = GetHashKey(modelName)
-
+    local modelHash = GetHashKey(vehicleData.model)
     if not IsModelInCdimage(modelHash) then
         return
     end
 
     RequestModel(modelHash)
-    local timeout = 0
-    while not HasModelLoaded(modelHash) and timeout < 1500 do
+    while not HasModelLoaded(modelHash) do
         Wait(10)
-        timeout = timeout + 10
-    end
-
-    if not HasModelLoaded(modelHash) then
-        return
     end
 
     local x, y, z, h = tonumber(vehicleData.spawn_x), tonumber(vehicleData.spawn_y), tonumber(vehicleData.spawn_z),
         tonumber(vehicleData.spawn_h)
-    local vehicle = CreateVehicle(modelHash, x, y, z, h, false, false)
+
+    -- 1. Spawneamos el coche un pelín elevado (z + 0.5) para que no se entierre al aparecer
+    local vehicle = CreateVehicle(modelHash, x, y, z + 0.5, h, false, false)
+
+    while not DoesEntityExist(vehicle) do
+        Wait(10)
+    end
 
     SetEntityAsMissionEntity(vehicle, true, true)
+
+    -- 2. OBLIGAMOS a GTA V a cargar el suelo sólido debajo del coche
+    RequestCollisionAtCoord(x, y, z)
+    local timeout = 0
+    while not HasCollisionLoadedAroundEntity(vehicle) and timeout < 200 do
+        Wait(10)
+        timeout = timeout + 1
+    end
+
+    -- 3. Posamos el coche mágicamente y perfecto sobre sus 4 ruedas
+    SetVehicleOnGroundProperly(vehicle)
+
+    -- 4. AHORA SÍ, con las físicas de la suspensión relajadas, lo congelamos
+    FreezeEntityPosition(vehicle, true)
     SetEntityInvincible(vehicle, true)
     SetVehicleEngineOn(vehicle, false, true, true)
     SetVehicleDoorsLocked(vehicle, 4)
     SetVehicleTyresCanBurst(vehicle, false)
     SetVehicleUndriveable(vehicle, true)
-    FreezeEntityPosition(vehicle, true)
-    SetModelAsNoLongerNeeded(modelHash)
+
+    -- 5. Pintamos de negro SIN usar ModKit (el ModKit causa Scene Node Index en addons)
+    SetVehicleColours(vehicle, 0, 0)
+    SetVehicleExtraColours(vehicle, 0, 0)
+    SetVehicleDirtLevel(vehicle, 0.0)
 
     spawnedShowroomVehicles[vehicleData.id] = {
         entity = vehicle,
         info = vehicleData
     }
+
+    SetModelAsNoLongerNeeded(modelHash)
 end
 
 local function ClearShowroomVehicles()
@@ -279,7 +297,18 @@ end)
 
 -- Cuando un jugador entra al servidor
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    InitializeClientLoad()
+    CreateThread(function()
+        -- 1. Esperamos pacientemente a que la pantalla deje de estar en negro
+        while not IsScreenFadedIn() do
+            Wait(100)
+        end
+
+        -- 2. Le damos 3.5 segundos de cortesía para que las texturas y colisiones del mapa se asienten
+        Wait(3500)
+
+        -- 3. AHORA SÍ, le pedimos al servidor que spawnee los coches
+        InitializeClientLoad()
+    end)
 end)
 
 -- Cuando el script se detiene/reinicia (SISTEMA ANTI-BUGS / FAILSAFE)
@@ -380,12 +409,6 @@ RegisterNetEvent('DP-VehicleShop:client:enterShowroomMode', function(dealerName)
     SetNuiFocus(true, true)
 end)
 
--- Callback que llama JS cuando se pulsa Escape en el NUI
-RegisterNUICallback('closeShowroomMenu', function(data, cb)
-    TriggerEvent('DP-VehicleShop:client:exitShowroomMode')
-    cb('ok')
-end)
-
 -- Dejamos preparada la función para cuando cierre el NUI
 RegisterNetEvent('DP-VehicleShop:client:exitShowroomMode', function()
     local ped = PlayerPedId()
@@ -426,10 +449,11 @@ end)
 
 RegisterNetEvent('DP-VehicleShop:client:sendVehicles', function(vehicleList)
     ClearShowroomVehicles()
+    ShowroomVehicleData = vehicleList -- Guardamos la información
     local nuiList = {}
 
     for _, vehicleData in pairs(vehicleList) do
-        SpawnShowroomVehicle(vehicleData)
+        -- ¡YA NO SPAWNEAMOS AQUÍ DE GOLPE! (Lo hará el hilo de proximidad)
         table.insert(nuiList, {
             id = vehicleData.id,
             model = vehicleData.model,
@@ -470,13 +494,25 @@ end)
 -- =================================================================
 
 -- 1. Apertura del Jefe
-RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealerLabel, categories)
+RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealerLabel, categories, jobGrades, vehicles)
     currentBossDealerId = dealerId
 
     SendNUIMessage({
         action = 'loadCategories',
         categories = categories
     })
+
+    SendNUIMessage({
+        action = 'loadJobGrades',
+        grades = jobGrades
+    })
+
+    -- Enviamos la lista de vehículos reales a la UI
+    SendNUIMessage({
+        action = 'loadBossStock',
+        vehicles = vehicles
+    })
+
     SendNUIMessage({
         action = 'openBossMenu',
         dealerName = dealerLabel
@@ -541,9 +577,28 @@ RegisterNetEvent('DP-VehicleShop:client:refreshCategories', function(categories)
     })
 end)
 
+-- Este evento recibe los rangos de trabajo actualizados del servidor y refresca el UI al instante
+RegisterNetEvent('DP-VehicleShop:client:refreshJobGrades', function(grades)
+    SendNUIMessage({
+        action = 'loadJobGrades',
+        grades = grades
+    })
+
+    -- Ocultamos el formulario derecho después de guardar/borrar
+    SendNUIMessage({
+        action = 'closeGradeForm' -- Usaremos un truco sucio: si le pasamos una key falsa, el JS lo ignora pero igual le pasamos los rangos. JS ya tiene la función `closeGradeForm` vinculada al HTML.
+    })
+end)
+
 -- =================================================================
 -- SECCIÓN 6: NUI CALLBACKS
 -- =================================================================
+
+-- Callback que llama JS cuando se pulsa Escape en el NUI
+RegisterNUICallback('closeShowroomMenu', function(data, cb)
+    TriggerEvent('DP-VehicleShop:client:exitShowroomMode')
+    cb('ok')
+end)
 
 -- Callback para cerrar cualquier menú genérico y liberar el ratón
 RegisterNUICallback('closeMenu', function(data, cb)
@@ -691,7 +746,32 @@ end)
 
 RegisterNUICallback('deleteCategory', function(data, cb)
     if currentBossDealerId and data.id then
-        TriggerServerEvent('DP-VehicleShop:server:deleteCategory', currentBossDealerId, data.id)
+        -- Le decimos al servidor qué categoría hay que eliminar pasando su ID y el ID del concesionario
+        TriggerServerEvent('DP-VehicleShop:server:deleteCategory', currentBossDealerId, data.id, data.name)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('saveJobGrade', function(data, cb)
+    if currentBossDealerId then
+        -- Pasamos los datos del rango y el ID del concesionario al servidor
+        TriggerServerEvent('DP-VehicleShop:server:saveJobGrade', currentBossDealerId, data)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('deleteJobGrade', function(data, cb)
+    if currentBossDealerId and data.grade then
+        -- Le decimos al servidor qué número de rango hay que eliminar
+        TriggerServerEvent('DP-VehicleShop:server:deleteJobGrade', currentBossDealerId, data.grade)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('orderStock', function(data, cb)
+    -- currentBossDealerId ya lo tenemos guardado en el cliente desde que abrió el menú
+    if currentBossDealerId then
+        TriggerServerEvent('DP-VehicleShop:server:orderStock', currentBossDealerId, data)
     end
     cb('ok')
 end)
@@ -809,8 +889,37 @@ CreateThread(function()
     end
 end)
 
+-- [HILO 3: SPAWNER POR PROXIMIDAD]
+-- Solo spawnea los coches físicos si estás a menos de 100 metros
+CreateThread(function()
+    while true do
+        local myCoords = GetEntityCoords(PlayerPedId())
+
+        for _, vData in pairs(ShowroomVehicleData) do
+            if vData.spawn_x then
+                local vehCoords = vector3(tonumber(vData.spawn_x), tonumber(vData.spawn_y), tonumber(vData.spawn_z))
+                local dist = #(myCoords - vehCoords)
+
+                -- Si estamos a menos de 100 metros del concesionario
+                if dist < 100.0 then
+                    -- Si NO está spawneado en el mundo, lo creamos
+                    if not spawnedShowroomVehicles[vData.id] then
+                        SpawnShowroomVehicle(vData)
+                    end
+                else
+                    -- Si nos alejamos y SÍ está spawneado, lo borramos para liberar memoria
+                    if spawnedShowroomVehicles[vData.id] then
+                        DeleteSpecificShowroomVehicle(vData.id)
+                    end
+                end
+            end
+        end
+        Wait(2000) -- Revisa las distancias cada 2 segundos (0 lag)
+    end
+end)
+
 -- =================================================================
--- SECCIÓN 8: ZONAS DE INTERACCIÓN (TEXTUI Y TECLAS)
+-- SECCIÓN 8: ZONAS DE INTERACCIÓN (TEXTUI Y TECLAS) - OPTIMIZADA
 -- =================================================================
 
 CreateThread(function()
@@ -827,8 +936,8 @@ CreateThread(function()
 
             -- 1. Comprobar distancia al NPC (Para gestionar los coches)
             if data.coords_npc then
-                local npcCoords = vector3(data.coords_npc.x, data.coords_npc.y, data.coords_npc.z)
-                local distNPC = #(pos - npcCoords)
+                -- Usamos .xyz directo para no crear vectores nuevos cada frame (0 lag)
+                local distNPC = #(pos - data.coords_npc.xyz)
 
                 if distNPC < 2.5 then
                     sleep = 0
@@ -838,7 +947,6 @@ CreateThread(function()
 
                     -- Si presiona la E
                     if IsControlJustReleased(0, 38) then
-                        -- Iniciamos el modo catálogo/concesionario enviando el LABEL del concesionario
                         TriggerServerEvent('DP-VehicleShop:server:requestShowroom', dealerName)
                     end
                     break -- Salimos del bucle para no procesar más zonas si ya estamos en una
@@ -847,16 +955,16 @@ CreateThread(function()
 
             -- 2. Comprobar Boss Menu (SE OCULTA TOTALMENTE SI NO ERES DUEÑO O JEFE)
             if data.bossMenu then
-                -- Si la función devuelve false (no eres jefe ni dueño), el marker NO se dibuja
-                if IsPlayerAuthorized(dealerName, data) then
-                    local bossCoords = data.bossMenu
-                    local distBoss = #(pos - bossCoords)
+                -- Calculamos distancia PRIMERO
+                local distBoss = #(pos - data.bossMenu.xyz)
 
-                    if distBoss < 10.0 then
+                -- SOLO si estamos a menos de 10 metros, comprobamos si eres jefe
+                if distBoss < 10.0 then
+                    if IsPlayerAuthorized(dealerName, data) then
                         sleep = 0
                         -- Marker Verde
-                        DrawMarker(2, bossCoords.x, bossCoords.y, bossCoords.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.2,
-                            0.2, 0, 0, 0, 255, false, false, 2, true, nil, nil, false)
+                        DrawMarker(2, data.bossMenu.x, data.bossMenu.y, data.bossMenu.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                            0.2, 0.2, 0.2, 0, 0, 0, 255, false, false, 2, true, nil, nil, false)
 
                         if distBoss < 1.5 then
                             inZone = true
@@ -866,6 +974,7 @@ CreateThread(function()
                             if IsControlJustReleased(0, 38) then
                                 TriggerServerEvent('DP-VehicleShop:server:requestBossMenu', dealerName)
                             end
+                            break
                         end
                     end
                 end
@@ -873,8 +982,7 @@ CreateThread(function()
 
             -- 3. Comprobar NPC de Compra (SOLO APARECE TEXTUI SI NO TIENE DUEÑO)
             if data.npc_buy and not DealerOwners[dealerName] then
-                local buyCoords = vector3(data.npc_buy.x, data.npc_buy.y, data.npc_buy.z)
-                local distBuy = #(pos - buyCoords)
+                local distBuy = #(pos - data.npc_buy.xyz)
 
                 if distBuy < 2.5 then
                     sleep = 0
@@ -892,6 +1000,7 @@ CreateThread(function()
                         })
                         SetNuiFocus(true, true)
                     end
+                    break
                 end
             end
         end

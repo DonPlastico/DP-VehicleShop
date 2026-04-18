@@ -68,7 +68,7 @@ local function InitializeDatabaseSchema()
         );
     ]]
 
-    -- 3. TABLA: Concesionarios y Propietarios (NUEVA)
+    -- 3. TABLA: Concesionarios y Propietarios
     local createDealershipsTableQuery = [[
         CREATE TABLE IF NOT EXISTS `dp_vehicleshop_dealerships` (
             `dealership_id` VARCHAR(50) NOT NULL, -- Ej: 'cars', 'motos', 'vip'
@@ -79,20 +79,34 @@ local function InitializeDatabaseSchema()
         );
     ]]
 
-    -- 4. TABLA: Stock de Vehículos (NUEVA)
+    -- 4. TABLA: Stock de Vehículos (ACTUALIZADA)
     local createStockTableQuery = [[
         CREATE TABLE IF NOT EXISTS `dp_vehicleshop_stock` (
             `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `dealership_id` VARCHAR(50) NOT NULL, -- A qué concesionario pertenece el stock
-            `vehicle_model` VARCHAR(50) NOT NULL, -- Ej: 'zentorno'
-            `stock_count` INT(11) NOT NULL DEFAULT 0, -- Cantidad disponible
+            `dealership_id` VARCHAR(50) NOT NULL,
+            `vehicle_model` VARCHAR(50) NOT NULL,
+            `stock_count` INT(11) NOT NULL DEFAULT 0,
+            `category_name` VARCHAR(50) DEFAULT NULL,
             PRIMARY KEY (`id`),
             UNIQUE KEY `unique_dealer_vehicle` (`dealership_id`, `vehicle_model`),
             FOREIGN KEY (`dealership_id`) REFERENCES `dp_vehicleshop_dealerships`(`dealership_id`) ON DELETE CASCADE
         );
     ]]
+    -- exports['oxmysql']:execute(createStockTableQuery) -- (Esta línea la puedes quitar de aquí, ya que se ejecuta abajo en el bloque secuencial)
 
-    -- 5. TABLA: Códigos de Descuento (NUEVA)
+    -- Parche de seguridad UNIVERSAL (Compatible con versiones antiguas de MySQL/MariaDB)
+    exports['oxmysql']:scalar([[
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dp_vehicleshop_stock' AND COLUMN_NAME = 'category_name'
+    ]], {}, function(count)
+        if tonumber(count) == 0 then
+            exports['oxmysql']:execute(
+                "ALTER TABLE `dp_vehicleshop_stock` ADD COLUMN `category_name` VARCHAR(50) DEFAULT NULL;")
+            print("^2[DP-VehicleShop]^7 Columna 'category_name' añadida correctamente a la base de datos.")
+        end
+    end)
+
+    -- 5. TABLA: Códigos de Descuento
     local createDiscountsTableQuery = [[
         CREATE TABLE IF NOT EXISTS `dp_vehicleshop_discounts` (
             `id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -108,7 +122,7 @@ local function InitializeDatabaseSchema()
         );
     ]]
 
-    -- 6. TABLA: Logs y Registro de Actividad (NUEVA)
+    -- 6. TABLA: Logs y Registro de Actividad
     local createLogsTableQuery = [[
         CREATE TABLE IF NOT EXISTS `dp_vehicleshop_logs` (
             `id` INT(11) NOT NULL AUTO_INCREMENT,
@@ -400,7 +414,7 @@ AddEventHandler('DP-VehicleShop:server:requestBossMenu', function(dealerId)
     end
 
     if isAuthorized then
-        -- Si estás autorizado, cargamos las categorías y abrimos el menú
+        -- 1. Cargamos las categorías
         exports['oxmysql']:execute(
             'SELECT * FROM dp_vehicleshop_categories WHERE dealership_id = ? ORDER BY sort_order ASC', {dealerId},
             function(catResult)
@@ -414,8 +428,114 @@ AddEventHandler('DP-VehicleShop:server:requestBossMenu', function(dealerId)
                     })
                 end
 
-                TriggerClientEvent('DP-VehicleShop:client:openBossMenu', src, dealerId, dealerConfig.label, cats)
-                RefreshBossData(dealerId, src)
+                -- 2. Buscamos el stock y la CATEGORÍA de la base de datos
+                exports['oxmysql']:execute(
+                    'SELECT vehicle_model, stock_count, category_name FROM dp_vehicleshop_stock WHERE dealership_id = ?',
+                    {dealerId}, function(stockResult)
+                        local currentStock = {}
+                        if stockResult then
+                            for _, s in ipairs(stockResult) do
+                                currentStock[s.vehicle_model] = {
+                                    count = s.stock_count,
+                                    category = s.category_name -- Guardamos la categoría aquí
+                                }
+                            end
+                        end
+
+                        -- 3. EXTRACCIÓN DE RANGOS DEL TRABAJO (QBCore)
+                        local jobGrades = {}
+                        if Config.Framework == 'qbcore' then
+                            local jobName = dealerConfig.job
+                            local sharedJob = Framework.Core.Shared.Jobs[jobName]
+                            if sharedJob and sharedJob.grades then
+                                for gradeLevel, gradeData in pairs(sharedJob.grades) do
+                                    table.insert(jobGrades, {
+                                        grade = tonumber(gradeLevel),
+                                        name = gradeData.name,
+                                        payment = gradeData.payment or 0,
+                                        isboss = gradeData.isboss or false,
+                                        permissions = gradeData.permissions or {}
+                                    })
+                                end
+                                table.sort(jobGrades, function(a, b)
+                                    return a.grade < b.grade
+                                end)
+                            end
+                        end
+
+                        -- 4. EXTRACCIÓN DE VEHÍCULOS REALES (Con Filtro de Categorías Prohibidas)
+                        local dealerVehicles = {}
+
+                        -- Definimos las categorías que NUNCA queremos que aparezcan en el catálogo de compra
+                        local excludedCategories = {
+                            ['military'] = true,
+                            ['emergency'] = true,
+                            ['service'] = true,
+                            ['commercial'] = true,
+                            ['industrial'] = true,
+                            ['utility'] = true
+                        }
+
+                        if Config.Framework == 'qbcore' and Framework.Core.Shared.Vehicles then
+                            for model, v in pairs(Framework.Core.Shared.Vehicles) do
+                                local category = v.category and string.lower(v.category) or "sin_categoria"
+
+                                -- ¡FILTRO CLAVE! Si la categoría NO está en la lista negra, seguimos
+                                if not excludedCategories[category] then
+                                    local match = false
+                                    local vType = v.type and string.lower(v.type) or ""
+                                    local vShop = v.shop and string.lower(v.shop) or ""
+
+                                    if dealerId == 'cars' then
+                                        if vType == 'automobile' and vShop == 'pdm' then
+                                            match = true
+                                        end
+                                    elseif dealerId == 'bikes' then
+                                        if vType == 'bike' and vShop == 'pdm' then
+                                            match = true
+                                        end
+                                    elseif dealerId == 'sea' then
+                                        if vType == 'boat' and vShop == 'boats' then
+                                            match = true
+                                        end
+                                    elseif dealerId == 'air' then
+                                        if (vType == 'heli' or vType == 'plane') and vShop == 'air' then
+                                            match = true
+                                        end
+                                    elseif dealerId == 'vip' then
+                                        if vType == 'automobile' and vShop == 'luxury' then
+                                            match = true
+                                        end
+                                    end
+
+                                    if match then
+                                        local stockData = currentStock[model] or {}
+                                        table.insert(dealerVehicles, {
+                                            model = model,
+                                            name = v.name or 'Desconocido',
+                                            brand = v.brand or 'Custom',
+                                            price = tonumber(v.price) or 0,
+                                            type = v.type,
+                                            shop = v.shop,
+                                            stock = stockData.count or 0,
+                                            category = stockData.category
+                                        })
+                                    end
+                                end
+                            end
+
+                            table.sort(dealerVehicles, function(a, b)
+                                if a.brand == b.brand then
+                                    return (a.name or "") < (b.name or "")
+                                end
+                                return (a.brand or "") < (b.brand or "")
+                            end)
+                        end
+
+                        TriggerClientEvent('DP-VehicleShop:client:openBossMenu', src, dealerId, dealerConfig.label,
+                            cats, jobGrades, dealerVehicles)
+                        RefreshBossData(dealerId, src)
+                    end)
             end)
     else
         TriggerClientEvent('QBCore:Notify', src, 'Solo el dueño o el gerente pueden acceder a este panel.', 'error',
@@ -631,7 +751,7 @@ CreateThread(function()
                 l = 'Sedanes'
             }, {
                 n = 'sportsclassics',
-                l = 'Clásicos Deportivos'
+                l = 'Deportivos Clásicos'
             }, {
                 n = 'sports',
                 l = 'Deportivos'
@@ -639,30 +759,15 @@ CreateThread(function()
                 n = 'super',
                 l = 'Súper'
             }, {
-                n = 'utility',
-                l = 'Utilitarios'
-            }, {
                 n = 'vans',
                 l = 'Furgonetas'
-            }, {
-                n = 'industrial',
-                l = 'Industrial'
-            }, {
-                n = 'commercial',
-                l = 'Comercial'
-            }, {
-                n = 'service',
-                l = 'Servicios'
-            }, {
-                n = 'military',
-                l = 'Militar'
             }},
             ['bikes'] = {{
-                n = 'motorcycles',
-                l = 'Motocicletas'
-            }, {
                 n = 'cycles',
                 l = 'Bicicletas'
+            }, {
+                n = 'motorcycles',
+                l = 'Motocicletas'
             }},
             ['air'] = {{
                 n = 'helicopters',
@@ -676,17 +781,8 @@ CreateThread(function()
                 l = 'Barcos'
             }},
             ['vip'] = {{
-                n = 'super',
-                l = 'Súper'
-            }, {
-                n = 'sports',
-                l = 'Deportivos'
-            }, {
-                n = 'sportsclassics',
-                l = 'Clásicos Deportivos'
-            }, {
-                n = 'suvs',
-                l = 'SUVs Premium'
+                n = 'luxury',
+                l = 'Exclusivos'
             }}
             -- El 'used' lo dejamos fuera porque como bien has dicho, no lleva categorías normales.
         }
@@ -757,12 +853,19 @@ RegisterNetEvent('DP-VehicleShop:server:saveCategory', function(dealerId, data)
         exports['oxmysql']:execute(
             'UPDATE dp_vehicleshop_categories SET category_name = ?, category_label = ? WHERE id = ?',
             {data.name, data.label, data.id}, function()
+
+                -- MAGIA EN CASCADA: Si ha cambiado el ID interno, actualizamos todo el stock
+                if data.oldName and data.oldName ~= data.name then
+                    exports['oxmysql']:execute(
+                        'UPDATE dp_vehicleshop_stock SET category_name = ? WHERE dealership_id = ? AND category_name = ?',
+                        {data.name, dealerId, data.oldName})
+                end
+
                 RefreshCategoriesForBoss(dealerId, src)
                 TriggerClientEvent('QBCore:Notify', src, 'Categoría actualizada correctamente', 'success')
             end)
     else
-        -- Si NO trae ID, significa que estamos CREANDO una nueva
-        -- Primero buscamos cuál es el último número de orden para ponerla al final
+        -- CREANDO nueva... Primero buscamos el máximo sort_order actual para colocar la nueva categoría al final
         exports['oxmysql']:scalar('SELECT MAX(sort_order) FROM dp_vehicleshop_categories WHERE dealership_id = ?',
             {dealerId}, function(maxOrder)
                 local nextOrder = (maxOrder or 0) + 1
@@ -776,11 +879,490 @@ RegisterNetEvent('DP-VehicleShop:server:saveCategory', function(dealerId, data)
     end
 end)
 
--- Evento de Eliminar
-RegisterNetEvent('DP-VehicleShop:server:deleteCategory', function(dealerId, catId)
+-- Evento de Eliminar (Con borrado de Stock)
+RegisterNetEvent('DP-VehicleShop:server:deleteCategory', function(dealerId, catId, catName)
     local src = source
+
+    -- 1. Primero borramos DE RAÍZ todos los coches en stock que tuvieran esta categoría
+    if catName then
+        exports['oxmysql']:execute('DELETE FROM dp_vehicleshop_stock WHERE dealership_id = ? AND category_name = ?',
+            {dealerId, catName})
+    end
+
+    -- 2. Borramos la categoría
     exports['oxmysql']:execute('DELETE FROM dp_vehicleshop_categories WHERE id = ?', {catId}, function()
         RefreshCategoriesForBoss(dealerId, src)
-        TriggerClientEvent('QBCore:Notify', src, 'Categoría eliminada', 'error')
+        RefreshBossData(dealerId, src) -- Recargamos el menú de Jefe para que desaparezca el stock borrado
+        TriggerClientEvent('QBCore:Notify', src, 'Categoría (y sus vehículos) eliminada', 'error')
     end)
 end)
+
+-- =================================================================
+-- GUARDADO DE JOBS.LUA (A TRAVÉS DE EXPORT A QB-CORE)
+-- =================================================================
+local function SaveJobsToFile()
+    if Config.Framework ~= 'qbcore' then
+        return
+    end
+
+    local jobs = Framework.Core.Shared.Jobs
+
+    -- Función recursiva para formatear la tabla a texto
+    local function serialize(tbl, indent)
+        local result = ""
+        local formatting = string.rep("    ", indent)
+        local isFirst = true
+
+        local keys = {}
+        for k in pairs(tbl) do
+            table.insert(keys, k)
+        end
+        table.sort(keys, function(a, b)
+            local numA = tonumber(a)
+            local numB = tonumber(b)
+            if numA and numB then
+                return numA < numB
+            end
+            return tostring(a) < tostring(b)
+        end)
+
+        for _, k in ipairs(keys) do
+            local v = tbl[k]
+            if type(v) ~= "function" and type(v) ~= "userdata" then
+                if not isFirst then
+                    result = result .. ",\n"
+                else
+                    isFirst = false
+                end
+
+                local keyStr = ""
+                if type(k) == "number" then
+                    keyStr = "[" .. k .. "]"
+                elseif type(k) == "string" and string.match(k, "^%a[%w_]*$") then
+                    keyStr = k
+                else
+                    keyStr = "['" .. tostring(k) .. "']"
+                end
+
+                if type(v) == "table" then
+                    result = result .. formatting .. keyStr .. " = {\n" .. serialize(v, indent + 1) .. "\n" ..
+                                 formatting .. "}"
+                elseif type(v) == "string" then
+                    local safeStr = string.gsub(v, "'", "\\'")
+                    result = result .. formatting .. keyStr .. " = '" .. safeStr .. "'"
+                elseif type(v) == "boolean" then
+                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
+                else
+                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
+                end
+            end
+        end
+        return result
+    end
+
+    local success, serializedData = pcall(serialize, jobs, 1)
+    if not success then
+        return
+    end
+
+    -- ¡LA MAGIA! Le pasamos los datos formateados a qb-core para que él mismo guarde
+    local saved = exports['qb-core']:SaveJobsFile(serializedData)
+
+    if saved then
+        print(
+            "^2[DP-VehicleShop] ÉXITO TOTAL: El archivo jobs.lua original de qb-core se ha modificado automáticamente.^7")
+    else
+        print("^1[DP-VehicleShop] ERROR: Falla al comunicar con el export de qb-core.^7")
+    end
+
+    TriggerClientEvent('QBCore:Client:UpdateObject', -1)
+end
+
+-- Función interna para refrescar los rangos al instante en el UI del Jefe
+local function RefreshJobGradesForBoss(dealerId, src)
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig then
+        return
+    end
+
+    local jobGrades = {}
+    if Config.Framework == 'qbcore' then
+        local jobName = dealerConfig.job
+        local sharedJob = Framework.Core.Shared.Jobs[jobName]
+        if sharedJob and sharedJob.grades then
+            for gradeLevel, gradeData in pairs(sharedJob.grades) do
+                table.insert(jobGrades, {
+                    grade = tonumber(gradeLevel),
+                    name = gradeData.name,
+                    payment = gradeData.payment or 0,
+                    isboss = gradeData.isboss or false,
+                    permissions = gradeData.permissions or {}
+                })
+            end
+            table.sort(jobGrades, function(a, b)
+                return a.grade < b.grade
+            end)
+        end
+    end
+    -- Le enviamos las categorías nuevas de vuelta al cliente
+    TriggerClientEvent('DP-VehicleShop:client:refreshJobGrades', src, jobGrades)
+end
+
+-- =================================================================
+-- GUARDADO DE VEHICLES.LUA (A TRAVÉS DE EXPORT A QB-CORE)
+-- =================================================================
+local function SaveVehiclesToFile()
+    if Config.Framework ~= 'qbcore' then
+        return
+    end
+
+    local vehicles = Framework.Core.Shared.Vehicles
+
+    -- Función recursiva para formatear la tabla a texto Lua legible
+    local function serialize(tbl, indent)
+        local result = ""
+        local formatting = string.rep("    ", indent)
+        local isFirst = true
+
+        local keys = {}
+        for k in pairs(tbl) do
+            table.insert(keys, k)
+        end
+        table.sort(keys, function(a, b)
+            local numA = tonumber(a)
+            local numB = tonumber(b)
+            if numA and numB then
+                return numA < numB
+            end
+            return tostring(a) < tostring(b)
+        end)
+
+        for _, k in ipairs(keys) do
+            local v = tbl[k]
+            if type(v) ~= "function" and type(v) ~= "userdata" then
+                if not isFirst then
+                    result = result .. ",\n"
+                else
+                    isFirst = false
+                end
+
+                local keyStr = ""
+                if type(k) == "number" then
+                    keyStr = "[" .. k .. "]"
+                elseif type(k) == "string" and string.match(k, "^%a[%w_]*$") then
+                    keyStr = k
+                else
+                    keyStr = "['" .. tostring(k) .. "']"
+                end
+
+                if type(v) == "table" then
+                    result = result .. formatting .. keyStr .. " = {\n" .. serialize(v, indent + 1) .. "\n" ..
+                                 formatting .. "}"
+                elseif type(v) == "string" then
+                    local safeStr = string.gsub(v, "'", "\\'")
+                    result = result .. formatting .. keyStr .. " = '" .. safeStr .. "'"
+                elseif type(v) == "boolean" then
+                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
+                else
+                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
+                end
+            end
+        end
+        return result
+    end
+
+    local success, serializedData = pcall(serialize, vehicles, 1)
+    if not success then
+        return
+    end
+
+    -- Mandamos los datos al export de qb-core que acabamos de crear
+    local saved = exports['qb-core']:SaveVehiclesFile(serializedData)
+
+    if saved then
+        print("^2[DP-VehicleShop] ÉXITO TOTAL: El archivo vehicles.lua de qb-core se ha guardado y actualizado.^7")
+    else
+        print("^1[DP-VehicleShop] ERROR: Falla al comunicar con el export de vehicles de qb-core.^7")
+    end
+
+    -- Sincronizamos la memoria RAM de todos los jugadores
+    TriggerClientEvent('QBCore:Client:UpdateObject', -1)
+end
+
+-- =================================================================
+-- EVENTOS DE RANGOS
+-- =================================================================
+
+RegisterNetEvent('DP-VehicleShop:server:saveJobGrade', function(dealerId, data)
+    local src = source
+    if Config.Framework ~= 'qbcore' then
+        return
+    end
+
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig then
+        return
+    end
+
+    local jobName = dealerConfig.job
+    local gradeStr = tostring(data.grade)
+
+    -- 1. Modificar en la memoria RAM al instante
+    if not Framework.Core.Shared.Jobs[jobName].grades then
+        Framework.Core.Shared.Jobs[jobName].grades = {}
+    end
+
+    local isBossFlag = data.isboss
+    if not isBossFlag then
+        isBossFlag = nil
+    end
+
+    -- SOLO UN JEFE POR EMPRESA
+    if isBossFlag then
+        -- Si este rango va a ser el Jefe, le quitamos el 'isboss' a todos los demás
+        for k, v in pairs(Framework.Core.Shared.Jobs[jobName].grades) do
+            if v.isboss then
+                v.isboss = nil
+            end
+        end
+    end
+
+    -- =================================================================
+    -- LIMPIEZA DE PERMISOS: Solo guardamos los que estén marcados
+    -- =================================================================
+    local activePerms = nil
+    if data.permissions then
+        for permName, isGranted in pairs(data.permissions) do
+            if isGranted then
+                if not activePerms then
+                    activePerms = {}
+                end
+                activePerms[permName] = true
+            end
+        end
+    end
+
+    Framework.Core.Shared.Jobs[jobName].grades[gradeStr] = {
+        name = data.name,
+        payment = data.payment,
+        isboss = isBossFlag,
+        permissions = activePerms -- Insertamos solo los permisos en true
+    }
+
+    -- 2. Guardar en el archivo jobs.lua físicamente
+    SaveJobsToFile()
+
+    -- 3. Refrescar UI del jefe visualmente
+    RefreshJobGradesForBoss(dealerId, src)
+    TriggerClientEvent('QBCore:Notify', src, 'Rango guardado y sincronizado globalmente.', 'success')
+end)
+
+RegisterNetEvent('DP-VehicleShop:server:deleteJobGrade', function(dealerId, grade)
+    local src = source
+    if Config.Framework ~= 'qbcore' then
+        return
+    end
+
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig then
+        return
+    end
+
+    local jobName = dealerConfig.job
+    local gradeStr = tostring(grade)
+
+    -- 1. Eliminar de la RAM al instante
+    if Framework.Core.Shared.Jobs[jobName].grades[gradeStr] then
+        Framework.Core.Shared.Jobs[jobName].grades[gradeStr] = nil
+    end
+
+    -- 2. Guardar en el archivo jobs.lua físicamente
+    SaveJobsToFile()
+
+    -- 3. Refrescar UI del jefe visualmente
+    RefreshJobGradesForBoss(dealerId, src)
+    TriggerClientEvent('QBCore:Notify', src, 'Rango eliminado y sincronizado globalmente.', 'error')
+end)
+
+-- =================================================================
+-- COMPRA DE STOCK (DESDE EL BOSS MENU)
+-- =================================================================
+RegisterNetEvent('DP-VehicleShop:server:orderStock', function(dealerId, orderData)
+    local src = source
+    local Player = Framework.Core.Functions.GetPlayer(src)
+    if not Player then
+        return
+    end
+
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig then
+        return
+    end
+
+    -- Verificamos permisos (Solo Jefes)
+    if Player.PlayerData.job.name ~= dealerConfig.job or not Player.PlayerData.job.isboss then
+        TriggerClientEvent('QBCore:Notify', src, 'No tienes permisos de gerencia para pedir stock.', 'error')
+        return
+    end
+
+    -- Limpieza de datos recibidos del cliente
+    local qty = math.floor(tonumber(orderData.amount) or 1)
+    if qty < 1 then
+        qty = 1
+    end
+    local retailPrice = tonumber(orderData.retailPrice) or 0
+    local model = orderData.model
+    local category = orderData.category
+
+    -- ==========================================
+    -- MATEMÁTICA ANTI-HACKEOS (Descuento Escalonado)
+    -- ==========================================
+    local baseDiscount = 0.25
+    local bulkDiscount = 0
+
+    if qty >= 500 then
+        bulkDiscount = 0.12
+    elseif qty >= 100 then
+        bulkDiscount = 0.08
+    elseif qty >= 50 then
+        bulkDiscount = 0.05
+    elseif qty >= 10 then
+        bulkDiscount = 0.02
+    end
+
+    local totalDiscount = baseDiscount + bulkDiscount
+    local finalUnitCost = math.floor(retailPrice * (1 - totalDiscount))
+    local totalOrderCost = finalUnitCost * qty
+
+    -- ==========================================
+    -- TRANSACCIÓN
+    -- ==========================================
+    -- 1. Consultar balance de la empresa
+    exports['oxmysql']:scalar('SELECT balance FROM dp_vehicleshop_dealerships WHERE dealership_id = ?', {dealerId},
+        function(balance)
+            local currentBalance = tonumber(balance) or 0
+
+            if currentBalance >= totalOrderCost then
+                -- 2. Restar dinero a la empresa
+                exports['oxmysql']:execute(
+                    'UPDATE dp_vehicleshop_dealerships SET balance = balance - ? WHERE dealership_id = ?',
+                    {totalOrderCost, dealerId}, function()
+
+                        -- 3. Añadir el stock a la base de datos
+                        -- NOTA: Si el coche ya existía, suma el stock y le actualiza la categoría a la nueva que haya elegido
+                        exports['oxmysql']:execute([[
+                    INSERT INTO dp_vehicleshop_stock (dealership_id, vehicle_model, stock_count, category_name) 
+                    VALUES (?, ?, ?, ?) 
+                    ON DUPLICATE KEY UPDATE stock_count = stock_count + ?, category_name = ?
+                ]], {dealerId, model, qty, category, qty, category}, function()
+
+                            -- 4. Registrar movimiento en los Logs de la empresa
+                            local employeeName = Player.PlayerData.charinfo.firstname .. ' ' ..
+                                                     Player.PlayerData.charinfo.lastname
+                            local logDetails = json.encode({
+                                action = "COMPRA STOCK",
+                                model = model,
+                                amount = qty,
+                                cost = totalOrderCost
+                            })
+
+                            exports['oxmysql']:execute(
+                                'INSERT INTO dp_vehicleshop_logs (dealership_id, action_type, actor_citizenid, actor_name, details) VALUES (?, ?, ?, ?, ?)',
+                                {dealerId, 'PEDIDO_STOCK', Player.PlayerData.citizenid, employeeName, logDetails},
+                                function()
+
+                                    -- 5. Refrescar UI del jefe y notificar éxito
+                                    RefreshBossData(dealerId, src)
+                                    TriggerClientEvent('QBCore:Notify', src,
+                                        string.format('Has comprado %sx %s por $%s', qty, model, totalOrderCost),
+                                        'success')
+                                end)
+                        end)
+                    end)
+            else
+                TriggerClientEvent('QBCore:Notify', src, string.format('La empresa no tiene saldo. Faltan $%s',
+                    (totalOrderCost - currentBalance)), 'error')
+            end
+        end)
+end)
+
+-- =================================================================
+-- HERRAMIENTA ADMIN: GENERADOR DE STOCK INICIAL (.SQL)
+-- =================================================================
+if Config.Framework == 'qbcore' then
+    Framework.Core.Commands.Add('generarprimerstock', 'Genera un archivo SQL con 1000 de stock (Solo Civiles) (Admin)',
+        {}, false, function(source, args)
+            local src = source
+            local vehicles = Framework.Core.Shared.Vehicles
+            if not vehicles then
+                return
+            end
+
+            -- LISTA NEGRA: Categorías que NO queremos meter en el stock inicial
+            local excludedCategories = {
+                ['military'] = true,
+                ['emergency'] = true,
+                ['service'] = true,
+                ['commercial'] = true,
+                ['industrial'] = true,
+                ['utility'] = true
+            }
+
+            -- Cabecera del archivo SQL
+            local sqlContent = "-- =================================================================\n"
+            sqlContent = sqlContent .. "-- ARCHIVO GENERADO AUTOMÁTICAMENTE: PRIMER STOCK (FILTRADO)\n"
+            sqlContent = sqlContent .. "-- =================================================================\n"
+            sqlContent = sqlContent ..
+                             "-- Categorías excluidas: military, emergency, service, commercial, industrial, utility.\n\n"
+
+            local count = 0
+
+            -- Recorremos todos los vehículos del shared de QBCore
+            for model, v in pairs(vehicles) do
+                local category = v.category and string.lower(v.category) or 'sin_categoria'
+
+                -- ¡FILTRO MEJORADO! Comprobamos si la categoría está en nuestra lista negra
+                if not excludedCategories[category] then
+                    local dealerId = false
+                    local vType = v.type and string.lower(v.type) or ""
+                    local vShop = v.shop and string.lower(v.shop) or ""
+
+                    -- Lógica de asignación de concesionario
+                    if vType == 'automobile' and vShop == 'pdm' then
+                        dealerId = 'cars'
+                    elseif vType == 'bike' and vShop == 'pdm' then
+                        dealerId = 'bikes'
+                    elseif vType == 'boat' and vShop == 'boats' then
+                        dealerId = 'sea'
+                    elseif (vType == 'heli' or vType == 'plane') and vShop == 'air' then
+                        dealerId = 'air'
+                    elseif vType == 'automobile' and vShop == 'luxury' then
+                        dealerId = 'vip'
+                    end
+
+                    -- Si pertenece a un concesionario válido, creamos su línea SQL
+                    if dealerId then
+                        local finalCategory = v.category or 'sin_categoria'
+                        sqlContent = sqlContent .. string.format(
+                            "INSERT IGNORE INTO `dp_vehicleshop_stock` (`dealership_id`, `vehicle_model`, `stock_count`, `category_name`) VALUES ('%s', '%s', 1000, '%s');\n",
+                            dealerId, model, finalCategory)
+                        count = count + 1
+                    end
+                end
+            end
+
+            -- Guardar el archivo físicamente en la raíz de tu script
+            local resourcePath = GetResourcePath(GetCurrentResourceName())
+            local file = io.open(resourcePath .. '/primer_stock.sql', 'w')
+
+            if file then
+                file:write(sqlContent)
+                file:close()
+                TriggerClientEvent('QBCore:Notify', src,
+                    '¡ÉXITO! Archivo generado con ' .. count .. ' vehículos civiles.', 'success', 8000)
+                print('^2[DP-VehicleShop]^7 Archivo primer_stock.sql generado (Filtrado: solo civiles).')
+            else
+                TriggerClientEvent('QBCore:Notify', src, 'Error: No se pudo crear el archivo.', 'error')
+            end
+        end, 'admin')
+end
