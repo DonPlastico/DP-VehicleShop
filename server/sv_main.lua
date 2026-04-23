@@ -139,19 +139,73 @@ local function InitializeDatabaseSchema()
         );
     ]]
 
-    -- Ejecución secuencial de las consultas
+    -- 7. TABLA: Reservas Pendientes
+    local createReservationsTableQuery = [[
+        CREATE TABLE IF NOT EXISTS `dp_vehicleshop_reservations` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `dealership_id` VARCHAR(50) NOT NULL,
+            `customer_citizenid` VARCHAR(50) NOT NULL,
+            `customer_name` VARCHAR(100) NOT NULL,
+            `vehicle_model` VARCHAR(50) NOT NULL,
+            `vehicle_name` VARCHAR(100) NOT NULL,
+            `price` INT(11) NOT NULL DEFAULT 0,
+            `color` INT(11) NOT NULL DEFAULT 0,
+            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            FOREIGN KEY (`dealership_id`) REFERENCES `dp_vehicleshop_dealerships`(`dealership_id`) ON DELETE CASCADE
+        );
+    ]]
+
+    -- 8. TABLA: Registro de Ventas Finalizadas
+    local createSalesTableQuery = [[
+        CREATE TABLE IF NOT EXISTS `dp_vehicleshop_sales` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `dealership_id` VARCHAR(50) NOT NULL,
+            `customer_citizenid` VARCHAR(50) NOT NULL,
+            `customer_name` VARCHAR(100) NOT NULL,
+            `vehicle_model` VARCHAR(50) NOT NULL,
+            `vehicle_name` VARCHAR(100) NOT NULL,
+            `price` INT(11) NOT NULL,
+            `timestamp` DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`)
+        );
+    ]]
+
+    -- 9. TABLA: Financiaciones y Plazos
+    local createFinancesTableQuery = [[
+        CREATE TABLE IF NOT EXISTS `dp_vehicleshop_finances` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `citizenid` VARCHAR(50) NOT NULL,
+            `vehicle_model` VARCHAR(50) NOT NULL,
+            `plate` VARCHAR(15) NOT NULL,
+            `total_price` INT(11) NOT NULL,
+            `amount_paid` INT(11) NOT NULL DEFAULT 0,
+            `amount_remaining` INT(11) NOT NULL,
+            `installments_total` INT(11) NOT NULL,
+            `installments_paid` INT(11) NOT NULL DEFAULT 0,
+            `installment_amount` INT(11) NOT NULL,
+            `next_payment` DATETIME NOT NULL,
+            PRIMARY KEY (`id`)
+        );
+    ]]
+
+    --- Ejecución secuencial de las consultas
     exports['oxmysql']:execute(createSpawnsTableQuery, {}, function()
         exports['oxmysql']:execute(createVehiclesTableQuery, {}, function()
             exports['oxmysql']:execute(createDealershipsTableQuery, {}, function()
                 exports['oxmysql']:execute(createStockTableQuery, {}, function()
                     exports['oxmysql']:execute(createDiscountsTableQuery, {}, function()
                         exports['oxmysql']:execute(createLogsTableQuery, {}, function()
-                            print(
-                                '^2[DP-VehicleShop] Base de datos (Tablas Multi-Dealer, Stock, Logs y Descuentos) verificada/creada correctamente.^7')
-
-                            -- Cargamos la caché inmediatamente después de crear la DB
-                            RefreshDealerCache()
-
+                            exports['oxmysql']:execute(createReservationsTableQuery, {}, function()
+                                exports['oxmysql']:execute(createSalesTableQuery, {}, function()
+                                    exports['oxmysql']:execute(createFinancesTableQuery, {}, function()
+                                        print(
+                                            '^2[DP-VehicleShop] Base de datos Tablas verificadas/creadas correctamente.^7')
+                                        -- Cargamos la caché inmediatamente después de crear la DB
+                                        RefreshDealerCache()
+                                    end)
+                                end)
+                            end)
                         end)
                     end)
                 end)
@@ -360,29 +414,44 @@ end)
 local function RefreshBossData(dealerId, src)
     exports['oxmysql']:execute('SELECT balance FROM dp_vehicleshop_dealerships WHERE dealership_id = ?', {dealerId},
         function(balResult)
-            local balance = 0
-            if balResult[1] then
-                balance = balResult[1].balance
-            end
+            local balance = balResult[1] and balResult[1].balance or 0
 
-            -- Obtenemos los últimos 50 movimientos de dinero de este concesionario
+            -- 1. Obtenemos los Logs (Ingresos/Retiros)
             exports['oxmysql']:execute(
-                "SELECT actor_name, action_type, details, DATE_FORMAT(timestamp, '%d-%m-%Y | %H:%i') as date FROM dp_vehicleshop_logs WHERE dealership_id = ? AND action_type IN ('DEPOSITO', 'RETIRO') ORDER BY timestamp DESC LIMIT 50",
+                "SELECT actor_name, action_type, details, DATE_FORMAT(timestamp, '%d-%m-%Y | %H:%i') as date FROM dp_vehicleshop_logs WHERE dealership_id = ? AND action_type IN ('DEPOSITO', 'RETIRO', 'VENTA_VEHICULO') ORDER BY timestamp DESC LIMIT 20",
                 {dealerId}, function(logsResult)
                     local formattedLogs = {}
                     for _, log in ipairs(logsResult) do
-                        -- Decodificamos el JSON que guardamos en 'details' para sacar el rango y la cantidad
                         local detailsObj = json.decode(log.details) or {}
                         table.insert(formattedLogs, {
                             employee = log.actor_name,
                             action = log.action_type,
-                            rank = detailsObj.rank or "Desconocido",
-                            amount = detailsObj.amount or 0,
-                            date = log.date
+                            rank = detailsObj.rank or "Sistema",
+                            amount = detailsObj.amount or detailsObj.price or 0,
+                            date = log.date,
+                            model = detailsObj.model or detailsObj.vehicle_name or "N/A"
                         })
                     end
-                    TriggerClientEvent('DP-VehicleShop:client:updateBossData', src, balance, formattedLogs)
+
+                    -- 2. Obtenemos las últimas Ventas Reales
+                    exports['oxmysql']:execute(
+                        "SELECT customer_name as buyer, vehicle_name as modelLabel, vehicle_model as modelId, price, DATE_FORMAT(timestamp, '%d-%m-%Y | %H:%i') as date FROM dp_vehicleshop_sales WHERE dealership_id = ? ORDER BY timestamp DESC LIMIT 15",
+                        {dealerId}, function(salesResult)
+                            -- Enviamos todo al cliente (Boss Menu)
+                            TriggerClientEvent('DP-VehicleShop:client:updateBossData', src, balance, formattedLogs,
+                                salesResult)
+                        end)
                 end)
+        end)
+end
+
+-- Función auxiliar para cargar y enviar las reservas al menú del Jefe
+local function RefreshReservationsForBoss(dealerId, src)
+    exports['oxmysql']:execute(
+        'SELECT * FROM dp_vehicleshop_reservations WHERE dealership_id = ? ORDER BY created_at ASC', {dealerId},
+        function(results)
+            -- Si no hay resultados, oxmysql devuelve un array vacío, lo cual está bien para el JS
+            TriggerClientEvent('DP-VehicleShop:client:updateReservations', src, results)
         end)
 end
 
@@ -532,9 +601,13 @@ AddEventHandler('DP-VehicleShop:server:requestBossMenu', function(dealerId)
                             end)
                         end
 
+                        -- Mandamos los datos básicos al cliente
                         TriggerClientEvent('DP-VehicleShop:client:openBossMenu', src, dealerId, dealerConfig.label,
                             cats, jobGrades, dealerVehicles)
                         RefreshBossData(dealerId, src)
+
+                        -- Cargamos y enviamos las reservas pendientes a ese Jefe
+                        RefreshReservationsForBoss(dealerId, src)
                     end)
             end)
     else
@@ -549,6 +622,20 @@ end)
 RegisterNetEvent('DP-VehicleShop:server:requestShowroom')
 AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
     local src = source
+
+    -- [NUEVO] 0. Identificamos al jugador para buscar sus reservas personales
+    local citizenid = "unknown"
+    if Config.Framework == 'qbcore' then
+        local Player = Framework.Core.Functions.GetPlayer(src)
+        if Player then
+            citizenid = Player.PlayerData.citizenid
+        end
+    elseif Config.Framework == 'esx' or Config.Framework == 'new_esx' then
+        local Player = Framework.Core.GetPlayerFromId(src)
+        if Player then
+            citizenid = Player.identifier
+        end
+    end
 
     -- 1. Buscamos las categorías
     exports['oxmysql']:execute(
@@ -593,7 +680,6 @@ AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
                         for model, v in pairs(Framework.Core.Shared.Vehicles) do
                             local category = v.category and string.lower(v.category) or "sin_categoria"
 
-                            -- ¡FILTRO CLAVE! Si la categoría NO está en la lista negra, seguimos
                             if not excludedCategories[category] then
                                 local match = false
                                 local vType = v.type and string.lower(v.type) or ""
@@ -637,7 +723,6 @@ AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
                             end
                         end
 
-                        -- Ordenamos la lista
                         table.sort(dealerVehicles, function(a, b)
                             if a.brand == b.brand then
                                 return (a.name or "") < (b.name or "")
@@ -646,8 +731,21 @@ AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
                         end)
                     end
 
-                    -- Mandamos al cliente las categorías Y LOS VEHÍCULOS (dealerVehicles)
-                    TriggerClientEvent('DP-VehicleShop:client:openShowroom', src, dealerId, cats, dealerVehicles)
+                    -- [NUEVO] 4. Buscamos qué coches tiene reservados ESTE jugador en concreto
+                    exports['oxmysql']:execute(
+                        'SELECT vehicle_model FROM dp_vehicleshop_reservations WHERE customer_citizenid = ?',
+                        {citizenid}, function(resResult)
+                            local myReservations = {}
+                            if resResult then
+                                for _, r in ipairs(resResult) do
+                                    table.insert(myReservations, r.vehicle_model)
+                                end
+                            end
+
+                            -- [MODIFICADO] Mandamos al cliente las categorías, los vehículos Y LAS RESERVAS DEL JUGADOR
+                            TriggerClientEvent('DP-VehicleShop:client:openShowroom', src, dealerId, cats,
+                                dealerVehicles, myReservations)
+                        end)
                 end)
         end)
 end)
@@ -885,7 +983,6 @@ RegisterCommand(Config.VehicleList, function(source, args, rawCommand)
         end
     end
 end, true) -- El 'true' al final restringe el comando a administradores mediante el sistema ACE nativo de FiveM
-
 
 -- =================================================================
 -- INICIALIZACIÓN DE CATEGORÍAS (AUTO-CREACIÓN)
@@ -1457,6 +1554,258 @@ RegisterNetEvent('DP-VehicleShop:server:orderStock', function(dealerId, orderDat
             else
                 TriggerClientEvent('QBCore:Notify', src, string.format('La empresa no tiene saldo. Faltan $%s',
                     (totalOrderCost - currentBalance)), 'error')
+            end
+        end)
+end)
+
+-- =================================================================
+-- SISTEMA DE RESERVAS (CLIENTES Y JEFES)
+-- =================================================================
+
+-- 1. Un jugador normal realiza una reserva desde el Showroom
+RegisterNetEvent('DP-VehicleShop:server:reserveVehicle', function(dealerId, vehicleData)
+    local src = source
+    local Player = Framework.Core.Functions.GetPlayer(src)
+    if not Player then
+        return
+    end
+
+    local citizenid = Player.PlayerData.citizenid
+    local charName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+
+    local price = tonumber(vehicleData.price) or 0
+    local color = tonumber(vehicleData.color) or 0
+
+    exports['oxmysql']:insert(
+        'INSERT INTO dp_vehicleshop_reservations (dealership_id, customer_citizenid, customer_name, vehicle_model, vehicle_name, price, color) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        {dealerId, citizenid, charName, vehicleData.model, vehicleData.name, price, color}, function(id)
+            -- Opcional: Si quisieras, podrías iterar los jugadores conectados y si tienen el job del 'dealerId', mandarles un QBCore:Notify de "Nueva Reserva"
+        end)
+end)
+
+-- 2. El Jefe CANCELA / RECHAZA una reserva
+RegisterNetEvent('DP-VehicleShop:server:cancelReservation', function(reservationId)
+    local src = source
+    -- Simplemente borramos la reserva de la base de datos
+    exports['oxmysql']:execute('DELETE FROM dp_vehicleshop_reservations WHERE id = ?', {reservationId}, function(result)
+        -- Hemos quitado el "if result > 0" porque oxmysql devuelve una tabla, no un número.
+        -- Mandamos la notificación directamente (en rojo porque es un rechazo/cancelación).
+        TriggerClientEvent('QBCore:Notify', src, 'Reserva cancelada y eliminada.', 'error')
+    end)
+end)
+
+-- 3. El Jefe ACEPTA la reserva (TODO: Aquí irá la lógica de cobro)
+RegisterNetEvent('DP-VehicleShop:server:acceptReservation', function(reservationId)
+    local src = source
+    local BossPlayer = Framework.Core.Functions.GetPlayer(src)
+    if not BossPlayer then
+        return
+    end
+
+    exports['oxmysql']:execute('SELECT * FROM dp_vehicleshop_reservations WHERE id = ?', {reservationId},
+        function(result)
+            if not result or not result[1] then
+                TriggerClientEvent('QBCore:Notify', src, 'Reserva no encontrada.', 'error')
+                return
+            end
+
+            local res = result[1]
+            local dealerId = res.dealership_id
+            local customerId = res.customer_citizenid
+            local price = res.price
+            local TargetPlayer = Framework.Core.Functions.GetPlayerByCitizenId(customerId)
+
+            -- 1. COBRO AL CLIENTE (Online / Offline)
+            if TargetPlayer then
+                -- Está conectado: Cobro directo
+                if TargetPlayer.Functions.RemoveMoney('bank', price, "Compra vehículo: " .. res.vehicle_name) then
+                    FinalizeSale(src, res, BossPlayer)
+                else
+                    TriggerClientEvent('QBCore:Notify', src, 'El cliente no tiene suficiente dinero en el banco.',
+                        'error')
+                end
+            else
+                -- Está desconectado: Magia de SQL para cobrar offline
+                exports['oxmysql']:execute("SELECT money FROM players WHERE citizenid = ?", {customerId},
+                    function(pData)
+                        if pData and pData[1] then
+                            local money = json.decode(pData[1].money)
+                            if money.bank >= price then
+                                money.bank = money.bank - price
+                                exports['oxmysql']:execute("UPDATE players SET money = ? WHERE citizenid = ?",
+                                    {json.encode(money), customerId}, function()
+                                        FinalizeSale(src, res, BossPlayer)
+                                    end)
+                            else
+                                TriggerClientEvent('QBCore:Notify', src,
+                                    'El cliente (Offline) no tiene fondos suficientes.', 'error')
+                            end
+                        end
+                    end)
+            end
+        end)
+end)
+
+-- Función interna para no repetir código al finalizar la venta
+function FinalizeSale(src, res, BossPlayer)
+    local dealerId = res.dealership_id
+    local price = res.price
+
+    -- A. Sumar dinero a la empresa
+    exports['oxmysql']:execute('UPDATE dp_vehicleshop_dealerships SET balance = balance + ? WHERE dealership_id = ?',
+        {price, dealerId})
+
+    -- B. Registrar en la tabla de ventas
+    exports['oxmysql']:execute(
+        'INSERT INTO dp_vehicleshop_sales (dealership_id, customer_citizenid, customer_name, vehicle_model, vehicle_name, price) VALUES (?, ?, ?, ?, ?, ?)',
+        {dealerId, res.customer_citizenid, res.customer_name, res.vehicle_model, res.vehicle_name, price})
+
+    -- C. Registrar en Logs
+    local logDetails = json.encode({
+        price = price,
+        model = res.vehicle_model,
+        customer = res.customer_name
+    })
+    exports['oxmysql']:execute(
+        'INSERT INTO dp_vehicleshop_logs (dealership_id, action_type, actor_citizenid, actor_name, details) VALUES (?, ?, ?, ?, ?)',
+        {dealerId, 'VENTA_VEHICULO', BossPlayer.PlayerData.citizenid,
+         BossPlayer.PlayerData.charinfo.firstname .. " " .. BossPlayer.PlayerData.charinfo.lastname, logDetails})
+
+    -- D. Borrar la reserva
+    exports['oxmysql']:execute('DELETE FROM dp_vehicleshop_reservations WHERE id = ?', {res.id})
+
+    -- E. Refrescar el menú para el jefe
+    RefreshBossData(dealerId, src)
+    RefreshReservationsForBoss(dealerId, src)
+
+    TriggerClientEvent('QBCore:Notify', src, '¡Venta completada! El dinero se ha sumado a la empresa.', 'success')
+end
+
+-- =================================================================
+-- SISTEMA DE COMPRA DIRECTA Y FINANCIACIÓN (SHOWROOM)
+-- =================================================================
+RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, vehicleData)
+    local src = source
+    local Player = Framework.Core.Functions.GetPlayer(src)
+    if not Player then
+        return
+    end
+
+    local citizenid = Player.PlayerData.citizenid
+    local charName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+
+    local model = vehicleData.model
+    local price = tonumber(vehicleData.price) or 0
+    local color = tonumber(vehicleData.color) or 0
+    local payMethod = vehicleData.paymentType == 'bank' and 'bank' or 'cash'
+    local installments = tonumber(vehicleData.installments) or 0
+
+    -- Capturamos cómo quiere la entrega el cliente
+    local delivery = vehicleData.deliveryType or 'drive'
+
+    -- 1. Verificar Stock Real
+    exports['oxmysql']:execute(
+        'SELECT stock_count FROM dp_vehicleshop_stock WHERE dealership_id = ? AND vehicle_model = ?', {dealerId, model},
+        function(stockRes)
+            if not stockRes or not stockRes[1] or stockRes[1].stock_count <= 0 then
+                TriggerClientEvent('QBCore:Notify', src, "Vehículo sin stock.", "error")
+                return
+            end
+
+            -- 2. Calcular Pago Inicial
+            local amountToPayNow = price
+            if installments > 1 then
+                -- Si es a plazos, el primer pago es una fracción del total
+                amountToPayNow = math.floor(price / installments)
+            else
+                installments = 0 -- Si puso 0 o 1, se paga de golpe
+            end
+
+            -- 3. Intentar Cobrar al Jugador (Banco o Efectivo)
+            if Player.Functions.RemoveMoney(payMethod, amountToPayNow, "Compra Vehículo: " .. model) then
+
+                -- Generar una Matrícula Aleatoria (Formato genérico, puedes cambiarlo si tienes un generador custom)
+                local plate = string.upper(tostring(math.random(10, 99)) .. "DP" .. tostring(math.random(100, 999)))
+
+                -- 4. Dar el coche al jugador (Guardar en su garaje de QBCore)
+                local vehicleProps = json.encode({
+                    color1 = color,
+                    color2 = color
+                })
+
+                -- [NUEVO] Determinamos el estado: 1 = En Garaje, 0 = Fuera
+                local vehicleState = 0
+                if delivery == 'garage' then
+                    vehicleState = 1
+                end
+
+                exports['oxmysql']:execute(
+                    'INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, garage, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    -- ¡CORRECCIÓN AQUÍ! Ahora usa 'Pillbox Hill' exacto a tu Config.Garages
+                    {Player.PlayerData.license, citizenid, model, GetHashKey(model), vehicleProps, plate,
+                     'Pillbox Hill', vehicleState}, function()
+
+                        -- [NUEVO] Lógica de Entrega
+                        if delivery == 'drive' then
+                            -- Le mandamos al cliente la orden de aparecer el coche en la puerta
+                            TriggerClientEvent('DP-VehicleShop:client:spawnPurchasedVehicle', src, model, plate, color,
+                                dealerId)
+                        else
+                            -- Si es al garaje, solo le avisamos
+                            TriggerClientEvent('QBCore:Notify', src,
+                                "Vehículo enviado automáticamente a Pillbox Hill.", "success")
+                        end
+
+                        -- 5. Si es financiado, registrar la deuda
+                        if installments > 0 then
+                            exports['oxmysql']:execute(
+                                'INSERT INTO dp_vehicleshop_finances (citizenid, vehicle_model, plate, total_price, amount_paid, amount_remaining, installments_total, installments_paid, installment_amount, next_payment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 DAY))',
+                                {citizenid, model, plate, price, amountToPayNow, (price - amountToPayNow), installments,
+                                 1, amountToPayNow})
+                            TriggerClientEvent('QBCore:Notify', src,
+                                "Has financiado el vehículo. Cuota pagada: $" .. amountToPayNow, "success")
+                        else
+                            if delivery == 'drive' then -- Evitamos doble notificación si ya le avisamos del garaje
+                                TriggerClientEvent('QBCore:Notify', src,
+                                    "Has comprado el vehículo al contado por $" .. price, "success")
+                            end
+                        end
+
+                        -- 6. Restar Stock del concesionario
+                        exports['oxmysql']:execute(
+                            'UPDATE dp_vehicleshop_stock SET stock_count = stock_count - 1 WHERE dealership_id = ? AND vehicle_model = ?',
+                            {dealerId, model})
+
+                        -- 7. Sumar el dinero cobrado a la cuenta de la empresa
+                        exports['oxmysql']:execute(
+                            'UPDATE dp_vehicleshop_dealerships SET balance = balance + ? WHERE dealership_id = ?',
+                            {amountToPayNow, dealerId})
+
+                        -- 8. Registrar la venta para las tablas del Jefe
+                        exports['oxmysql']:execute(
+                            'INSERT INTO dp_vehicleshop_sales (dealership_id, customer_citizenid, customer_name, vehicle_model, vehicle_name, price) VALUES (?, ?, ?, ?, ?, ?)',
+                            {dealerId, citizenid, charName, model, vehicleData.name, price})
+
+                        -- 9. Registrar Log financiero
+                        local logMethod = (installments > 0) and (payMethod .. " (Financiado)") or payMethod
+                        local logDetails = json.encode({
+                            price = amountToPayNow,
+                            model = model,
+                            customer = charName,
+                            method = logMethod
+                        })
+                        exports['oxmysql']:execute(
+                            'INSERT INTO dp_vehicleshop_logs (dealership_id, action_type, actor_citizenid, actor_name, details) VALUES (?, ?, ?, ?, ?)',
+                            {dealerId, 'VENTA_VEHICULO', citizenid, charName, logDetails})
+
+                        -- 10. Refrescar el stock en vivo para todos los que miren el catálogo
+                        TriggerClientEvent('DP-VehicleShop:client:updateStockCount', -1, model,
+                            (stockRes[1].stock_count - 1))
+                    end)
+            else
+                -- Si no tiene dinero
+                TriggerClientEvent('QBCore:Notify', src, "No tienes suficientes fondos en: " .. string.upper(payMethod),
+                    "error")
             end
         end)
 end)

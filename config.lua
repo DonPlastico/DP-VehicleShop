@@ -49,12 +49,13 @@ Config.Dealerships = {
             scale = 0.8,
             coords = vector3(-33.8, -1102.0, 26.4)
         },
-        npc_model = 'a_m_y_business_02', -- Modelo del NPC (Puedes poner uno distinto en cada uno)
-        coords_npc = vector4(-1234.39, -3379.61, 13.94, 48.1), -- Coordenadas X, Y, Z y Heading (H) para mirar
-        npc_scenario = 'WORLD_HUMAN_CLIPBOARD', -- Animación de carpeta en mano
-        bossMenu = vector3(-1236.0, -3382.66, 13.94), -- Punto donde el jefe gestiona el stock y dinero
-        npc_buy = vector4(-1236.99, -3384.55, 13.94, 60.77), -- Punto donde el NPC atiende a los clientes para comprar vehículos
-        isUsedMarket = false -- Indica si es el concesionario de segunda mano
+        npc_model = 'a_m_y_business_02',
+        coords_npc = vector4(-1234.39, -3379.61, 13.94, 48.1),
+        npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
+        bossMenu = vector3(-1236.0, -3382.66, 13.94),
+        npc_buy = vector4(-1236.99, -3384.55, 13.94, 60.77),
+        isUsedMarket = false,
+        ExitSpawnPoints = {vector4(-1230.0, -3380.0, 13.94, 90.0), vector4(-1230.0, -3385.0, 13.94, 90.0)}
     },
 
     -- 2. BIKES (Motos y Bicicletas)
@@ -73,7 +74,8 @@ Config.Dealerships = {
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-1240.64, -3380.26, 13.94),
         npc_buy = vector4(-1241.79, -3382.31, 13.94, 60.04),
-        isUsedMarket = false
+        isUsedMarket = false,
+        ExitSpawnPoints = {vector4(-1235.0, -3375.0, 13.94, 90.0), vector4(-1235.0, -3378.0, 13.94, 90.0)}
     },
 
     -- 3. AIRE (Aviones y Helicópteros)
@@ -92,7 +94,8 @@ Config.Dealerships = {
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-1243.84, -3378.42, 13.94),
         npc_buy = vector4(-1245.16, -3380.55, 13.94, 61.38),
-        isUsedMarket = false
+        isUsedMarket = false,
+        ExitSpawnPoints = {vector4(-1250.0, -3360.0, 13.94, 0.0), vector4(-1255.0, -3360.0, 13.94, 0.0)}
     },
 
     -- 4. MAR (Barcos, Lanchas, Motos de agua)
@@ -111,7 +114,8 @@ Config.Dealerships = {
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-1247.42, -3376.86, 13.94),
         npc_buy = vector4(-1248.63, -3378.81, 13.94, 56.83),
-        isUsedMarket = false
+        isUsedMarket = false,
+        ExitSpawnPoints = {vector4(-1260.0, -3350.0, 1.5, 0.0), vector4(-1265.0, -3350.0, 1.5, 0.0)}
     },
 
     -- 5. VIP (Vehículos Custom / Importación)
@@ -130,7 +134,8 @@ Config.Dealerships = {
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-1250.93, -3374.75, 13.94),
         npc_buy = vector4(-1252.07, -3377.0, 13.94, 58.87),
-        isUsedMarket = false
+        isUsedMarket = false,
+        ExitSpawnPoints = {vector4(-1255.0, -3370.0, 13.94, 90.0), vector4(-1255.0, -3375.0, 13.94, 90.0)}
     },
 
     -- 6. COMPRA/VENTA (Jugador a Jugador)
@@ -149,7 +154,8 @@ Config.Dealerships = {
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-1254.34, -3373.04, 13.94),
         npc_buy = vector4(-1255.59, -3375.23, 13.94, 60.19),
-        isUsedMarket = true -- ¡IMPORTANTE! Este flag le dirá al script que aquí aplican mecánicas distintas
+        isUsedMarket = true,
+        ExitSpawnPoints = {vector4(-1260.0, -3380.0, 13.94, 90.0), vector4(-1260.0, -3385.0, 13.94, 90.0)}
     }
 }
 

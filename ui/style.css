@@ -1488,11 +1488,11 @@ select option {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #fff;
-    padding: 0.7vw;
-    border-radius: 3px;
-    font-size: 0.6vw;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 0.7vw;
     font-family: 'Orbitron', sans-serif;
-    font-weight: 700;
+    font-weight: 800;
     text-align: center;
     /* Centrado solicitado */
     cursor: pointer;
@@ -1516,11 +1516,10 @@ select option {
     grid-template-columns: repeat(10, 1fr);
     /* 10 colores por fila */
     gap: 6px;
-    margin-top: 10px;
-    max-height: 12vw;
+    max-height: auto;
     /* Altura máxima para permitir scroll si hay muchos */
     overflow-y: auto;
-    padding-right: 5px;
+    padding: 10px;
 }
 
 /* Sección de Colores */
@@ -1585,14 +1584,41 @@ select option {
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
 }
 
-/* Scrollbar estética para el grid de colores */
-.gta-colors-grid::-webkit-scrollbar {
-    width: 3px;
+.info-panel-payment {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 10px);
+    /* Se coloca a la derecha con 10px de separación */
+    width: 16vw;
+    /* Ancho a medida para el método de pago */
+
+    background: rgba(20, 20, 20, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+
+    display: flex;
+    flex-direction: column;
 }
 
-.gta-colors-grid::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+/* Efectos de selección (Compartido para Pago y Entrega) */
+.payment-method-btn,
+.delivery-method-btn {
+    transition: all 0.2s ease;
+}
+
+.payment-method-btn.active,
+.delivery-method-btn.active {
+    background: #fff !important;
+    color: #000 !important;
+    opacity: 1 !important;
+}
+
+/* Efecto al escribir en el input de días */
+#payment-installments:focus {
+    border-color: rgba(255, 255, 255, 0.6) !important;
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
 }
 
 /* =================================================================
@@ -1888,13 +1914,130 @@ select option {
 
 /* Base idéntica a .vehicle-card del carrusel */
 .reservation-card {
-    background: rgba(20, 20, 20, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    padding: 7.5px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.6vw;
+    margin-bottom: 0.6vw;
     display: flex;
     flex-direction: column;
+    gap: 0.6vw;
     transition: all 0.2s ease;
+}
+
+.res-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 0.4vw;
+}
+
+.res-customer {
+    font-size: 0.6vw;
+    color: #fff;
+    font-weight: 700;
+}
+
+.res-customer i {
+    color: rgba(255, 255, 255, 0.4);
+    margin-right: 0.3vw;
+}
+
+.res-date {
+    font-size: 0.5vw;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Cuerpo (Imagen + Info) */
+.res-card-body {
+    display: flex;
+    align-items: center;
+    gap: 0.8vw;
+}
+
+.res-image-container {
+    width: 6vw;
+    height: 3.5vw;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2vw;
+}
+
+.res-image-container img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.8));
+}
+
+.res-vehicle-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2vw;
+    flex-grow: 1;
+}
+
+.res-vehicle-name {
+    font-size: 0.75vw;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.res-price {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85vw;
+    color: #2ecc71;
+    font-weight: 700;
+}
+
+/* Footer (Botones) */
+.res-card-footer {
+    display: flex;
+    gap: 0.4vw;
+}
+
+.res-card-footer button {
+    flex: 1;
+    padding: 0.5vw;
+    border-radius: 3px;
+    font-size: 0.55vw;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3vw;
+}
+
+.btn-res-accept {
+    background: rgba(46, 204, 113, 0.1);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    color: #2ecc71;
+}
+
+.btn-res-accept:hover {
+    background: rgba(46, 204, 113, 0.8);
+    border-color: #2ecc71;
+    color: #fff;
+}
+
+.btn-res-cancel {
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    color: #e74c3c;
+}
+
+.btn-res-cancel:hover {
+    background: rgba(231, 76, 60, 0.8);
+    border-color: #e74c3c;
+    color: #fff;
 }
 
 /* Forzamos un tamaño para la imagen en este contexto */

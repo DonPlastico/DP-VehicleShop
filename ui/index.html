@@ -18,6 +18,7 @@
 
     <div id="showroom-container" class="showroom-ui" style="display:none;">
         <div id="vehicle-info-panel" class="info-panel-container" style="display: none;">
+
             <div class="info-panel-main">
                 <div class="main-info-header">
                     <h2 class="panel-category-title">INFORMACIÓN</h2>
@@ -40,16 +41,73 @@
 
                 <div class="action-buttons-layout">
                     <div class="button-row">
-                        <button class="panel-btn primary-btn" id="buy-vehicle">COMPRAR VEHÍCULO</button>
                         <button class="panel-btn" id="test-drive">PRUEBA DE MANEJO</button>
+                        <button class="panel-btn primary-btn" id="buy-vehicle">COMPRAR</button>
                     </div>
 
-                    <div class="button-row">
-                        <button class="panel-btn" id="vehicle-extras">EXTRAS DEL VEHÍCULO</button>
+                    <div class="button-row" id="row-extras-plate">
+                        <button class="panel-btn" id="vehicle-extras">EXTRAS</button>
                         <button class="panel-btn" id="change-plate">CAMBIAR MATRÍCULA</button>
                     </div>
 
                     <button class="panel-btn" id="preview-view">VISTA PREVIA</button>
+                </div>
+            </div>
+
+            <div class="info-panel-payment" id="payment-selection-panel" style="display: none;">
+
+                <div class="main-info-header" style="margin-bottom: 10px;">
+                    <h2 class="panel-category-title">MÉTODO DE PAGO</h2>
+                </div>
+
+                <div class="button-row" style="margin-bottom: 10px;">
+                    <button class="panel-btn payment-method-btn active" data-method="cash"
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+                        <i class="fa-solid fa-money-bill-wave" style="font-size: 1vw;"></i> EFECTIVO
+                    </button>
+                    <button class="panel-btn payment-method-btn" data-method="bank"
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; opacity: 0.5;">
+                        <i class="fa-solid fa-building-columns" style="font-size: 1vw;"></i> BANCO
+                    </button>
+                </div>
+
+                <div class="stats-row"
+                    style="flex-direction: column; border-bottom: none; margin-bottom: 10px; gap: 5px;">
+                    <span class="stat-label">PAGO A PLAZOS (Cada 24h)</span>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <input type="number" id="payment-installments" placeholder="Tiempo" min="1" max="30"
+                            style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 6px; font-family: 'Orbitron', sans-serif; border-radius: 4px; outline: none; font-size: 0.75vw;">
+                        <span class="stat-label">DÍAS</span>
+                    </div>
+                    <span style="font-size: 0.55vw; color: rgba(255,255,255,0.4); font-style: italic; margin-top: 2px;">
+                        El cobro es automático cada 24 horas.</span>
+                </div>
+
+                <div class="main-info-header" style="margin-top: 5px; margin-bottom: 10px;">
+                    <h2 class="panel-category-title">ENTREGA</h2>
+                </div>
+
+                <div class="button-row" style="margin-bottom: 10px;">
+                    <button class="panel-btn delivery-method-btn active" data-delivery="drive"
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 10px 5px;">
+                        <i class="fa-solid fa-car-side" style="font-size: 1.1vw;"></i>
+                        <span style="font-size: 0.55vw; text-align: center; line-height: 1.2;">
+                            SACAR DEL<br>CONCESIONARIO</span>
+                    </button>
+                    <button class="panel-btn delivery-method-btn" data-delivery="garage"
+                        style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; opacity: 0.5; padding: 10px 5px;">
+                        <i class="fa-solid fa-warehouse" style="font-size: 1.1vw;"></i>
+                        <span style="font-size: 0.55vw; text-align: center; line-height: 1.2;">
+                            ENVIAR AL<br>GARAJE</span>
+                    </button>
+                </div>
+
+                <div class="action-buttons-layout" style="margin-top: auto;">
+                    <div class="button-row">
+                        <button class="panel-btn" id="cancel-payment">CANCELAR</button>
+                        <button class="panel-btn primary-btn" id="confirm-final-buy"
+                            style="flex: 1.5;">CONFIRMAR</button>
+                    </div>
                 </div>
             </div>
 

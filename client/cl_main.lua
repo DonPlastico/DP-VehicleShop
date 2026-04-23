@@ -13,6 +13,7 @@ local spawnedAgencyNPCs = {}
 local currentActiveZone = nil
 local currentActiveText = nil
 local currentBossDealerId = nil
+local currentShowroomDealerId = nil
 local ShowroomVehicleData = {}
 local currentPreviewRequestId = 0
 
@@ -522,31 +523,41 @@ RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealer
 end)
 
 -- 2. Apertura del Showroom
-RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, categories, vehicles)
-    -- 1. Le pasamos las categorías al Javascript PRIMERO
+RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, categories, vehicles, myReservations)
+    -- Guardamos el ID del concesionario actual
+    currentShowroomDealerId = dealerId
+
+    -- [NUEVO] Enviamos tus reservas activas al Javascript para bloquear los botones correspondientes
+    SendNUIMessage({
+        action = 'loadMyReservations',
+        myReservations = myReservations or {}
+    })
+
+    -- 1. Pasamos las categorías al Javascript
     SendNUIMessage({
         action = 'loadCategories',
         categories = categories
     })
 
-    -- 1.5. Le pasamos los coches reales al Javascript para que llene el catálogo
+    -- 1.5. Pasamos los coches reales al catálogo
     SendNUIMessage({
         action = 'loadBossStock',
         vehicles = vehicles
     })
 
-    -- 2. Recuperamos el nombre (Label) del concesionario como hacías en tu código original
+    -- 2. Recuperamos el nombre del concesionario
     local dealerLabel = (Config.Dealerships[dealerId] and Config.Dealerships[dealerId].label) or dealerId
 
-    -- 3. Llamamos a TU evento original, el que de verdad sabe poner las cámaras y los coches
+    -- 3. Iniciamos el modo Showroom (Cámaras y posición)
     TriggerEvent('DP-VehicleShop:client:enterShowroomMode', dealerLabel)
 end)
 
-RegisterNetEvent('DP-VehicleShop:client:updateBossData', function(balance, logs)
+RegisterNetEvent('DP-VehicleShop:client:updateBossData', function(balance, logs, sales)
     SendNUIMessage({
         action = 'updateBossData',
         balance = balance,
-        transactions = logs
+        transactions = logs,
+        sales = sales
     })
 end)
 
@@ -584,6 +595,14 @@ RegisterNetEvent('DP-VehicleShop:client:refreshCategories', function(categories)
     })
 end)
 
+-- Este evento recibe las reservas del servidor y las manda al JS para pintar el Boss Menu
+RegisterNetEvent('DP-VehicleShop:client:updateReservations', function(reservations)
+    SendNUIMessage({
+        action = 'updateReservations',
+        reservations = reservations
+    })
+end)
+
 -- Este evento recibe los rangos de trabajo actualizados del servidor y refresca el UI al instante
 RegisterNetEvent('DP-VehicleShop:client:refreshJobGrades', function(grades)
     SendNUIMessage({
@@ -595,6 +614,87 @@ RegisterNetEvent('DP-VehicleShop:client:refreshJobGrades', function(grades)
     SendNUIMessage({
         action = 'closeGradeForm' -- Usaremos un truco sucio: si le pasamos una key falsa, el JS lo ignora pero igual le pasamos los rangos. JS ya tiene la función `closeGradeForm` vinculada al HTML.
     })
+end)
+
+-- Recibe la orden del servidor cuando un coche pierde stock tras una compra
+RegisterNetEvent('DP-VehicleShop:client:updateStockCount', function(model, newStock)
+    -- Le decimos al NUI (Javascript) que el stock de este coche ha cambiado en tiempo real
+    SendNUIMessage({
+        action = 'updateStockLive',
+        model = model,
+        stock = newStock
+    })
+end)
+
+-- ENTREGA DE VEHÍCULO FÍSICO (SACAR DEL CONCESIONARIO)
+RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelName, plate, colorId, dealerId)
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig or not dealerConfig.ExitSpawnPoints then
+        return
+    end
+
+    local spawnPoint = nil
+
+    -- 1. SISTEMA ANTI-COLISIONES: Buscamos qué punto está completamente libre
+    for _, point in ipairs(dealerConfig.ExitSpawnPoints) do
+        -- Comprobamos si hay algún vehículo en un radio de 3.0 metros
+        local isOccupied = IsAnyVehicleNearPoint(point.x, point.y, point.z, 3.0)
+        if not isOccupied then
+            spawnPoint = point
+            break -- Encontramos uno libre, cortamos el bucle
+        end
+    end
+
+    -- Si por mala suerte TODOS los puntos están ocupados, forzamos el primero por seguridad
+    if not spawnPoint then
+        spawnPoint = dealerConfig.ExitSpawnPoints[1]
+        if Config.Framework == 'qbcore' then
+            Framework.Core.Functions.Notify('La zona de entrega estaba ocupada. ¡Cuidado con las colisiones!',
+                'warning', 5000)
+        end
+    end
+
+    -- 2. CARGA DEL MODELO
+    local modelHash = GetHashKey(modelName)
+    RequestModel(modelHash)
+    local timeout = 0
+    while not HasModelLoaded(modelHash) and timeout < 2000 do
+        Wait(10)
+        timeout = timeout + 10
+    end
+
+    if not HasModelLoaded(modelHash) then
+        return
+    end
+
+    -- 3. CREACIÓN DEL VEHÍCULO
+    -- isNetwork = true (para que todos lo vean), netMissionEntity = false
+    local veh = CreateVehicle(modelHash, spawnPoint.x, spawnPoint.y, spawnPoint.z, spawnPoint.w, true, false)
+
+    -- 4. PERSONALIZACIÓN BÁSICA (Matrícula y Color)
+    SetEntityHeading(veh, spawnPoint.w)
+    SetVehicleNumberPlateText(veh, plate)
+    SetVehicleColours(veh, colorId, colorId)
+    SetVehicleExtraColours(veh, colorId, colorId)
+
+    -- Blindamos el coche para que salga sin pegatinas aleatorias ni modificaciones raras
+    SetVehicleModKit(veh, 0)
+    SetVehicleLivery(veh, -1)
+    SetVehicleOnGroundProperly(veh)
+
+    -- 5. ENTREGA AL JUGADOR
+    -- Lo teletransportamos directamente al asiento del conductor
+    TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
+
+    -- Le damos las llaves (Formato estándar de QBCore)
+    if Config.Framework == 'qbcore' then
+        TriggerEvent("vehiclekeys:client:SetOwner", plate)
+        TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
+        Framework.Core.Functions.Notify('¡Disfruta de tu nuevo vehículo!', 'success', 5000)
+    end
+
+    -- Limpiamos la memoria
+    SetModelAsNoLongerNeeded(modelHash)
 end)
 
 -- =================================================================
@@ -669,11 +769,13 @@ RegisterNUICallback('previewVehicle', function(data, cb)
     local modelName = data.model
     local modelHash = GetHashKey(modelName)
 
-    -- Cada vez que hacemos clic, generamos un nuevo ID de petición
+    -- 1. CAPTURAR EL COLOR QUE ENVÍA JS (Si no envía nada, será 0 / Negro)
+    local colorId = tonumber(data.color) or 0
+
     currentPreviewRequestId = currentPreviewRequestId + 1
     local myRequestId = currentPreviewRequestId
 
-    -- 1. Si ya había un coche de prueba, lo borramos al instante
+    -- 2. Si ya había un coche de prueba, lo borramos al instante
     if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
         DeleteEntity(previewVehicleEntity)
         previewVehicleEntity = nil
@@ -684,7 +786,7 @@ RegisterNUICallback('previewVehicle', function(data, cb)
         return cb('ok')
     end
 
-    -- 2. Cargar modelo (ESTO ES LO QUE TARDA CON COCHES CUSTOM)
+    -- 3. Cargar modelo (ESTO ES LO QUE TARDA CON COCHES CUSTOM)
     RequestModel(modelHash)
     local timeout = 0
     while not HasModelLoaded(modelHash) and timeout < 1500 do
@@ -692,7 +794,6 @@ RegisterNUICallback('previewVehicle', function(data, cb)
         timeout = timeout + 10
     end
 
-    -- [FILTRO ANTI-FANTASMAS] 
     -- Si mientras FiveM estaba "pensando", el jugador hizo clic en otro coche, el ID habrá cambiado.
     -- Así que ABORTAMOS la creación de este vehículo viejo.
     if myRequestId ~= currentPreviewRequestId then
@@ -715,29 +816,40 @@ RegisterNUICallback('previewVehicle', function(data, cb)
     previewVehicleEntity = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnCoords.w, false,
         false)
 
-    SetEntityAsMissionEntity(previewVehicleEntity, true, true)
-    SetEntityInvincible(previewVehicleEntity, true)
-    SetVehicleEngineOn(previewVehicleEntity, true, true, true) -- Motor encendido (luces)
-    SetVehicleDoorsLocked(previewVehicleEntity, 4)
+    -- [INICIO BLOQUE DE ESTANDARIZACIÓN]
+    -- 1. Aplicamos el color seleccionado (o el negro por defecto)
+    SetVehicleColours(previewVehicleEntity, colorId, colorId)
+    SetVehicleExtraColours(previewVehicleEntity, colorId, colorId)
 
-    -- 5. ESTANDARIZAR EL VEHÍCULO (Siempre igual, sin aleatoriedad)    
-    SetVehicleColours(previewVehicleEntity, 0, 0)
-    SetVehicleExtraColours(previewVehicleEntity, 0, 0)
+    -- 2. Limpiamos cualquier librea (pegatinas/vinilos) aleatoria
+    SetVehicleLivery(previewVehicleEntity, -1)
+
+    -- 3. Reseteamos el ModKit para asegurarnos de que no hay piezas custom
+    SetVehicleModKit(previewVehicleEntity, 0)
+
+    -- 4. Desactivamos modificaciones visuales que puedan causar cambios de color en el interior o salpicadero
+    SetVehicleModColor_1(previewVehicleEntity, 0, 0, 0)
+    SetVehicleModColor_2(previewVehicleEntity, 0, 0)
+
+    -- 5. Opcional pero recomendado: Forzar el color del interior y del salpicadero a negro (o el color por defecto)
+    -- El color 0 suele ser negro en la mayoría de paletas
+    SetVehicleInteriorColour(previewVehicleEntity, 0)
+    SetVehicleDashboardColour(previewVehicleEntity, 0)
+
+    -- 6. Limpiamos la suciedad para que siempre brille
     SetVehicleDirtLevel(previewVehicleEntity, 0.0)
 
+    -- 7. Aseguramos que los extras estén en su estado por defecto (opcional, pero ayuda a la consistencia)
     for i = 1, 14 do
         if DoesExtraExist(previewVehicleEntity, i) then
             SetVehicleExtra(previewVehicleEntity, i, true)
         end
     end
-
-    SetVehicleModKit(previewVehicleEntity, 0)
-    SetVehicleLivery(previewVehicleEntity, -1)
+    -- [FIN BLOQUE DE ESTANDARIZACIÓN]
 
     FreezeEntityPosition(previewVehicleEntity, true)
 
     SetModelAsNoLongerNeeded(modelHash)
-
     cb('ok')
 end)
 
@@ -792,6 +904,54 @@ RegisterNUICallback('orderStock', function(data, cb)
     -- currentBossDealerId ya lo tenemos guardado en el cliente desde que abrió el menú
     if currentBossDealerId then
         TriggerServerEvent('DP-VehicleShop:server:orderStock', currentBossDealerId, data)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('updateVehicleColor', function(data, cb)
+    local colorId = tonumber(data.color) or 0
+
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        -- Aplicamos el color primario y secundario
+        SetVehicleColours(previewVehicleEntity, colorId, colorId)
+        -- También el perlado para que el brillo sea coherente
+        SetVehicleExtraColours(previewVehicleEntity, colorId, colorId)
+    end
+
+    cb('ok')
+end)
+
+RegisterNUICallback('reserveVehicle', function(data, cb)
+    if currentShowroomDealerId then
+        TriggerServerEvent('DP-VehicleShop:server:reserveVehicle', currentShowroomDealerId, data)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('acceptReservation', function(data, cb)
+    TriggerServerEvent('DP-VehicleShop:server:acceptReservation', data.id)
+    cb('ok')
+end)
+
+RegisterNUICallback('cancelReservation', function(data, cb)
+    TriggerServerEvent('DP-VehicleShop:server:cancelReservation', data.id)
+    cb('ok')
+end)
+
+RegisterNUICallback('buyVehicle', function(data, cb)
+    if currentShowroomDealerId then
+        -- 1. Enviamos la orden de compra al servidor (con el método de pago y plazos)
+        TriggerServerEvent('DP-VehicleShop:server:buyShowroomVehicle', currentShowroomDealerId, data)
+
+        -- 2. Cerramos el modo Showroom (restaura la cámara, quita la invisibilidad, etc.)
+        TriggerEvent('DP-VehicleShop:client:exitShowroomMode')
+
+        -- 3. Forzamos el cierre de la interfaz NUI y quitamos el cursor
+        isMenuOpen = false
+        SendNUIMessage({
+            action = 'setVisible',
+            status = false
+        })
     end
     cb('ok')
 end)
