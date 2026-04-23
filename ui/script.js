@@ -21,6 +21,64 @@ let isShowroomOpen = false;     // Controla si el catálogo de clientes está ab
 let isBossMenuOpen = false;     // Controla si el Boss Menu está abierto
 let currentBossDealerName = ""; // Guarda el nombre de la empresa para los títulos
 let activeJobGrades = [];       // Guardará los rangos del trabajo del jugador para mostrar/ocultar categorías en el Boss Menu
+let currentPreviewColor = 0;    // 0 = Negro (Default de GTA)
+let currentPreviewVehicle = null;
+
+// Paleta de Colores de GTA V (ID Real y Hexadecimal para el CSS)
+const GTA_COLORS = [
+    { id: 0, hex: '#0f0f0f', name: 'Negro' },
+    { id: 1, hex: '#212121', name: 'Grafito' },
+    { id: 2, hex: '#313537', name: 'Acero Negro' },
+    { id: 3, hex: '#3e4248', name: 'Plata Oscuro' },
+    { id: 4, hex: '#878c93', name: 'Plata' },
+    { id: 5, hex: '#c2c4c6', name: 'Plata Azulado' },
+    { id: 12, hex: '#0f1012', name: 'Negro Mate' },
+    { id: 13, hex: '#2b2d2f', name: 'Gris Mate' },
+    { id: 27, hex: '#c00e1a', name: 'Rojo' },
+    { id: 28, hex: '#da1918', name: 'Rojo Torino' },
+    { id: 29, hex: '#b6111b', name: 'Rojo Fórmula' },
+    { id: 31, hex: '#5f161f', name: 'Rojo Gracia' },
+    { id: 33, hex: '#73161c', name: 'Rojo Desierto' },
+    { id: 36, hex: '#c85002', name: 'Naranja' },
+    { id: 37, hex: '#c2944f', name: 'Oro Clásico' },
+    { id: 38, hex: '#f78616', name: 'Naranja Oscuro' },
+    { id: 39, hex: '#cf1f21', name: 'Rojo Mate' },
+    { id: 41, hex: '#f26815', name: 'Naranja Mate' },
+    { id: 42, hex: '#ffbe25', name: 'Amarillo Mate' },
+    { id: 49, hex: '#1d2719', name: 'Verde Oscuro' },
+    { id: 50, hex: '#263424', name: 'Verde Carreras' },
+    { id: 51, hex: '#233f3a', name: 'Verde Mar' },
+    { id: 52, hex: '#4c6448', name: 'Verde Oliva' },
+    { id: 53, hex: '#447b1e', name: 'Verde' },
+    { id: 55, hex: '#63bd35', name: 'Verde Lima' },
+    { id: 61, hex: '#111721', name: 'Azul Galaxia' },
+    { id: 62, hex: '#141d37', name: 'Azul Oscuro' },
+    { id: 63, hex: '#18365e', name: 'Azul Sajonia' },
+    { id: 64, hex: '#234479', name: 'Azul' },
+    { id: 65, hex: '#3e6293', name: 'Azul Marino' },
+    { id: 67, hex: '#377eb4', name: 'Azul Diamante' },
+    { id: 68, hex: '#529fcb', name: 'Azul Surf' },
+    { id: 70, hex: '#038bc4', name: 'Azul Brillante' },
+    { id: 73, hex: '#1f283f', name: 'Azul Medianoche' },
+    { id: 74, hex: '#3b5177', name: 'Azul Brillante (Sp)' },
+    { id: 82, hex: '#101429', name: 'Azul Mate' },
+    { id: 88, hex: '#ffe322', name: 'Amarillo Taxi' },
+    { id: 89, hex: '#f7ca19', name: 'Amarillo Carrera' },
+    { id: 91, hex: '#dce11a', name: 'Amarillo Pájaro' },
+    { id: 92, hex: '#a6d917', name: 'Verde Lima Brillante' },
+    { id: 111, hex: '#fcfcfc', name: 'Blanco Hielo' },
+    { id: 112, hex: '#f0f0f0', name: 'Blanco Escarcha' },
+    { id: 118, hex: '#322c2a', name: 'Marrón Oscuro' },
+    { id: 119, hex: '#4b3d31', name: 'Marrón' },
+    { id: 131, hex: '#fdfdfd', name: 'Blanco Mate' },
+    { id: 135, hex: '#d81878', name: 'Rosa Fuerte' },
+    { id: 136, hex: '#f098ba', name: 'Rosa Salmón' },
+    { id: 137, hex: '#db4f7f', name: 'Rosa Fuerte Mate' },
+    { id: 142, hex: '#512a54', name: 'Púrpura Oscuro' },
+    { id: 145, hex: '#632580', name: 'Púrpura Brillante' },
+    { id: 158, hex: '#7a5c40', name: 'Oro Puro' },
+    { id: 160, hex: '#ebd8a3', name: 'Oro Cepillado' }
+];
 
 // =================================================================
 // SECCIÓN 2: SISTEMA DE TRADUCCIÓN Y FORMATO
@@ -597,6 +655,9 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'openDealershipUI':
                 isShowroomOpen = true;
                 document.getElementById('showroom-container').style.display = 'block';
+
+                // Forzamos a que dibuje los coches de la categoría TODOS al abrir el menú
+                applyShowroomFilter('all');
                 break;
             // Abre el menú de gestión (Boss Menu)
             case 'openBossMenu':
@@ -607,6 +668,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('boss-dealer-title').innerText = currentBossDealerName;
                 document.getElementById('boss-back-btn').style.display = 'none';
                 document.getElementById('boss-container').style.display = 'flex';
+
+                // Limpiamos el panel derecho de categorías para que no se mezclen concesionarios
+                const catGrid = document.querySelector('.category-vehicles-grid');
+                if (catGrid) {
+                    // Le quitamos la clase del grid para que se centre el mensaje
+                    catGrid.className = 'category-vehicles-grid';
+                    catGrid.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+                            <iconify-icon icon="solar:car-broken-bold-duotone" class="empty-state-icon"></iconify-icon>
+                            <span class="empty-state-text">Selecciona una categoría a la izquierda</span>
+                        </div>
+                    `;
+                    // Reseteamos también el título para quitar el nombre de la categoría vieja
+                    const titleEl = catGrid.parentElement.querySelector('.widget-title');
+                    if (titleEl) {
+                        titleEl.innerHTML = `<i class="fa-solid fa-car-side"></i> Vehículos en la Categoría`;
+                    }
+                }
                 break;
             // Actualiza los datos financieros en tiempo real
             case 'updateBossData':
@@ -725,14 +804,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    generateTestCards();
-
     const carousel = document.getElementById('vehicle-carousel');
     const btnPrev = document.getElementById('carousel-prev');
     const btnNext = document.getElementById('carousel-next');
 
     carousel.addEventListener('scroll', updateCarouselMask);
-    updateCarouselMask();
 
     // --- NAVEGACIÓN 1: ARRASTRAR VS CLIC (Drag vs Click) ---
     let isDown = false;
@@ -855,46 +931,168 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =================================================================
-// SECCIÓN 8: LÓGICA DEL CARRUSEL (SHOWROOM)
+// SECCIÓN 8: LÓGICA DEL CARRUSEL (SHOWROOM / CLIENTES)
 // =================================================================
 
-// 1. Generar 20 cards de prueba
-function generateTestCards() {
+let currentShowroomCategory = 'all';
+let currentShowroomSearch = ''; // [NUEVO] Guardará lo que escribamos en la lupa
+let filteredShowroomStock = [];
+let showroomLoadedCount = 0;
+const SHOWROOM_BATCH_SIZE = 65;
+
+// Utilidad inteligente para convertir Números Romanos a Enteros (Para la ordenación)
+function romanToInt(roman) {
+    const romanMap = { 'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5, 'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10 };
+    return romanMap[roman.toLowerCase()] || 0;
+}
+
+// Función principal que filtra (por Categoría Y por Búsqueda), ordena y prepara el carrusel
+function applyShowroomFilter(categoryName) {
+    currentShowroomCategory = categoryName;
     const carousel = document.getElementById('vehicle-carousel');
     if (!carousel) return;
 
-    carousel.innerHTML = ''; // Limpiar
+    // Obtenemos el texto en minúsculas
+    const term = currentShowroomSearch.toLowerCase().trim();
 
-    const brands = ['Pegassi', 'Grotti', 'Truffade', 'Annis', 'Pfister'];
-    // He puesto modelos reales de GTA para que la prueba de spawn en Lua funcione
-    const models = ['zentorno', 'turismo2', 'adder', 'elegy', 'comet2'];
+    // 1. Filtrar la lista maestra (Categoría + Texto)
+    filteredShowroomStock = globalStock.filter(v => {
+        // ¿Coincide con la categoría seleccionada?
+        const matchCategory = (categoryName === 'all') || (v.category === categoryName);
 
-    for (let i = 1; i <= 20; i++) {
-        const randomBrand = brands[Math.floor(Math.random() * brands.length)];
-        const randomModel = models[Math.floor(Math.random() * models.length)];
+        // ¿Coincide con el texto escrito en la lupa?
+        const matchSearch = (term === '') ||
+            (v.name && v.name.toLowerCase().includes(term)) ||
+            (v.brand && v.brand.toLowerCase().includes(term)) ||
+            (v.model && v.model.toLowerCase().includes(term));
 
+        return matchCategory && matchSearch;
+    });
+
+    // 2. Ordenación Alfabética, Numérica y de Números Romanos
+    filteredShowroomStock.sort((a, b) => {
+        const nameA = (a.name || a.model).toString().trim();
+        const nameB = (b.name || b.model).toString().trim();
+
+        const romanMatchA = nameA.match(/\s+(i|ii|iii|iv|v|vi|vii|viii|ix|x)$/i);
+        const romanMatchB = nameB.match(/\s+(i|ii|iii|iv|v|vi|vii|viii|ix|x)$/i);
+
+        const baseA = romanMatchA ? nameA.substring(0, romanMatchA.index) : nameA;
+        const baseB = romanMatchB ? nameB.substring(0, romanMatchB.index) : nameB;
+
+        if (baseA.toLowerCase() === baseB.toLowerCase() && romanMatchA && romanMatchB) {
+            return romanToInt(romanMatchA[1]) - romanToInt(romanMatchB[1]);
+        }
+
+        return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    // 3. Resetear el estado del carrusel
+    carousel.innerHTML = '';
+    showroomLoadedCount = 0;
+    carousel.scrollLeft = 0;
+
+    // 4. Inyectar el primer lote o mostrar error
+    if (filteredShowroomStock.length === 0) {
+        carousel.innerHTML = `
+            <div class="empty-state" style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; grid-column: 1 / -1;">
+                <iconify-icon icon="solar:car-broken-bold-duotone" class="empty-state-icon" style="font-size: 5vw;"></iconify-icon>
+                <span class="empty-state-text" style="color: #888; font-size: 1vw; margin-top: 1vw;">No se encontraron vehículos</span>
+            </div>
+        `;
+    } else {
+        loadMoreShowroomVehicles();
+    }
+
+    updateCarouselMask();
+}
+
+// Función Lazy Load: Dibuja las tarjetas físicamente en el HTML
+function loadMoreShowroomVehicles() {
+    const carousel = document.getElementById('vehicle-carousel');
+    if (!carousel) return;
+
+    // Recortamos los siguientes 65 vehículos
+    const nextBatch = filteredShowroomStock.slice(showroomLoadedCount, showroomLoadedCount + SHOWROOM_BATCH_SIZE);
+
+    nextBatch.forEach(v => {
         const card = document.createElement('div');
         card.className = 'vehicle-card';
-        // Guardamos el modelo del coche en un atributo para leerlo al hacer clic
-        card.setAttribute('data-model', randomModel);
+        card.setAttribute('data-model', v.model);
+
+        const formattedPrice = new Intl.NumberFormat('es-ES').format(v.price || 0);
+
+        // Lógica Inteligente de Imágenes
+        const isVanilla = v.shop === 'pdm' || v.shop === 'luxury' || v.shop === 'boats' || v.shop === 'air';
+        const primaryImg = isVanilla ? `https://docs.fivem.net/vehicles/${v.model}.webp` : `./veh_custom/${v.model}.png`;
+        const initialTries = isVanilla ? '0' : '1';
 
         card.innerHTML = `
             <div class="card-header-info">
                 <div class="card-brand-logo"><i class="fa-solid fa-car"></i></div>
                 <div class="card-text-info">
-                    <span class="card-brand-name">${randomBrand}</span>
-                    <span class="card-model-name">${randomModel}</span>
+                    <span class="card-brand-name">${v.brand || 'Custom'}</span>
+                    <span class="card-model-name">${v.name || v.model}</span>
                 </div>
             </div>
-            <div class="card-vehicle-image">
-                IMG ${i}
+            
+            <div class="card-vehicle-image" style="position: relative; display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; overflow: hidden; padding: 0.5vw; background: rgba(0,0,0,0.2);">
+                
+                <iconify-icon class="no-image-placeholder" icon="tdesign:image-off-filled" style="position: absolute; font-size: 4vw; color: rgba(255,255,255,0.05); z-index: 0; display: none;"></iconify-icon>
+                
+                <img src="${primaryImg}" 
+                    alt="${v.model}" 
+                    data-tries="${initialTries}"
+                    style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1; transition: transform 0.2s ease;"
+                    onerror="
+                        const tries = parseInt(this.getAttribute('data-tries') || '0');
+                        this.style.transform = 'scale(1.2)'; 
+                        if (tries === 0) {
+                            this.setAttribute('data-tries', '1');
+                            this.src = './veh_custom/${v.model}.png'; 
+                        } else if (tries === 1) {
+                            this.setAttribute('data-tries', '2');
+                            this.src = './veh_custom/${v.model}.jpg'; 
+                        } else if (tries === 2) {
+                            this.setAttribute('data-tries', '3');
+                            this.src = './veh_custom/${v.model}.webp'; 
+                        } else {
+                            this.style.display = 'none';
+                            const placeholder = this.parentElement.querySelector('.no-image-placeholder');
+                            if (placeholder) placeholder.style.display = 'block';
+                        }
+                    "
+                >
+                <span style="position: absolute; bottom: 0.4vw; right: 0.4vw; color: #fff; font-weight: 900; font-size: 0.9vw; text-shadow: 0 4px 10px rgba(0,0,0,1); z-index: 2; font-family: 'Orbitron', sans-serif;">
+                    $ ${formattedPrice}
+                </span>
             </div>
         `;
         carousel.appendChild(card);
-    }
+
+        // Evento de selección al hacer clic en el coche
+        card.addEventListener('click', () => {
+            selectShowroomVehicle(v);
+        });
+    });
+
+    showroomLoadedCount += nextBatch.length;
+    updateCarouselMask();
 }
 
-// 2. Control dinámico del difuminado (Máscaras CSS)
+// Scroll Infinito HORIZONTAL: Detectar cuando llegamos al fondo derecho
+document.getElementById('vehicle-carousel')?.addEventListener('scroll', function () {
+    updateCarouselMask();
+
+    // Matemática: Si la barra de scroll (Left) + el tamaño visible (Client) es casi igual al tamaño total oculto (ScrollWidth)
+    if (this.scrollLeft + this.clientWidth >= this.scrollWidth - 100) {
+        if (showroomLoadedCount < filteredShowroomStock.length) {
+            loadMoreShowroomVehicles(); // Inyectamos 65 más
+        }
+    }
+});
+
+// Control dinámico del difuminado (Máscaras CSS)
 function updateCarouselMask() {
     const carousel = document.getElementById('vehicle-carousel');
     if (!carousel) return;
@@ -948,12 +1146,12 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         const titleEl = document.getElementById('boss-dealer-title');
         if (titleEl) titleEl.innerText = currentBossDealerName;
 
-        // [AÑADIDO] Generar las tarjetas visuales de stock SOLO si entramos a esa pestaña
+        // Generar las tarjetas visuales de stock SOLO si entramos a esa pestaña
         if (targetId === 'tab-vehicles') {
-            const searchInput = document.getElementById('boss-vehicles-search');
-            if (searchInput) searchInput.value = ''; // Limpiamos el buscador por si acaso
 
-            renderBossVehicles(); // Llamamos a la función que pinta el stock
+            // Simplemente llamamos a la función. Como ahora tiene lógica de persistencia,
+            // si ya habías cargado 300, mantendrá los 300 ahí.
+            renderBossVehicles(document.getElementById('boss-vehicles-search').value);
         }
     });
 });
@@ -1448,18 +1646,30 @@ function renderShowroomFilters() {
 
     filterContainer.innerHTML = '';
 
+    // Ordenamos las categorías por su orden definido
     const sortedCats = activeCategories.sort((a, b) => a.order - b.order);
 
-    filterContainer.innerHTML += `<span class="filter-text active" data-cat="all">TODOS</span>`;
+    // LÓGICA: Solo mostrar "TODOS" si hay más de 1 categoría
+    if (sortedCats.length > 1) {
+        filterContainer.innerHTML += `<span class="filter-text active" data-cat="all">TODOS</span>`;
+    }
 
+    // Dibujamos el resto de categorías
     sortedCats.forEach(cat => {
-        filterContainer.innerHTML += `<span class="filter-text" data-cat="${cat.name}">· ${cat.label.toUpperCase()}</span>`;
+        // Si solo hay 1 categoría, la marcamos como 'active' por defecto al no haber "TODOS"
+        const activeClass = (sortedCats.length <= 1) ? 'active' : '';
+        filterContainer.innerHTML += `<span class="filter-text ${activeClass}" data-cat="${cat.name}">• ${cat.label.toUpperCase()}</span>`;
     });
 
+    // Eventos de clic para filtrar
     document.querySelectorAll('.filter-text').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.filter-text').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
+
+            // Aquí llamarías a tu función de filtrado real
+            const catName = e.target.getAttribute('data-cat');
+            applyShowroomFilter(catName);
         });
     });
 }
@@ -1475,7 +1685,7 @@ function editDummyCat(id) {
 
         const nameInput = document.getElementById('cat-name-input');
         nameInput.value = cat.name;
-        nameInput.disabled = false; // [NUEVO] ¡Ahora sí dejamos editarlo!
+        nameInput.disabled = false; // ¡Ahora sí dejamos editarlo!
         nameInput.style.opacity = '1';
 
         document.getElementById('cat-label-input').value = cat.label;
@@ -1558,27 +1768,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Función para el botón del "Ojito" (Ver vehículos de una categoría)
 function viewCategory(id) {
-    // 1. Buscamos qué categoría hemos clickeado
     const cat = activeCategories.find(c => c.id === id);
     if (!cat) return;
 
-    // 2. Referenciamos la cuadrícula derecha y actualizamos su título
     const grid = document.querySelector('.category-vehicles-grid');
     const rightWidget = grid.parentElement;
     const titleEl = rightWidget.querySelector('.widget-title');
 
     titleEl.innerHTML = `<i class="fa-solid fa-car-side"></i> Vehículos en: <span style="color: #2ecc71;">${cat.label.toUpperCase()}</span>`;
 
-    // Le aplicamos las mismas clases CSS que tiene la cuadrícula grande para que se vea igual
     grid.className = 'category-vehicles-grid boss-vehicles-grid';
-    grid.innerHTML = ''; // Limpiamos lo que hubiera antes
+    grid.innerHTML = '';
 
-    // 3. Filtramos el catálogo global buscando los que tengan esta categoría exacta
     const filteredVehicles = globalStock.filter(v => v.category === cat.name);
 
-    // 4. Si no hay vehículos en esta categoría...
     if (filteredVehicles.length === 0) {
-        grid.className = 'category-vehicles-grid'; // Quitamos el grid para centrar el mensaje
+        grid.className = 'category-vehicles-grid';
         grid.innerHTML = `
             <div class="empty-state" style="grid-column: 1 / -1; height: 100%; display: flex; flex-direction: column; justify-content: center;">
                 <iconify-icon icon="solar:car-broken-bold-duotone" class="empty-state-icon"></iconify-icon>
@@ -1588,7 +1793,6 @@ function viewCategory(id) {
         return;
     }
 
-    // 5. Si hay vehículos, dibujamos las tarjetas mágicas (con el triple fallback de imágenes)
     filteredVehicles.forEach(v => {
         const card = document.createElement('div');
         card.className = 'vehicle-card';
@@ -1599,7 +1803,11 @@ function viewCategory(id) {
         const badgeBg = stockNum > 0 ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.05)';
         const badgeColor = stockNum > 0 ? '#2ecc71' : '#888';
         const badgeBorder = stockNum > 0 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
-        const primaryImg = `https://docs.fivem.net/vehicles/${v.model}.webp`;
+
+        // Lógica Inteligente de Imágenes
+        const isVanilla = v.shop === 'pdm' || v.shop === 'luxury' || v.shop === 'boats' || v.shop === 'air';
+        const primaryImg = isVanilla ? `https://docs.fivem.net/vehicles/${v.model}.webp` : `./veh_custom/${v.model}.png`;
+        const initialTries = isVanilla ? '0' : '1';
 
         card.innerHTML = `
             <div class="card-header-info">
@@ -1621,9 +1829,12 @@ function viewCategory(id) {
                 
                 <img src="${primaryImg}" 
                     alt="${v.model}" 
-                    style="max-width: 95%; max-height: 85%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1;"
+                    data-tries="${initialTries}"
+                    style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1; transition: transform 0.2s ease;"
                     onerror="
                         const tries = parseInt(this.getAttribute('data-tries') || '0');
+                        this.style.transform = 'scale(1.2)'; 
+
                         if (tries === 0) {
                             this.setAttribute('data-tries', '1');
                             this.src = './veh_custom/${v.model}.png'; 
@@ -1634,7 +1845,6 @@ function viewCategory(id) {
                             this.setAttribute('data-tries', '3');
                             this.src = './veh_custom/${v.model}.webp'; 
                         } else {
-                            // Final del camino: ocultar imagen y mostrar icono
                             this.style.display = 'none';
                             const placeholder = this.parentElement.querySelector('.no-image-placeholder');
                             if (placeholder) placeholder.style.display = 'block';
@@ -1876,31 +2086,54 @@ let globalStock = []; // Aquí se guardarán los coches que mande el Lua
 let currentFilteredStock = []; // Lo que estamos viendo actualmente en la búsqueda
 let currentLoadedCount = 0; // Cuántos hemos dibujado hasta ahora
 const VEHICLE_BATCH_SIZE = 65; // De cuántos en cuántos van a ir cargando
+let dealerLoadCache = {}; // Caché para guardar el scroll de cada concesionario por separado
 
 // 1. Función principal que prepara la búsqueda
 function renderBossVehicles(searchTerm = '') {
     const grid = document.getElementById('boss-vehicles-grid');
     if (!grid) return;
 
-    grid.innerHTML = ''; // Limpiamos la cuadrícula al buscar
-    currentLoadedCount = 0; // Reiniciamos el contador de carga
-
-    // Lógica de filtrado por búsqueda
     const term = searchTerm.toLowerCase().trim();
-    currentFilteredStock = globalStock.filter(v =>
-        (v.brand && v.brand.toLowerCase().includes(term)) ||
+
+    // Decidimos cuántos hay que cargar.
+    // Si hay texto en el buscador, empezamos en 65.
+    // Si no hay texto, recuperamos el caché de ESTE concesionario en específico.
+    let targetLoadCount = VEHICLE_BATCH_SIZE;
+    if (term === '') {
+        targetLoadCount = dealerLoadCache[currentBossDealerName] || VEHICLE_BATCH_SIZE;
+    }
+
+    // SIEMPRE vaciamos el grid para dibujar los datos frescos (por si compramos stock y cambió el número verde)
+    grid.innerHTML = '';
+    currentLoadedCount = 0;
+
+    let filtered = globalStock.filter(v =>
         (v.name && v.name.toLowerCase().includes(term)) ||
+        (v.brand && v.brand.toLowerCase().includes(term)) ||
         (v.model && v.model.toLowerCase().includes(term))
     );
 
-    // Mensaje si no hay resultados en la búsqueda
+    // --- ORDENACIÓN NATURAL Y ALFABÉTICA (A-Z, 1-10) ---
+    currentFilteredStock = filtered.sort((a, b) => {
+        const nameA = (a.name || a.model).toString();
+        const nameB = (b.name || b.model).toString();
+
+        // localeCompare con numeric: true es la forma más profesional de ordenar 1, 2, 10
+        return nameA.localeCompare(nameB, undefined, {
+            numeric: true,
+            sensitivity: 'base'
+        });
+    });
+
     if (currentFilteredStock.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: #aaa; margin-top: 2vw; font-size: 0.9vw;">No hay vehículos disponibles con esos datos.</div>`;
+        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: #aaa; margin-top: 2vw; font-size: 0.9vw;">No hay vehículos.</div>`;
         return;
     }
 
-    // Cargamos la primera "tanda" de 65 vehículos
-    loadMoreVehicles();
+    // Cargamos de golpe todos los lotes necesarios hasta llegar al caché que teníamos guardado
+    while (currentLoadedCount < targetLoadCount && currentLoadedCount < currentFilteredStock.length) {
+        loadMoreVehicles();
+    }
 }
 
 // 2. Función que añade físicamente las tarjetas al DOM (Lazy Load)
@@ -1908,7 +2141,6 @@ function loadMoreVehicles() {
     const grid = document.getElementById('boss-vehicles-grid');
     if (!grid) return;
 
-    // Recortamos el trozo de vehículos que toca cargar ahora
     const nextBatch = currentFilteredStock.slice(currentLoadedCount, currentLoadedCount + VEHICLE_BATCH_SIZE);
 
     nextBatch.forEach(v => {
@@ -1916,17 +2148,16 @@ function loadMoreVehicles() {
         card.className = 'vehicle-card';
         card.setAttribute('data-model', v.model);
 
-        // Formateamos el precio para que se vea bonito ($ 100,000)
         const formattedPrice = new Intl.NumberFormat('es-ES').format(v.price || 0);
-
-        // Lógica de colores del Badge de Stock
         const stockNum = v.stock || 0;
         const badgeBg = stockNum > 0 ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.05)';
         const badgeColor = stockNum > 0 ? '#2ecc71' : '#888';
         const badgeBorder = stockNum > 0 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
 
-        // La URL de los coches Vanilla (Nube de FiveM)
-        const primaryImg = `https://docs.fivem.net/vehicles/${v.model}.webp`;
+        // Lógica Inteligente de Imágenes
+        const isVanilla = v.shop === 'pdm' || v.shop === 'luxury' || v.shop === 'boats' || v.shop === 'air';
+        const primaryImg = isVanilla ? `https://docs.fivem.net/vehicles/${v.model}.webp` : `./veh_custom/${v.model}.png`;
+        const initialTries = isVanilla ? '0' : '1';
 
         card.innerHTML = `
             <div class="card-header-info">
@@ -1949,9 +2180,12 @@ function loadMoreVehicles() {
                 
                 <img src="${primaryImg}" 
                     alt="${v.model}" 
-                    style="max-width: 95%; max-height: 85%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1;"
+                    data-tries="${initialTries}"
+                    style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1; transition: transform 0.2s ease;"
                     onerror="
                         const tries = parseInt(this.getAttribute('data-tries') || '0');
+                        this.style.transform = 'scale(1.2)'; 
+
                         if (tries === 0) {
                             this.setAttribute('data-tries', '1');
                             this.src = './veh_custom/${v.model}.png'; 
@@ -1962,8 +2196,7 @@ function loadMoreVehicles() {
                             this.setAttribute('data-tries', '3');
                             this.src = './veh_custom/${v.model}.webp'; 
                         } else {
-                            // 2. Si todo falla: ocultamos la imagen y MOSTRALOS el icono
-                            this.style.display = 'none'; 
+                            this.style.display = 'none';
                             const placeholder = this.parentElement.querySelector('.no-image-placeholder');
                             if (placeholder) placeholder.style.display = 'block';
                         }
@@ -1977,14 +2210,18 @@ function loadMoreVehicles() {
         `;
 
         card.addEventListener('click', () => {
-            openOrderStockModal(v); // Llamamos a la nueva función pasándole todos los datos del coche
+            openOrderStockModal(v);
         });
 
         grid.appendChild(card);
     });
 
-    // Actualizamos el contador para saber dónde nos hemos quedado
     currentLoadedCount += nextBatch.length;
+
+    const currentSearch = document.getElementById('boss-vehicles-search')?.value.trim() || '';
+    if (currentSearch === '') {
+        dealerLoadCache[currentBossDealerName] = currentLoadedCount;
+    }
 }
 
 // 3. Evento en vivo: Filtrar vehículos al escribir en el buscador
@@ -2117,3 +2354,177 @@ document.getElementById('btn-confirm-order')?.addEventListener('click', () => {
     // Cerramos el modal instantáneamente tras darle al botón
     toggleModal('order-stock-modal', false);
 });
+
+// =================================================================
+// EVENTOS DEL BUSCADOR EXPANDIBLE (SHOWROOM)
+// =================================================================
+const searchBox = document.getElementById('showroom-search-box');
+const searchInput = document.getElementById('showroom-search-input');
+const searchClose = document.getElementById('showroom-search-close');
+
+if (searchBox && searchInput && searchClose) {
+    // 1. Expandir al hacer clic en la caja (lupa o fondo)
+    searchBox.addEventListener('click', () => {
+        if (!searchBox.classList.contains('expanded')) {
+            searchBox.classList.add('expanded');
+            searchInput.focus(); // Ponemos el cursor a parpadear automáticamente
+        }
+    });
+
+    // 2. Filtrar los vehículos en tiempo real mientras escribes
+    searchInput.addEventListener('input', (e) => {
+        currentShowroomSearch = e.target.value;
+        applyShowroomFilter(currentShowroomCategory); // Filtra dentro de la categoría actual
+    });
+
+    // 3. Cerrar al hacer clic en la X, limpiar el texto y restaurar coches
+    searchClose.addEventListener('click', (e) => {
+        e.stopPropagation(); // ¡VITAL! Evita que el clic "traspase" y vuelva a abrir la caja
+
+        searchBox.classList.remove('expanded'); // Contraemos la caja
+        searchInput.value = ''; // Vaciamos el texto visualmente
+        searchInput.blur(); // Quitamos el foco
+
+        currentShowroomSearch = ''; // Vaciamos el texto en la memoria
+        applyShowroomFilter(currentShowroomCategory); // Restauramos la lista
+    });
+}
+
+// --- ANIMACIÓN DEL BOTÓN DE AYUDA (SHOWROOM) ---
+const helpBtn = document.getElementById('showroom-help-btn');
+const closeHelp = document.getElementById('close-help');
+
+if (helpBtn && closeHelp) {
+    // Expandir al hacer clic en el botón (si no está ya expandido)
+    helpBtn.addEventListener('click', () => {
+        if (!helpBtn.classList.contains('expanded')) {
+            helpBtn.classList.add('expanded');
+        }
+    });
+
+    // Cerrar al hacer clic en la X del header
+    closeHelp.addEventListener('click', (e) => {
+        e.stopPropagation(); // Evitamos que el clic se propague al contenedor padre y lo reabra
+        helpBtn.classList.remove('expanded');
+    });
+}
+
+// --- ACCESO RÁPIDO POR TECLADO (TECLA T) ---
+document.addEventListener('keydown', (e) => {
+    // Si el showroom no está abierto, ignoramos
+    if (!isShowroomOpen) return;
+
+    // Si el usuario ya está escribiendo en algún input, ignoramos
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    // Tecla T (keyCode 84)
+    if (e.key.toLowerCase() === 't') {
+        const searchBox = document.getElementById('showroom-search-box');
+        const searchInput = document.getElementById('showroom-search-input');
+
+        if (searchBox && searchInput) {
+            e.preventDefault(); // Evitamos que escriba la 't' en el input al enfocar
+
+            // Si no está expandido, lo expandimos
+            if (!searchBox.classList.contains('expanded')) {
+                searchBox.classList.add('expanded');
+            }
+
+            // Enfocamos el input y lo dejamos listo para escribir
+            searchInput.focus();
+        }
+    }
+});
+
+// Función para seleccionar un vehículo y mostrar su info
+function selectShowroomVehicle(vehicle) {
+    currentPreviewVehicle = vehicle.model;
+    const panel = document.getElementById('vehicle-info-panel');
+    if (!panel) return;
+
+    // 1. Mostramos el panel si estaba oculto
+    panel.style.display = 'flex';
+
+    // 2. Actualizamos los textos
+    document.getElementById('info-brand-name').innerText = vehicle.brand || 'CUSTOM';
+    document.getElementById('info-model-name').innerText = vehicle.name || vehicle.model;
+
+    const formattedPrice = new Intl.NumberFormat('es-ES').format(vehicle.price || 0);
+    document.getElementById('info-vehicle-price').innerText = `$ ${formattedPrice}`;
+    document.getElementById('info-vehicle-stock').innerText = vehicle.stock || 0;
+
+    // 3. Generamos la paleta de colores interactiva
+    const colorGrid = document.getElementById('gta-colors-list');
+    colorGrid.innerHTML = '';
+
+    GTA_COLORS.forEach(colorData => {
+        const colorDiv = document.createElement('div');
+        colorDiv.className = 'color-option';
+        colorDiv.style.backgroundColor = colorData.hex;
+        colorDiv.title = colorData.name;
+
+        // Si este es el color que tenemos seleccionado actualmente, le ponemos la clase
+        if (currentPreviewColor === colorData.id) {
+            colorDiv.classList.add('selected');
+        }
+
+        colorDiv.addEventListener('click', () => {
+            // Quitamos la clase 'selected' a todos y se la ponemos al que hemos clickeado
+            document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+            colorDiv.classList.add('selected');
+
+            // Guardamos el color en memoria para el próximo coche
+            currentPreviewColor = colorData.id;
+
+            // Enviamos el aviso al cliente para pintar el coche en vivo (Sin respawnearlo)
+            fetch(`https://${GetParentResourceName()}/updateVehicleColor`, {
+                method: 'POST',
+                body: JSON.stringify({ color: currentPreviewColor })
+            });
+        });
+
+        colorGrid.appendChild(colorDiv);
+    });
+
+    // 4. Llamamos a la previsualización del vehículo pasándole también el color actual
+    fetch(`https://${GetParentResourceName()}/previewVehicle`, {
+        method: 'POST',
+        body: JSON.stringify({
+            model: vehicle.model,
+            color: currentPreviewColor
+        })
+    });
+}
+
+// Función para resetear el panel
+function hideVehicleInfo() {
+    const panel = document.getElementById('vehicle-info-panel');
+    if (panel) panel.style.display = 'none';
+    currentPreviewVehicle = null;
+}
+
+// =================================================================
+// FUNCIÓN DE CIERRE DEL SHOWROOM
+// =================================================================
+function closeShowroom() {
+    isShowroomOpen = false;
+    document.getElementById('showroom-container').style.display = 'none';
+
+    // [AQUÍ VA LO QUE PREGUNTABAS]
+    hideVehicleInfo();      // Ocultamos el panel de la izquierda
+    currentPreviewColor = 0; // Reseteamos el color a Negro para la próxima vez
+
+    // Avisamos al cl_main.lua para que destruya la cámara y el coche
+    fetch(`https://${GetParentResourceName()}/closeShowroomMenu`, {
+        method: 'POST'
+    });
+}
+
+// Escuchar la tecla ESCAPE para cerrar
+document.onkeyup = function (data) {
+    if (data.which == 27) { // 27 es la tecla ESC
+        if (isShowroomOpen) {
+            closeShowroom();
+        }
+    }
+};

@@ -14,6 +14,7 @@ local currentActiveZone = nil
 local currentActiveText = nil
 local currentBossDealerId = nil
 local ShowroomVehicleData = {}
+local currentPreviewRequestId = 0
 
 -- =================================================================
 -- INICIALIZACIÓN DEL FRAMEWORK (AÑADIR ESTO AQUÍ)
@@ -521,11 +522,17 @@ RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealer
 end)
 
 -- 2. Apertura del Showroom
-RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, categories)
+RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, categories, vehicles)
     -- 1. Le pasamos las categorías al Javascript PRIMERO
     SendNUIMessage({
         action = 'loadCategories',
         categories = categories
+    })
+
+    -- 1.5. Le pasamos los coches reales al Javascript para que llene el catálogo
+    SendNUIMessage({
+        action = 'loadBossStock',
+        vehicles = vehicles
     })
 
     -- 2. Recuperamos el nombre (Label) del concesionario como hacías en tu código original
@@ -655,11 +662,18 @@ RegisterNUICallback('editVehicle', function(data, cb)
     cb('ok')
 end)
 
+-- Variable de control para evitar coches solapados (Fantasmas)
+local currentPreviewRequestId = 0
+
 RegisterNUICallback('previewVehicle', function(data, cb)
     local modelName = data.model
     local modelHash = GetHashKey(modelName)
 
-    -- 1. Si ya había un coche de prueba, lo borramos
+    -- Cada vez que hacemos clic, generamos un nuevo ID de petición
+    currentPreviewRequestId = currentPreviewRequestId + 1
+    local myRequestId = currentPreviewRequestId
+
+    -- 1. Si ya había un coche de prueba, lo borramos al instante
     if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
         DeleteEntity(previewVehicleEntity)
         previewVehicleEntity = nil
@@ -670,7 +684,7 @@ RegisterNUICallback('previewVehicle', function(data, cb)
         return cb('ok')
     end
 
-    -- 2. Cargar modelo
+    -- 2. Cargar modelo (ESTO ES LO QUE TARDA CON COCHES CUSTOM)
     RequestModel(modelHash)
     local timeout = 0
     while not HasModelLoaded(modelHash) and timeout < 1500 do
@@ -678,8 +692,20 @@ RegisterNUICallback('previewVehicle', function(data, cb)
         timeout = timeout + 10
     end
 
+    -- [FILTRO ANTI-FANTASMAS] 
+    -- Si mientras FiveM estaba "pensando", el jugador hizo clic en otro coche, el ID habrá cambiado.
+    -- Así que ABORTAMOS la creación de este vehículo viejo.
+    if myRequestId ~= currentPreviewRequestId then
+        return cb('ok')
+    end
+
     if not HasModelLoaded(modelHash) then
         return cb('ok')
+    end
+
+    -- Por extrema seguridad, antes de dibujarlo, nos cercioramos de nuevo de que no hay nada ahí
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        DeleteEntity(previewVehicleEntity)
     end
 
     -- 3. Coordenadas de aparición MEJORADAS
@@ -695,22 +721,16 @@ RegisterNUICallback('previewVehicle', function(data, cb)
     SetVehicleDoorsLocked(previewVehicleEntity, 4)
 
     -- 5. ESTANDARIZAR EL VEHÍCULO (Siempre igual, sin aleatoriedad)    
-    -- Poner Colores: Primario 0 (Negro Metálico), Secundario 0
     SetVehicleColours(previewVehicleEntity, 0, 0)
-    -- Poner Perlado y llantas en Negro (0)
     SetVehicleExtraColours(previewVehicleEntity, 0, 0)
-
-    -- Limpiar suciedad
     SetVehicleDirtLevel(previewVehicleEntity, 0.0)
 
-    -- Quitar todos los "Extras" aleatorios (Techos, alerones variables, etc)
     for i = 1, 14 do
         if DoesExtraExist(previewVehicleEntity, i) then
-            SetVehicleExtra(previewVehicleEntity, i, true) -- 'true' apaga el extra
+            SetVehicleExtra(previewVehicleEntity, i, true)
         end
     end
 
-    -- Quitar pegatinas (Liveries) aleatorias
     SetVehicleModKit(previewVehicleEntity, 0)
     SetVehicleLivery(previewVehicleEntity, -1)
 

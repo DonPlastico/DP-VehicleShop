@@ -17,8 +17,10 @@ Config.Framework = 'qbcore'
 Config.JobName = 'police' -- ¡Ahora se gestiona en la Sección 2.5 por cada concesionario!
 
 -- Nombre del comando para abrir el menú en el juego.
--- Uso: /pdmescaparate (o lo que pongas aquí)
-Config.Command = 'pdmescaparate'
+Config.PDM = 'pdmescaparate'
+
+-- Nombre del comando para generar el archivo SQL del vehicle.lua del qbcore por primera vez.
+Config.VehicleList = 'generarprimerstock'
 
 -- =================================================================
 -- SECCIÓN 2: AJUSTES DE INTERFAZ Y NOTIFICACIONES
@@ -39,7 +41,7 @@ Config.Dealerships = {
     -- 1. COCHES (Vehículos de 4 ruedas estándar)
     ['cars'] = {
         label = 'Premium Deluxe Motorsport',
-        job = 'police', -- (cardealer)
+        job = 'cardealer',
         blip = {
             enabled = true,
             id = 326,
@@ -48,17 +50,17 @@ Config.Dealerships = {
             coords = vector3(-33.8, -1102.0, 26.4)
         },
         npc_model = 'a_m_y_business_02', -- Modelo del NPC (Puedes poner uno distinto en cada uno)
-        coords_npc = vector4(-40.41, -1093.51, 26.44, 154.19), -- Coordenadas X, Y, Z y Heading (H) para mirar
+        coords_npc = vector4(-1234.39, -3379.61, 13.94, 48.1), -- Coordenadas X, Y, Z y Heading (H) para mirar
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD', -- Animación de carpeta en mano
-        bossMenu = vector3(-52.46, -1100.43, 26.44), -- Punto donde el jefe gestiona el stock y dinero
-        npc_buy = vector4(-58.13, -1092.24, 26.44, 173.71), -- Punto donde el NPC atiende a los clientes para comprar vehículos
+        bossMenu = vector3(-1236.0, -3382.66, 13.94), -- Punto donde el jefe gestiona el stock y dinero
+        npc_buy = vector4(-1236.99, -3384.55, 13.94, 60.77), -- Punto donde el NPC atiende a los clientes para comprar vehículos
         isUsedMarket = false -- Indica si es el concesionario de segunda mano
     },
 
     -- 2. BIKES (Motos y Bicicletas)
     ['bikes'] = {
         label = 'Sanders Motorcycles',
-        job = 'police', -- (motorcycledealer)
+        job = 'motorcycledealer',
         blip = {
             enabled = true,
             id = 226,
@@ -67,17 +69,17 @@ Config.Dealerships = {
             coords = vector3(287.0, -1146.0, 29.0)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(287.0, -1146.0, 29.0, 90.0),
+        coords_npc = vector4(-1239.1, -3377.4, 13.94, 62.31),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(290.0, -1146.0, 29.0),
-        npc_buy = vector4(260.0, -1150.0, 29.0, 90.0),
+        bossMenu = vector3(-1240.64, -3380.26, 13.94),
+        npc_buy = vector4(-1241.79, -3382.31, 13.94, 60.04),
         isUsedMarket = false
     },
 
     -- 3. AIRE (Aviones y Helicópteros)
     ['air'] = {
         label = 'Los Santos Flight Sales',
-        job = 'police', -- (airdealer)
+        job = 'airdealer',
         blip = {
             enabled = true,
             id = 251,
@@ -86,10 +88,10 @@ Config.Dealerships = {
             coords = vector3(-1130.0, -2565.0, 14.0)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1130.0, -2565.0, 14.0, 180.0),
+        coords_npc = vector4(-1242.5, -3375.83, 13.94, 59.94),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1135.0, -2565.0, 14.0),
-        npc_buy = vector4(-1000.0, -2900.0, 14.0, 0.0),
+        bossMenu = vector3(-1243.84, -3378.42, 13.94),
+        npc_buy = vector4(-1245.16, -3380.55, 13.94, 61.38),
         isUsedMarket = false
     },
 
@@ -105,17 +107,17 @@ Config.Dealerships = {
             coords = vector3(-739.0, -1333.0, 1.5)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-739.0, -1333.0, 1.5, 90.0),
+        coords_npc = vector4(-1246.0, -3374.16, 13.94, 59.71),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-741.0, -1333.0, 1.5),
-        npc_buy = vector4(-730.0, -1330.0, 1.5, 180.0),
+        bossMenu = vector3(-1247.42, -3376.86, 13.94),
+        npc_buy = vector4(-1248.63, -3378.81, 13.94, 56.83),
         isUsedMarket = false
     },
 
     -- 5. VIP (Vehículos Custom / Importación)
     ['vip'] = {
         label = 'Luxury Autos (VIP)',
-        job = 'police', -- (vipdealer)
+        job = 'vipdealer',
         blip = {
             enabled = true,
             id = 523,
@@ -124,17 +126,17 @@ Config.Dealerships = {
             coords = vector3(-795.0, -225.2, 37.0)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-795.0, -225.2, 37.0, 200.0),
+        coords_npc = vector4(-1249.64, -3372.49, 13.94, 59.62),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-797.1, -222.5, 37.0),
-        npc_buy = vector4(-800.0, -220.0, 37.0, 270.0),
+        bossMenu = vector3(-1250.93, -3374.75, 13.94),
+        npc_buy = vector4(-1252.07, -3377.0, 13.94, 58.87),
         isUsedMarket = false
     },
 
     -- 6. COMPRA/VENTA (Jugador a Jugador)
     ['used'] = {
         label = 'Compra/Venta Automotriz',
-        job = 'police', -- (useddealer)
+        job = 'useddealer',
         blip = {
             enabled = true,
             id = 225,
@@ -143,10 +145,10 @@ Config.Dealerships = {
             coords = vector3(200.0, -200.0, 30.0)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(200.0, -200.0, 30.0, 0.0),
+        coords_npc = vector4(-1253.02, -3371.05, 13.94, 60.06),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(205.0, -200.0, 30.0),
-        npc_buy = vector3(210.0, -210.0, 30.0),
+        bossMenu = vector3(-1254.34, -3373.04, 13.94),
+        npc_buy = vector4(-1255.59, -3375.23, 13.94, 60.19),
         isUsedMarket = true -- ¡IMPORTANTE! Este flag le dirá al script que aquí aplican mecánicas distintas
     }
 }

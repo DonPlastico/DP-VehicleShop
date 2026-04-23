@@ -549,12 +549,13 @@ end)
 RegisterNetEvent('DP-VehicleShop:server:requestShowroom')
 AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
     local src = source
-    -- Buscamos las categorías y se las pasamos al cliente para que abra el catálogo
+
+    -- 1. Buscamos las categorías
     exports['oxmysql']:execute(
         'SELECT * FROM dp_vehicleshop_categories WHERE dealership_id = ? ORDER BY sort_order ASC', {dealerId},
-        function(result)
+        function(catResult)
             local cats = {}
-            for _, v in ipairs(result) do
+            for _, v in ipairs(catResult) do
                 table.insert(cats, {
                     id = v.id,
                     name = v.category_name,
@@ -562,7 +563,92 @@ AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
                     order = v.sort_order
                 })
             end
-            TriggerClientEvent('DP-VehicleShop:client:openShowroom', src, dealerId, cats)
+
+            -- 2. Buscamos el stock real en la base de datos
+            exports['oxmysql']:execute(
+                'SELECT vehicle_model, stock_count, category_name FROM dp_vehicleshop_stock WHERE dealership_id = ?',
+                {dealerId}, function(stockResult)
+                    local currentStock = {}
+                    if stockResult then
+                        for _, s in ipairs(stockResult) do
+                            currentStock[s.vehicle_model] = {
+                                count = s.stock_count,
+                                category = s.category_name
+                            }
+                        end
+                    end
+
+                    -- 3. Construimos la lista de vehículos (Aplicando los filtros de concesionario)
+                    local dealerVehicles = {}
+                    local excludedCategories = {
+                        ['military'] = true,
+                        ['emergency'] = true,
+                        ['service'] = true,
+                        ['commercial'] = true,
+                        ['industrial'] = true,
+                        ['utility'] = true
+                    }
+
+                    if Config.Framework == 'qbcore' and Framework.Core.Shared.Vehicles then
+                        for model, v in pairs(Framework.Core.Shared.Vehicles) do
+                            local category = v.category and string.lower(v.category) or "sin_categoria"
+
+                            -- ¡FILTRO CLAVE! Si la categoría NO está en la lista negra, seguimos
+                            if not excludedCategories[category] then
+                                local match = false
+                                local vType = v.type and string.lower(v.type) or ""
+                                local vShop = v.shop and string.lower(v.shop) or ""
+
+                                if dealerId == 'cars' then
+                                    if vType == 'automobile' and vShop == 'pdm' then
+                                        match = true
+                                    end
+                                elseif dealerId == 'bikes' then
+                                    if vType == 'bike' and vShop == 'pdm' then
+                                        match = true
+                                    end
+                                elseif dealerId == 'sea' then
+                                    if vType == 'boat' and vShop == 'boats' then
+                                        match = true
+                                    end
+                                elseif dealerId == 'air' then
+                                    if (vType == 'heli' or vType == 'plane') and vShop == 'air' then
+                                        match = true
+                                    end
+                                elseif dealerId == 'vip' then
+                                    if vType == 'automobile' and vShop == 'luxury' then
+                                        match = true
+                                    end
+                                end
+
+                                if match then
+                                    local stockData = currentStock[model] or {}
+                                    table.insert(dealerVehicles, {
+                                        model = model,
+                                        name = v.name or 'Desconocido',
+                                        brand = v.brand or 'Custom',
+                                        price = tonumber(v.price) or 0,
+                                        type = v.type,
+                                        shop = v.shop,
+                                        stock = stockData.count or 0,
+                                        category = stockData.category
+                                    })
+                                end
+                            end
+                        end
+
+                        -- Ordenamos la lista
+                        table.sort(dealerVehicles, function(a, b)
+                            if a.brand == b.brand then
+                                return (a.name or "") < (b.name or "")
+                            end
+                            return (a.brand or "") < (b.brand or "")
+                        end)
+                    end
+
+                    -- Mandamos al cliente las categorías Y LOS VEHÍCULOS (dealerVehicles)
+                    TriggerClientEvent('DP-VehicleShop:client:openShowroom', src, dealerId, cats, dealerVehicles)
+                end)
         end)
 end)
 
@@ -700,7 +786,8 @@ end)
 -- SECCIÓN 6: COMANDOS
 -- =================================================================
 
-RegisterCommand(Config.Command, function(source, args, rawCommand)
+-- COMANDO PARA ABRIR EL MENÚ DE GESTIÓN DEL ESCAPARATE (RESTRINGIDO A TRABAJO)
+RegisterCommand(Config.PDM, function(source, args, rawCommand)
     local src = source
     -- El comando SÍ se mantiene restringido, solo el menú de gestión.
     if HasJob(src) then
@@ -711,6 +798,94 @@ RegisterCommand(Config.Command, function(source, args, rawCommand)
         end
     end
 end)
+
+-- COMANDO DE ADMINISTRACIÓN PARA GENERAR EL ARCHIVO SQL CON EL STOCK INICIAL DE VEHÍCULOS (MAPEO DIRECTO)
+RegisterCommand(Config.VehicleList, function(source, args, rawCommand)
+    local src = source
+    local vehicles = nil
+
+    -- Obtenemos los vehículos (Compatible con QBCore)
+    if Config.Framework == 'qbcore' then
+        vehicles = Framework.Core.Shared.Vehicles
+    end
+
+    if not vehicles then
+        print('^1[DP-VehicleShop] Error: No se encontró la tabla de vehículos.^7')
+        return
+    end
+
+    -- DICCIONARIO DE CATEGORÍAS (Mapeo directo a Concesionarios)
+    local dealerMapping = {
+        -- Coches (Premium Deluxe Motorsport)
+        ['compacts'] = 'cars',
+        ['coupes'] = 'cars',
+        ['muscle'] = 'cars',
+        ['offroad'] = 'cars',
+        ['openwheel'] = 'cars',
+        ['suvs'] = 'cars',
+        ['sedans'] = 'cars',
+        ['sportsclassics'] = 'cars',
+        ['sports'] = 'cars',
+        ['super'] = 'cars',
+        ['vans'] = 'cars',
+
+        -- Motos (Sanders Motorcycles)
+        ['cycles'] = 'bikes',
+        ['motorcycles'] = 'bikes',
+
+        -- Aéreos (Los Santos Flight Sales)
+        ['helicopters'] = 'air',
+        ['planes'] = 'air',
+
+        -- Marítimos (Nautical Showroom)
+        ['boats'] = 'sea',
+
+        -- VIP (Luxury Autos)
+        ['luxury'] = 'vip'
+    }
+
+    local sqlContent = "-- =================================================================\n"
+    sqlContent = sqlContent .. "-- ARCHIVO GENERADO AUTOMÁTICAMENTE: PRIMER STOCK (MAPEO EXACTO)\n"
+    sqlContent = sqlContent .. "-- =================================================================\n\n"
+
+    local count = 0
+
+    -- Recorremos todos los vehículos
+    for model, v in pairs(vehicles) do
+        local category = v.category and string.lower(v.category) or 'sin_categoria'
+
+        -- Buscamos a qué concesionario pertenece esta categoría
+        local dealerId = dealerMapping[category]
+
+        -- Si la categoría tiene un concesionario asignado, generamos la línea SQL
+        if dealerId then
+            local finalCategory = v.category or 'sin_categoria'
+            sqlContent = sqlContent .. string.format(
+                "INSERT IGNORE INTO `dp_vehicleshop_stock` (`dealership_id`, `vehicle_model`, `stock_count`, `category_name`) VALUES ('%s', '%s', 1000, '%s');\n",
+                dealerId, model, finalCategory)
+            count = count + 1
+        end
+    end
+
+    -- Guardar el archivo
+    local resourcePath = GetResourcePath(GetCurrentResourceName())
+    local file = io.open(resourcePath .. '/primer_stock.sql', 'w')
+
+    if file then
+        file:write(sqlContent)
+        file:close()
+        if src ~= 0 then
+            TriggerClientEvent('QBCore:Notify', src,
+                '¡ÉXITO! Archivo generado con ' .. count .. ' vehículos mapeados.', 'success', 8000)
+        end
+        print('^2[DP-VehicleShop]^7 Archivo primer_stock.sql generado (' .. count .. ' vehículos mapeados).')
+    else
+        if src ~= 0 then
+            TriggerClientEvent('QBCore:Notify', src, 'Error: No se pudo crear el archivo.', 'error')
+        end
+    end
+end, true) -- El 'true' al final restringe el comando a administradores mediante el sistema ACE nativo de FiveM
+
 
 -- =================================================================
 -- INICIALIZACIÓN DE CATEGORÍAS (AUTO-CREACIÓN)
@@ -1285,84 +1460,3 @@ RegisterNetEvent('DP-VehicleShop:server:orderStock', function(dealerId, orderDat
             end
         end)
 end)
-
--- =================================================================
--- HERRAMIENTA ADMIN: GENERADOR DE STOCK INICIAL (.SQL)
--- =================================================================
-if Config.Framework == 'qbcore' then
-    Framework.Core.Commands.Add('generarprimerstock', 'Genera un archivo SQL con 1000 de stock (Solo Civiles) (Admin)',
-        {}, false, function(source, args)
-            local src = source
-            local vehicles = Framework.Core.Shared.Vehicles
-            if not vehicles then
-                return
-            end
-
-            -- LISTA NEGRA: Categorías que NO queremos meter en el stock inicial
-            local excludedCategories = {
-                ['military'] = true,
-                ['emergency'] = true,
-                ['service'] = true,
-                ['commercial'] = true,
-                ['industrial'] = true,
-                ['utility'] = true
-            }
-
-            -- Cabecera del archivo SQL
-            local sqlContent = "-- =================================================================\n"
-            sqlContent = sqlContent .. "-- ARCHIVO GENERADO AUTOMÁTICAMENTE: PRIMER STOCK (FILTRADO)\n"
-            sqlContent = sqlContent .. "-- =================================================================\n"
-            sqlContent = sqlContent ..
-                             "-- Categorías excluidas: military, emergency, service, commercial, industrial, utility.\n\n"
-
-            local count = 0
-
-            -- Recorremos todos los vehículos del shared de QBCore
-            for model, v in pairs(vehicles) do
-                local category = v.category and string.lower(v.category) or 'sin_categoria'
-
-                -- ¡FILTRO MEJORADO! Comprobamos si la categoría está en nuestra lista negra
-                if not excludedCategories[category] then
-                    local dealerId = false
-                    local vType = v.type and string.lower(v.type) or ""
-                    local vShop = v.shop and string.lower(v.shop) or ""
-
-                    -- Lógica de asignación de concesionario
-                    if vType == 'automobile' and vShop == 'pdm' then
-                        dealerId = 'cars'
-                    elseif vType == 'bike' and vShop == 'pdm' then
-                        dealerId = 'bikes'
-                    elseif vType == 'boat' and vShop == 'boats' then
-                        dealerId = 'sea'
-                    elseif (vType == 'heli' or vType == 'plane') and vShop == 'air' then
-                        dealerId = 'air'
-                    elseif vType == 'automobile' and vShop == 'luxury' then
-                        dealerId = 'vip'
-                    end
-
-                    -- Si pertenece a un concesionario válido, creamos su línea SQL
-                    if dealerId then
-                        local finalCategory = v.category or 'sin_categoria'
-                        sqlContent = sqlContent .. string.format(
-                            "INSERT IGNORE INTO `dp_vehicleshop_stock` (`dealership_id`, `vehicle_model`, `stock_count`, `category_name`) VALUES ('%s', '%s', 1000, '%s');\n",
-                            dealerId, model, finalCategory)
-                        count = count + 1
-                    end
-                end
-            end
-
-            -- Guardar el archivo físicamente en la raíz de tu script
-            local resourcePath = GetResourcePath(GetCurrentResourceName())
-            local file = io.open(resourcePath .. '/primer_stock.sql', 'w')
-
-            if file then
-                file:write(sqlContent)
-                file:close()
-                TriggerClientEvent('QBCore:Notify', src,
-                    '¡ÉXITO! Archivo generado con ' .. count .. ' vehículos civiles.', 'success', 8000)
-                print('^2[DP-VehicleShop]^7 Archivo primer_stock.sql generado (Filtrado: solo civiles).')
-            else
-                TriggerClientEvent('QBCore:Notify', src, 'Error: No se pudo crear el archivo.', 'error')
-            end
-        end, 'admin')
-end

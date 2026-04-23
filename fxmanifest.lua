@@ -32,7 +32,15 @@ ui_page 'ui/index.html'
 
 -- Lista de todos los archivos estáticos que el jugador debe descargar.
 -- (HTML, CSS, JS, Fuentes, Imágenes, etc.)
-files {'ui/index.html', 'ui/style.css', 'ui/script.js'}
+files {
+    'ui/index.html',
+    'ui/style.css',
+    'ui/script.js',
+    -- Cargamos todas las imágenes de la carpeta custom de forma masiva
+    'ui/veh_custom/*.png',
+    'ui/veh_custom/*.jpg',
+    'ui/veh_custom/*.webp'
+}
 
 -- =================================================================
 -- SCRIPTS DE LÓGICA (ORDEN DE CARGA)

@@ -17,12 +17,132 @@
     <div id="hud-container"></div>
 
     <div id="showroom-container" class="showroom-ui" style="display:none;">
+        <div id="vehicle-info-panel" class="info-panel-container" style="display: none;">
+            <div class="info-panel-main">
+                <div class="main-info-header">
+                    <h2 class="panel-category-title">INFORMACIÓN</h2>
+                    <div class="vehicle-header">
+                        <span id="info-brand-name">MARCA</span>
+                        <span id="info-model-name">MODELO</span>
+                    </div>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <span class="stat-label">PRECIO TOTAL</span>
+                        <span id="info-vehicle-price" class="stat-value">$ 0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">STOCK</span>
+                        <span id="info-vehicle-stock" class="stat-value">0</span>
+                    </div>
+                </div>
+
+                <div class="action-buttons-layout">
+                    <div class="button-row">
+                        <button class="panel-btn primary-btn" id="buy-vehicle">COMPRAR VEHÍCULO</button>
+                        <button class="panel-btn" id="test-drive">PRUEBA DE MANEJO</button>
+                    </div>
+
+                    <div class="button-row">
+                        <button class="panel-btn" id="vehicle-extras">EXTRAS DEL VEHÍCULO</button>
+                        <button class="panel-btn" id="change-plate">CAMBIAR MATRÍCULA</button>
+                    </div>
+
+                    <button class="panel-btn" id="preview-view">VISTA PREVIA</button>
+                </div>
+            </div>
+
+            <div class="info-panel-colors">
+                <div class="colors-header">
+                    <span>PALETA DE COLORES</span>
+                    <div class="rgb-selector-btn" id="custom-rgb-btn" title="Selector RGB personalizado">
+                        <i class="fa-solid fa-palette"></i>
+                    </div>
+                </div>
+                <div class="gta-colors-grid" id="gta-colors-list">
+                </div>
+            </div>
+        </div>
+
         <div class="bottom-carousel-container">
             <div class="carousel-toolbar">
-                <div class="toolbar-box toolbar-search">
-                    <i class="fa-solid fa-magnifying-glass"></i>
+                <div class="toolbar-box toolbar-search" id="showroom-search-box">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="showroom-search-input" placeholder="Buscar vehículo..." autocomplete="off">
+                    <i class="fa-solid fa-xmark close-icon" id="showroom-search-close" title="Cancelar búsqueda"></i>
                 </div>
+
                 <div class="toolbar-box toolbar-filters">
+                </div>
+
+                <div class="toolbar-box toolbar-btn" id="showroom-compare-btn" title="Comparar">
+                    <i class="fa-solid fa-right-left"></i>
+                </div>
+
+                <div class="help-btn-wrapper">
+                    <div class="toolbar-box toolbar-btn" id="showroom-help-btn" title="Ayuda">
+                        <i class="fa-solid fa-circle-question help-main-icon"></i>
+
+                        <div class="help-expanded-content">
+                            <div class="help-header">
+                                <div class="header-left">
+                                    <i class="fa-solid fa-circle-info"></i>
+                                    <span>CENTRO DE AYUDA</span>
+                                </div>
+                                <i class="fa-solid fa-xmark close-icon" id="close-help"></i>
+                            </div>
+                            <hr class="help-divider">
+                            <div class="help-body">
+                                <div class="help-section">
+                                    <i class="fa-solid fa-layer-group help-icon"></i>
+                                    <div class="help-text">
+                                        <strong>Categorías:</strong> Selecciona una categoría a la izquierda para
+                                        filtrar los vehículos.
+                                    </div>
+                                </div>
+
+                                <div class="help-section">
+                                    <i class="fa-solid fa-magnifying-glass help-icon"></i>
+                                    <div class="help-text">
+                                        <strong>Búsqueda:</strong> Pulsa <span class="help-key">T</span> o clic en la
+                                        lupa para buscar por <b>Marca o Modelo</b>.
+                                    </div>
+                                </div>
+
+                                <div class="help-section">
+                                    <i class="fa-solid fa-right-left help-icon"></i>
+                                    <div class="help-text">
+                                        <strong>Comparar:</strong> Selecciona un vehículo, activa el botón de
+                                        comparación y elige un segundo vehículo para ver sus estadísticas enfrentadas.
+                                    </div>
+                                </div>
+
+                                <div class="help-section controls-section">
+                                    <div class="section-title">Controles de Navegación:</div>
+                                    <div class="control-row">
+                                        <span class="control-key">Shift + Scroll</span>
+                                        <span class="control-desc">Navegación rápida</span>
+                                    </div>
+                                    <div class="control-row">
+                                        <span class="control-key">Flechas <i class="fa-solid fa-caret-left"></i> <i
+                                                class="fa-solid fa-caret-right"></i></span>
+                                        <span class="control-desc">Paso a paso lento</span>
+                                    </div>
+                                    <div class="control-row">
+                                        <span class="control-key">Botones Nav</span>
+                                        <span class="control-desc">Avanzar de 4 en 4</span>
+                                    </div>
+                                    <div class="control-row">
+                                        <span class="control-key">Arrastrar</span>
+                                        <span class="control-desc">Desplazamiento intuitivo</span>
+                                    </div>
+                                </div>
+
+                                <div class="help-footer">Próximamente más novedades...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
