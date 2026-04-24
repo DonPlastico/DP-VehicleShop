@@ -742,7 +742,7 @@ AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
                                 end
                             end
 
-                            -- [MODIFICADO] Mandamos al cliente las categorías, los vehículos Y LAS RESERVAS DEL JUGADOR
+                            -- Mandamos al cliente las categorías, los vehículos Y LAS RESERVAS DEL JUGADOR
                             TriggerClientEvent('DP-VehicleShop:client:openShowroom', src, dealerId, cats,
                                 dealerVehicles, myReservations)
                         end)
@@ -1727,10 +1727,19 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                 -- Generar una Matrícula Aleatoria (Formato genérico, puedes cambiarlo si tienes un generador custom)
                 local plate = string.upper(tostring(math.random(10, 99)) .. "DP" .. tostring(math.random(100, 999)))
 
+                -- Preparamos los extras en el formato que entiende la base de datos (Ej: {"1": true, "3": true})
+                local formattedExtras = {}
+                if vehicleData.extras then
+                    for _, extraId in ipairs(vehicleData.extras) do
+                        formattedExtras[tostring(extraId)] = true
+                    end
+                end
+
                 -- 4. Dar el coche al jugador (Guardar en su garaje de QBCore)
                 local vehicleProps = json.encode({
                     color1 = color,
-                    color2 = color
+                    color2 = color,
+                    extras = formattedExtras
                 })
 
                 -- Determinamos el estado: 1 = En Garaje, 0 = Fuera
@@ -1749,7 +1758,7 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                         if delivery == 'drive' then
                             -- Le mandamos al cliente la orden de aparecer el coche en la puerta
                             TriggerClientEvent('DP-VehicleShop:client:spawnPurchasedVehicle', src, model, plate, color,
-                                dealerId)
+                                dealerId, vehicleData.extras)
                         else
                             -- Si es al garaje, solo le avisamos
                             TriggerClientEvent('QBCore:Notify', src,

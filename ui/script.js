@@ -178,6 +178,44 @@ function formatCurrency(amount) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
 }
 
+// =================================================================
+// GENERADOR INTELIGENTE DE IMÁGENES DE VEHÍCULOS (DRY)
+// =================================================================
+function getSmartVehicleImage(model, shop) {
+    // 1. Calculamos si es Vanilla o Custom
+    const isVanilla = shop === 'pdm' || shop === 'luxury' || shop === 'boats' || shop === 'air';
+    const primaryImg = isVanilla ? `https://docs.fivem.net/vehicles/${model}.webp` : `./veh_custom/${model}.png`;
+    const initialTries = isVanilla ? '0' : '1';
+
+    // 2. Devolvemos el HTML con la lógica de fallbacks incorporada
+    return `
+        <iconify-icon class="no-image-placeholder" icon="tdesign:image-off-filled" style="position: absolute; font-size: 4vw; color: rgba(255,255,255,0.05); z-index: 0; display: none;"></iconify-icon>
+        
+        <img src="${primaryImg}" 
+            alt="${model}" 
+            data-tries="${initialTries}"
+            style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1; transition: transform 0.2s ease;"
+            onerror="
+                const tries = parseInt(this.getAttribute('data-tries') || '0');
+                this.style.transform = 'scale(1.2)'; 
+                if (tries === 0) {
+                    this.setAttribute('data-tries', '1');
+                    this.src = './veh_custom/${model}.png'; 
+                } else if (tries === 1) {
+                    this.setAttribute('data-tries', '2');
+                    this.src = './veh_custom/${model}.jpg'; 
+                } else if (tries === 2) {
+                    this.setAttribute('data-tries', '3');
+                    this.src = './veh_custom/${model}.webp'; 
+                } else {
+                    this.style.display = 'none';
+                    const placeholder = this.parentElement.querySelector('.no-image-placeholder');
+                    if (placeholder) placeholder.style.display = 'block';
+                }
+            "
+        >
+    `;
+}
 
 // =================================================================
 // MÓDULO 3: GESTIÓN VISUAL (MENÚ Y MODALES)
@@ -232,7 +270,6 @@ function updateCoordsDisplay(coords) {
         document.getElementById('coord_h').value = coords.h.toFixed(2);
     }
 }
-
 
 // =================================================================
 // MÓDULO 4: HUD (ETIQUETAS FLOTANTES)
@@ -672,11 +709,6 @@ function loadMoreShowroomVehicles() {
 
         const formattedPrice = new Intl.NumberFormat('es-ES').format(v.price || 0);
 
-        // Lógica Inteligente de Imágenes
-        const isVanilla = v.shop === 'pdm' || v.shop === 'luxury' || v.shop === 'boats' || v.shop === 'air';
-        const primaryImg = isVanilla ? `https://docs.fivem.net/vehicles/${v.model}.webp` : `./veh_custom/${v.model}.png`;
-        const initialTries = isVanilla ? '0' : '1';
-
         card.innerHTML = `
             <div class="card-header-info">
                 <div class="card-brand-logo"><i class="fa-solid fa-car"></i></div>
@@ -688,31 +720,8 @@ function loadMoreShowroomVehicles() {
             
             <div class="card-vehicle-image" style="position: relative; display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; overflow: hidden; padding: 0.5vw; background: rgba(0,0,0,0.2);">
                 
-                <iconify-icon class="no-image-placeholder" icon="tdesign:image-off-filled" style="position: absolute; font-size: 4vw; color: rgba(255,255,255,0.05); z-index: 0; display: none;"></iconify-icon>
+                ${getSmartVehicleImage(v.model, v.shop)}
                 
-                <img src="${primaryImg}" 
-                    alt="${v.model}" 
-                    data-tries="${initialTries}"
-                    style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1; transition: transform 0.2s ease;"
-                    onerror="
-                        const tries = parseInt(this.getAttribute('data-tries') || '0');
-                        this.style.transform = 'scale(1.2)'; 
-                        if (tries === 0) {
-                            this.setAttribute('data-tries', '1');
-                            this.src = './veh_custom/${v.model}.png'; 
-                        } else if (tries === 1) {
-                            this.setAttribute('data-tries', '2');
-                            this.src = './veh_custom/${v.model}.jpg'; 
-                        } else if (tries === 2) {
-                            this.setAttribute('data-tries', '3');
-                            this.src = './veh_custom/${v.model}.webp'; 
-                        } else {
-                            this.style.display = 'none';
-                            const placeholder = this.parentElement.querySelector('.no-image-placeholder');
-                            if (placeholder) placeholder.style.display = 'block';
-                        }
-                    "
-                >
                 <span style="position: absolute; bottom: 0.4vw; right: 0.4vw; color: #fff; font-weight: 900; font-size: 0.9vw; text-shadow: 0 4px 10px rgba(0,0,0,1); z-index: 2; font-family: 'Orbitron', sans-serif;">
                     $ ${formattedPrice}
                 </span>
@@ -720,7 +729,6 @@ function loadMoreShowroomVehicles() {
         `;
         carousel.appendChild(card);
 
-        // Evento de selección al hacer clic en el coche
         card.addEventListener('click', () => {
             selectShowroomVehicle(v);
         });
@@ -770,6 +778,16 @@ function selectShowroomVehicle(vehicle) {
     currentPreviewVehicle = vehicle.model;
     const panel = document.getElementById('vehicle-info-panel');
     if (!panel) return;
+
+    // =================================================================
+    // OCULTAR PANELES LATERALES AL CAMBIAR DE VEHÍCULO
+    // =================================================================
+    const paymentPanel = document.getElementById('payment-selection-panel');
+    if (paymentPanel) paymentPanel.style.display = 'none';
+
+    const extrasPanel = document.getElementById('extras-selection-panel');
+    if (extrasPanel) extrasPanel.style.display = 'none';
+    // =================================================================
 
     // 1. Mostramos el panel si estaba oculto
     panel.style.display = 'flex';
@@ -869,14 +887,130 @@ function selectShowroomVehicle(vehicle) {
 
 // Función para resetear el panel
 function hideVehicleInfo() {
-    const panel = document.getElementById('vehicle-info-panel');
-    if (panel) panel.style.display = 'none';
+    const infoPanel = document.getElementById('vehicle-info-panel');
+    if (infoPanel) infoPanel.style.display = 'none';
 
-    // Nos aseguramos de ocultar el panel de pago también
+    // Ocultar paletas de colores con comprobación de seguridad
+    const colorPalette = document.getElementById('color-palette-container');
+    if (colorPalette) colorPalette.style.display = 'none';
+
+    // Asegurarnos de que los dos paneles laterales se cierran
     const paymentPanel = document.getElementById('payment-selection-panel');
     if (paymentPanel) paymentPanel.style.display = 'none';
 
+    const extrasPanel = document.getElementById('extras-selection-panel');
+    if (extrasPanel) extrasPanel.style.display = 'none';
+
     currentPreviewVehicle = null;
+}
+
+// =================================================================
+// SISTEMA DE EXTRAS Y ALTERNANCIA DE PANELES (COMPRAR VS EXTRAS)
+// =================================================================
+
+// 1. ALTERNANCIA: Cuando le damos a "COMPRAR"
+const btnBuyShowroom = document.getElementById('buy-vehicle');
+if (btnBuyShowroom) {
+    btnBuyShowroom.addEventListener('click', () => {
+        // OCULTAMOS EL PANEL DE EXTRAS
+        const extrasPanel = document.getElementById('extras-selection-panel');
+        if (extrasPanel) extrasPanel.style.display = 'none';
+
+        // Mostramos/Ocultamos el de pago
+        const paymentPanel = document.getElementById('payment-selection-panel');
+        if (paymentPanel) {
+            paymentPanel.style.display = paymentPanel.style.display === 'none' ? 'flex' : 'none';
+        }
+    });
+}
+
+// 2. ALTERNANCIA: Cuando le damos a "EXTRAS" (Asume que el ID de tu botón es btn-vehicle-extras)
+const btnExtrasShowroom = document.getElementById('vehicle-extras');
+if (btnExtrasShowroom) {
+    btnExtrasShowroom.addEventListener('click', () => {
+        // OCULTAMOS EL PANEL DE PAGO
+        const paymentPanel = document.getElementById('payment-selection-panel');
+        if (paymentPanel) paymentPanel.style.display = 'none';
+
+        const extrasPanel = document.getElementById('extras-selection-panel');
+        if (extrasPanel) {
+            if (extrasPanel.style.display === 'none') {
+                extrasPanel.style.display = 'flex';
+
+                // Ponemos un icono de carga temporal por si tarda
+                document.getElementById('extras-list-container').innerHTML = `
+                    <div class="empty-extras-msg">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>Buscando modificaciones...</span>
+                    </div>
+                `;
+
+                // Le pedimos al Lua que escanee el vehículo físico que estamos mirando
+                fetch(`https://${GetParentResourceName()}/requestVehicleExtras`, {
+                    method: 'POST',
+                    body: JSON.stringify({})
+                });
+            } else {
+                // Si ya estaba abierto, lo cerramos
+                extrasPanel.style.display = 'none';
+            }
+        }
+    });
+}
+
+// 3. CERRAR DESDE EL PANEL DE EXTRAS
+const closeExtrasBtn = document.getElementById('close-extras');
+if (closeExtrasBtn) {
+    closeExtrasBtn.addEventListener('click', () => {
+        document.getElementById('extras-selection-panel').style.display = 'none';
+    });
+}
+
+// 4. GENERADOR DINÁMICO DE LA LISTA DE EXTRAS
+function renderVehicleExtras(extras) {
+    const container = document.getElementById('extras-list-container');
+    container.innerHTML = ''; // Limpiamos
+
+    // Si la lista viene vacía o es nula (el coche no tiene extras)
+    if (!extras || extras.length === 0) {
+        container.innerHTML = `
+            <div class="empty-extras-msg">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>Este vehículo no dispone de extras.</span>
+            </div>
+        `;
+        return;
+    }
+
+    // Si tiene extras, creamos un div por cada uno
+    extras.forEach(extra => {
+        const div = document.createElement('div');
+        // Si el extra ya está encendido en el coche, le ponemos la clase 'active'
+        div.className = `extra-item ${extra.enabled ? 'active' : ''}`;
+        div.dataset.id = extra.id;
+
+        div.innerHTML = `
+            <span>EXTRA ${extra.id}</span>
+            <i class="fa-solid fa-power-off"></i>
+        `;
+
+        // Evento al hacer clic en el extra
+        div.addEventListener('click', function () {
+            // Cambiamos el color visual instantáneamente (on/off)
+            const isNowActive = this.classList.toggle('active');
+
+            // Mandamos la orden al cliente (Lua) para que le ponga/quite la pieza al coche
+            fetch(`https://${GetParentResourceName()}/toggleVehicleExtra`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    extraId: extra.id,
+                    state: isNowActive
+                })
+            });
+        });
+
+        container.appendChild(div);
+    });
 }
 
 // =================================================================
@@ -963,36 +1097,28 @@ if (mainBuyBtn) {
 }
 
 // =================================================================
-// LÓGICA DEL NUEVO PANEL DE PAGO Y ENTREGA
+// LÓGICA DEL NUEVO PANEL DE PAGO Y ENTREGA (REDISEÑADO)
 // =================================================================
 
 // 1. Botones de Efectivo / Banco
 document.querySelectorAll('.payment-method-btn').forEach(btn => {
     btn.addEventListener('click', function () {
-        // Quitamos la clase 'active' y bajamos opacidad a todos
-        document.querySelectorAll('.payment-method-btn').forEach(b => {
-            b.classList.remove('active');
-            b.style.opacity = '0.5';
-        });
+        // Quitamos la clase 'active' a todos (el CSS se encarga del color)
+        document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
 
         // Se la ponemos solo al que hemos clickeado
         this.classList.add('active');
-        this.style.opacity = '1';
     });
 });
 
 // 2. Botones de Entrega (Concesionario / Garaje)
 document.querySelectorAll('.delivery-method-btn').forEach(btn => {
     btn.addEventListener('click', function () {
-        // Quitamos la clase 'active' y bajamos opacidad a todos
-        document.querySelectorAll('.delivery-method-btn').forEach(b => {
-            b.classList.remove('active');
-            b.style.opacity = '0.5';
-        });
+        // Quitamos la clase 'active' a todos
+        document.querySelectorAll('.delivery-method-btn').forEach(b => b.classList.remove('active'));
 
         // Se la ponemos solo al que hemos clickeado
         this.classList.add('active');
-        this.style.opacity = '1';
     });
 });
 
@@ -1008,48 +1134,49 @@ if (cancelPaymentBtn) {
 const confirmFinalBuyBtn = document.getElementById('confirm-final-buy');
 if (confirmFinalBuyBtn) {
     confirmFinalBuyBtn.addEventListener('click', () => {
-        // Necesitamos recuperar los datos básicos del botón de compra original
         const buyBtn = document.getElementById('buy-vehicle');
-
-        // Saber qué método de pago está activo
         const activeMethodBtn = document.querySelector('.payment-method-btn.active');
         const paymentMethod = activeMethodBtn ? activeMethodBtn.dataset.method : 'cash';
-
-        // Saber qué método de entrega está activo
         const activeDeliveryBtn = document.querySelector('.delivery-method-btn.active');
         const deliveryMethod = activeDeliveryBtn ? activeDeliveryBtn.dataset.delivery : 'drive';
-
-        // Saber cuántos días han puesto (si está vacío, asumimos 0)
         const installmentsVal = document.getElementById('payment-installments').value;
         const installments = parseInt(installmentsVal) || 0;
 
-        // Empaquetamos todo junto
+        // Escaneamos qué extras están encendidos en el panel
+        const activeExtrasList = [];
+        document.querySelectorAll('#extras-list-container .extra-item.active').forEach(extraItem => {
+            activeExtrasList.push(parseInt(extraItem.dataset.id));
+        });
+
         const finalVehicleData = {
             model: buyBtn.dataset.model,
             price: parseInt(buyBtn.dataset.price),
             brand: buyBtn.dataset.brand,
             name: buyBtn.dataset.name,
             color: currentPreviewColor,
-            paymentType: paymentMethod,   // 'cash' o 'bank'
-            installments: installments,   // Número de días (1, 15, 30)
-            deliveryType: deliveryMethod  // 'drive' o 'garage'
+            paymentType: paymentMethod,
+            installments: installments,
+            deliveryType: deliveryMethod,
+            extras: activeExtrasList
         };
 
-        // [AÑADE ESTA LÍNEA AQUÍ] Ocultamos todo el panel de información de golpe
+        // =========================================================
+        // CIERRE TOTAL Y ABSOLUTO DE LA INTERFAZ
+        // =========================================================
         hideVehicleInfo();
 
-        // Mandamos la orden al servidor
+        const paymentPanel = document.getElementById('payment-selection-panel');
+        if (paymentPanel) paymentPanel.style.display = 'none';
+
+        // Apagamos el carrusel de abajo
+        document.getElementById('showroom-container').style.display = 'none';
+        isShowroomOpen = false;
+
+        // Ahora SÍ, mandamos la orden final a Lua
         fetch(`https://${GetParentResourceName()}/buyVehicle`, {
             method: 'POST',
             body: JSON.stringify(finalVehicleData)
         });
-
-        // Ocultamos específicamente el panel de pago por si acaso
-        document.getElementById('payment-selection-panel').style.display = 'none';
-
-        // Que se cierre el catálogo entero al comprar:
-        isShowroomOpen = false;
-        document.getElementById('showroom-container').style.display = 'none';
     });
 }
 
@@ -1300,11 +1427,6 @@ function loadMoreVehicles() {
         const badgeColor = stockNum > 0 ? '#2ecc71' : '#888';
         const badgeBorder = stockNum > 0 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
 
-        // Lógica Inteligente de Imágenes
-        const isVanilla = v.shop === 'pdm' || v.shop === 'luxury' || v.shop === 'boats' || v.shop === 'air';
-        const primaryImg = isVanilla ? `https://docs.fivem.net/vehicles/${v.model}.webp` : `./veh_custom/${v.model}.png`;
-        const initialTries = isVanilla ? '0' : '1';
-
         card.innerHTML = `
             <div class="card-header-info">
                 <div class="card-brand-logo"><i class="fa-solid fa-car"></i></div>
@@ -1322,32 +1444,7 @@ function loadMoreVehicles() {
     
                 <span style="position: absolute; top: 0.4vw; left: 0.4vw; font-size: 0.55vw; color: #666; background: rgba(0,0,0,0.5); padding: 0.2vw 0.4vw; border-radius: 3px; z-index: 2;">ID: ${v.model}</span>
                 
-                <iconify-icon class="no-image-placeholder" icon="tdesign:image-off-filled" style="position: absolute; font-size: 4vw; color: rgba(255,255,255,0.05); z-index: 0; display: none;"></iconify-icon>
-                
-                <img src="${primaryImg}" 
-                    alt="${v.model}" 
-                    data-tries="${initialTries}"
-                    style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1; transition: transform 0.2s ease;"
-                    onerror="
-                        const tries = parseInt(this.getAttribute('data-tries') || '0');
-                        this.style.transform = 'scale(1.2)'; 
-
-                        if (tries === 0) {
-                            this.setAttribute('data-tries', '1');
-                            this.src = './veh_custom/${v.model}.png'; 
-                        } else if (tries === 1) {
-                            this.setAttribute('data-tries', '2');
-                            this.src = './veh_custom/${v.model}.jpg'; 
-                        } else if (tries === 2) {
-                            this.setAttribute('data-tries', '3');
-                            this.src = './veh_custom/${v.model}.webp'; 
-                        } else {
-                            this.style.display = 'none';
-                            const placeholder = this.parentElement.querySelector('.no-image-placeholder');
-                            if (placeholder) placeholder.style.display = 'block';
-                        }
-                    "
-                >
+                ${getSmartVehicleImage(v.model, v.shop)}
                 
                 <span style="position: absolute; bottom: 0.4vw; right: 0.4vw; color: #fff; font-weight: 900; font-size: 0.9vw; text-shadow: 0 4px 10px rgba(0,0,0,1); z-index: 2; font-family: 'Orbitron', sans-serif;">
                     $ ${formattedPrice}
@@ -1544,14 +1641,8 @@ function loadPendingReservations(reservations) {
     reservations.forEach(res => {
         const formattedPrice = new Intl.NumberFormat('es-ES').format(res.price || 0);
 
-        // 1. Buscamos el coche en tu stock global para tener todos sus datos (como en loadMoreVehicles)
+        // 1. Buscamos el coche en tu stock global
         const v = globalStock.find(car => car.model === res.vehicle_model) || { model: res.vehicle_model, shop: 'pdm' };
-
-        // 2. Calculamos isVanilla (Ajusta esta línea si en tu loadMoreVehicles lo calculas distinto)
-        const isVanilla = (v.shop !== 'custom');
-
-        // 3. ¡TU LÓGICA EXACTA AQUÍ!
-        const primaryImg = isVanilla ? `https://docs.fivem.net/vehicles/${v.model}.webp` : `./veh_custom/${v.model}.png`;
 
         const card = document.createElement('div');
         card.className = 'reservation-card';
@@ -1563,8 +1654,8 @@ function loadPendingReservations(reservations) {
             </div>
             
             <div class="res-card-body">
-                <div class="res-image-container">
-                    <img src="${primaryImg}" onerror="this.src='./veh_custom/default.png'" alt="Imagen de ${res.vehicle_name}">
+                <div class="res-image-container" style="position: relative; display: flex; justify-content: center; align-items: center;">
+                    ${getSmartVehicleImage(v.model, v.shop)}
                 </div>
                 
                 <div class="res-vehicle-details">
@@ -1660,11 +1751,10 @@ function renderTransactionsTable() {
     }
 
     itemsToShow.forEach(tx => {
-        // [MODIFICADO] Añadimos VENTA_VEHICULO para que también lo considere "deposit" (Verde)
         const isDeposit = tx.action === 'DEPOSITO' || tx.action === 'VENTA_VEHICULO';
         const actionClass = isDeposit ? 'text-deposit' : 'text-withdraw';
 
-        // [MODIFICADO] Si es una venta, cambiamos el texto feo por el nombre del modelo
+        // Si es una venta, cambiamos el texto feo por el nombre del modelo
         let displayText = tx.action;
         if (tx.action === 'VENTA_VEHICULO') {
             displayText = `VENTA: ${tx.model || 'Vehículo'}`;
@@ -2172,11 +2262,6 @@ function viewCategory(id) {
         const badgeColor = stockNum > 0 ? '#2ecc71' : '#888';
         const badgeBorder = stockNum > 0 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
 
-        // Lógica Inteligente de Imágenes
-        const isVanilla = v.shop === 'pdm' || v.shop === 'luxury' || v.shop === 'boats' || v.shop === 'air';
-        const primaryImg = isVanilla ? `https://docs.fivem.net/vehicles/${v.model}.webp` : `./veh_custom/${v.model}.png`;
-        const initialTries = isVanilla ? '0' : '1';
-
         card.innerHTML = `
             <div class="card-header-info">
                 <div class="card-brand-logo"><i class="fa-solid fa-car"></i></div>
@@ -2193,32 +2278,8 @@ function viewCategory(id) {
             <div class="card-vehicle-image" style="position: relative; display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; overflow: hidden; padding: 0.5vw; background: rgba(0,0,0,0.2);">
                 <span style="position: absolute; top: 0.4vw; left: 0.4vw; font-size: 0.55vw; color: #666; background: rgba(0,0,0,0.5); padding: 0.2vw 0.4vw; border-radius: 3px; z-index: 2;">ID: ${v.model}</span>
                 
-                <iconify-icon class="no-image-placeholder" icon="tdesign:image-off-filled" style="position: absolute; font-size: 4vw; color: rgba(255,255,255,0.05); z-index: 0; display: none;"></iconify-icon>
+                ${getSmartVehicleImage(v.model, v.shop)}
                 
-                <img src="${primaryImg}" 
-                    alt="${v.model}" 
-                    data-tries="${initialTries}"
-                    style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1; transition: transform 0.2s ease;"
-                    onerror="
-                        const tries = parseInt(this.getAttribute('data-tries') || '0');
-                        this.style.transform = 'scale(1.2)'; 
-
-                        if (tries === 0) {
-                            this.setAttribute('data-tries', '1');
-                            this.src = './veh_custom/${v.model}.png'; 
-                        } else if (tries === 1) {
-                            this.setAttribute('data-tries', '2');
-                            this.src = './veh_custom/${v.model}.jpg'; 
-                        } else if (tries === 2) {
-                            this.setAttribute('data-tries', '3');
-                            this.src = './veh_custom/${v.model}.webp'; 
-                        } else {
-                            this.style.display = 'none';
-                            const placeholder = this.parentElement.querySelector('.no-image-placeholder');
-                            if (placeholder) placeholder.style.display = 'block';
-                        }
-                    "
-                >
                 <span style="position: absolute; bottom: 0.4vw; right: 0.4vw; color: #fff; font-weight: 900; font-size: 0.9vw; text-shadow: 0 4px 10px rgba(0,0,0,1); z-index: 2; font-family: 'Orbitron', sans-serif;">
                     $ ${formattedPrice}
                 </span>
@@ -2294,7 +2355,7 @@ function openNewGradeForm() {
     document.getElementById('grade-isboss-input').checked = false;
     document.getElementById('grade-isboss-input').dispatchEvent(new Event('change'));
 
-    // [MODIFICADO] Desmarcar todos los permisos por defecto
+    // Desmarcar todos los permisos por defecto
     toggleAllPermissions(false);
 
     // Ocultar botón de eliminar
@@ -2333,7 +2394,7 @@ function selectJobGrade(gradeLevel) {
     document.getElementById('grade-isboss-input').checked = gradeData.isboss === true;
     document.getElementById('grade-isboss-input').dispatchEvent(new Event('change'));
 
-    // [MODIFICADO] Cargar y rellenar los permisos del rango seleccionado
+    // Cargar y rellenar los permisos del rango seleccionado
     const perms = gradeData.permissions || {};
     document.getElementById('perm-admin').checked = perms.admin === true;
     document.getElementById('perm-funds').checked = perms.funds === true;
@@ -2349,7 +2410,6 @@ function selectJobGrade(gradeLevel) {
     // Mostrar botón de eliminar
     document.getElementById('btn-delete-grade').style.display = 'block';
 }
-
 
 // =================================================================
 // MÓDULO 16: INICIALIZACIÓN - DOMContentLoaded
@@ -2479,6 +2539,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             // Abre el nuevo UI del Showroom
             case 'openDealershipUI':
+                // Limpiamos todo el estado visual y el vehículo seleccionado anteriormente
+                hideVehicleInfo();
+                const paymentPanel = document.getElementById('payment-selection-panel');
+                if (paymentPanel) paymentPanel.style.display = 'none';
+
                 isShowroomOpen = true;
                 document.getElementById('showroom-container').style.display = 'block';
 
@@ -2583,7 +2648,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderBossVehicles(document.getElementById('boss-vehicles-search').value);
                 }
                 break;
-
             // Recibe la lista de reservas pendientes para mostrar en el Boss Menu
             case 'updateReservations':
                 // Recibe la lista de reservas desde el servidor/cliente y las pinta
@@ -2605,9 +2669,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const inWorkingList = currentWorkingList.find(v => v.model === updatedModel);
                 if (inWorkingList) inWorkingList.stock = newStock;
 
-                // Usamos el nombre correcto de tu función: renderVehicles
+                // Recargamos el carrusel para que se actualice el número de stock
                 if (isShowroomOpen) {
-                    renderVehicles();
+                    applyShowroomFilter(currentShowroomCategory);
                 }
 
                 if (currentPreviewVehicle && currentPreviewVehicle.model === updatedModel) {
@@ -2616,6 +2680,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (stockLabel) stockLabel.innerText = newStock;
                     selectShowroomVehicle(currentPreviewVehicle);
                 }
+                break;
+            // Recibir la lista de extras de un coche específico
+            case 'loadVehicleExtras':
+                renderVehicleExtras(data.extras);
                 break;
         }
     });
@@ -2814,7 +2882,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // [MODIFICADO] Botón Guardar Cambios (Ahora incluye permisos)
+    // Botón Guardar Cambios (Ahora incluye permisos)
     document.getElementById('btn-save-grade')?.addEventListener('click', () => {
         const isNew = document.getElementById('grade-is-new-input').value === 'true';
         const level = document.getElementById('grade-level-input').value;
@@ -2847,7 +2915,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: name,
                 payment: parseInt(payment),
                 isboss: isboss,
-                permissions: currentPermissions // ¡Añadimos el bloque de permisos al envío!
+                permissions: currentPermissions
             })
         });
     });

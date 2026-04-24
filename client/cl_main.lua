@@ -682,8 +682,34 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
     SetVehicleLivery(veh, -1)
     SetVehicleOnGroundProperly(veh)
 
-    -- 5. ENTREGA AL JUGADOR
-    -- Lo teletransportamos directamente al asiento del conductor
+    -- =============== ARREGLO DE EXTRAS ===============
+    -- Le damos 300 milisegundos a GTA para que cargue la entidad física por completo
+    Wait(300)
+
+    print("EXTRAS RECIBIDOS DESDE EL SERVER: ", json.encode(extras))
+
+    -- 1. Apagamos TODOS los extras aleatorios que GTA haya puesto por defecto
+    for i = 0, 20 do
+        if DoesExtraExist(veh, i) then
+            SetVehicleExtra(veh, i, 1) -- 1 es OFF
+        end
+    end
+
+    Wait(50) -- Micro-pausa para que el motor asimile el apagón general
+
+    -- 2. Encendemos solo los que elegiste en el menú
+    if extras and type(extras) == "table" then
+        for _, extraId in pairs(extras) do
+            local id = tonumber(extraId)
+            if id and DoesExtraExist(veh, id) then
+                SetVehicleExtra(veh, id, 0) -- 0 es ON
+                print("EXTRA " .. id .. " ENCENDIDO CORRECTAMENTE")
+            end
+        end
+    end
+    -- =================================================
+
+    -- ENTREGA AL JUGADOR (Teletransporte al asiento)
     TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
 
     -- Le damos las llaves (Formato estándar de QBCore)
@@ -953,6 +979,59 @@ RegisterNUICallback('buyVehicle', function(data, cb)
             status = false
         })
     end
+    cb('ok')
+end)
+
+RegisterNUICallback('requestVehicleExtras', function(_, cb)
+    local vehicle = previewVehicleEntity -- Usamos tu variable global de la entidad
+
+    if not vehicle or not DoesEntityExist(vehicle) then
+        cb('ok')
+        return
+    end
+
+    local availableExtras = {}
+
+    -- Escaneamos los IDs del 1 al 20 (rango amplio para coches custom)
+    for i = 1, 20 do
+        if DoesExtraExist(vehicle, i) then
+            table.insert(availableExtras, {
+                id = i,
+                enabled = IsVehicleExtraTurnedOn(vehicle, i) == 1 or IsVehicleExtraTurnedOn(vehicle, i) == true
+            })
+        end
+    end
+
+    -- Enviamos la lista de vuelta al Javascript
+    SendNUIMessage({
+        action = 'loadVehicleExtras',
+        extras = availableExtras
+    })
+
+    cb('ok')
+end)
+
+RegisterNUICallback('toggleVehicleExtra', function(data, cb)
+    local vehicle = previewVehicleEntity
+
+    if not vehicle or not DoesEntityExist(vehicle) then
+        cb('ok')
+        return
+    end
+
+    local extraId = tonumber(data.extraId)
+    local state = data.state -- Viene como true (encender) o false (apagar)
+
+    if extraId then
+        -- La nativa SetVehicleExtra usa: 0 para ACTIVAR y 1 para DESACTIVAR
+        -- O en algunas versiones de FiveM: false para encender, true para apagar
+        if state then
+            SetVehicleExtra(vehicle, extraId, 0)
+        else
+            SetVehicleExtra(vehicle, extraId, 1)
+        end
+    end
+
     cb('ok')
 end)
 

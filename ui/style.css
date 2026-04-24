@@ -1588,37 +1588,244 @@ select option {
     position: absolute;
     top: 0;
     left: calc(100% + 10px);
-    /* Se coloca a la derecha con 10px de separación */
-    width: 16vw;
-    /* Ancho a medida para el método de pago */
-
-    background: rgba(20, 20, 20, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
+    width: 22vw;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
     padding: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 80%);
+    flex-direction: column;
+    gap: 5px;
+}
 
+.payment-section {
     display: flex;
     flex-direction: column;
 }
 
-/* Efectos de selección (Compartido para Pago y Entrega) */
-.payment-method-btn,
-.delivery-method-btn {
+/* --- GRID DE BOTONES (Efectivo/Banco y Entrega) --- */
+.selection-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4vw;
+}
+
+.selection-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4vw;
+    padding: 0.8vw 0.2vw;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
     transition: all 0.2s ease;
+    font-family: 'Orbitron', sans-serif;
 }
 
-.payment-method-btn.active,
-.delivery-method-btn.active {
-    background: #fff !important;
-    color: #000 !important;
-    opacity: 1 !important;
+.selection-btn i {
+    font-size: 1.2vw;
 }
 
-/* Efecto al escribir en el input de días */
-#payment-installments:focus {
-    border-color: rgba(255, 255, 255, 0.6) !important;
-    box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+.selection-btn span {
+    font-size: 0.55vw;
+    text-align: center;
+    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Efectos Hover y Activo (Blanco y Negro puro) */
+.selection-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.selection-btn.active {
+    background: rgba(255, 255, 255, 1) !important;
+    color: rgba(0, 0, 0, 1) !important;
+    border-color: rgba(255, 255, 255, 1) !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+/* --- INPUT DE PLAZOS --- */
+.installments-section {
+    gap: 0.3vw;
+}
+
+.installments-input-box {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+}
+
+.installments-input-box:focus-within {
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.installments-input-box input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 0.6vw;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75vw;
+    outline: none;
+    text-align: right;
+    /* Alinea los números cerca del DÍAS */
+}
+
+.input-suffix {
+    padding: 0 0.8vw;
+    font-size: 0.6vw;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.installments-hint {
+    font-size: 0.55vw;
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+    margin-top: 0.2vw;
+}
+
+/* --- ACCIONES FINALES (Botones Inferiores) --- */
+.payment-footer {
+    display: flex;
+    gap: 0.5vw;
+    margin-top: 0.5vw;
+    padding-top: 1vw;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.action-btn {
+    padding: 0.8vw;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7vw;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    border: 1px solid transparent;
+}
+
+.cancel-btn {
+    flex: 0.5;
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.confirm-btn {
+    flex: 1.5;
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}
+
+.confirm-btn:hover {
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+    transform: scale(1.02);
+}
+
+/* =================================================================
+   PANEL DE EXTRAS (ESPECÍFICO)
+   ================================================================= */
+
+/* Contenedor de la lista con scroll */
+.extras-list-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4vw;
+    max-height: 25vw;
+    /* Altura máxima antes de activar el scroll */
+    overflow-y: auto;
+    padding-right: 0.3vw;
+}
+
+/* Estilo de cada fila de Extra */
+.extra-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8vw 1vw;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.extra-item span {
+    font-size: 0.65vw;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.extra-item i {
+    font-size: 0.8vw;
+    opacity: 0.3;
+}
+
+/* Estado HOVER */
+.extra-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Estado ACTIVO (Extra encendido) */
+.extra-item.active {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+}
+
+.extra-item.active i {
+    opacity: 1;
+}
+
+/* Mensaje cuando no hay extras */
+.empty-extras-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1vw;
+    padding: 2vw 1vw;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.empty-extras-msg i {
+    font-size: 2vw;
+}
+
+.empty-extras-msg span {
+    font-size: 0.6vw;
+    font-family: 'Orbitron', sans-serif;
+    line-height: 1.4;
 }
 
 /* =================================================================
@@ -1901,15 +2108,6 @@ select option {
     gap: 7.5px;
     padding-right: 5px;
     /* Espacio para el scrollbar */
-}
-
-.reservation-list::-webkit-scrollbar {
-    width: 4px;
-}
-
-.reservation-list::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
 }
 
 /* Base idéntica a .vehicle-card del carrusel */
@@ -2425,11 +2623,6 @@ select option {
     /* HACE QUE SE AJUSTE A SU CONTENIDO SIN ESTIRARSE AL MÁXIMO */
 }
 
-/* Ocultamos la barra de scroll para que no ensucie el diseño */
-.toolbar-filters::-webkit-scrollbar {
-    display: none;
-}
-
 /* El texto de la categoría */
 .filter-text {
     color: #666;
@@ -2619,16 +2812,6 @@ input:checked+.slider:before {
     overflow-y: auto;
 }
 
-/* Scrollbar personalizada para el grid de permisos */
-.permissions-grid::-webkit-scrollbar {
-    width: 3px;
-}
-
-.permissions-grid::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
-}
-
 /* Tarjeta individual de permiso */
 .permission-item {
     display: flex;
@@ -2754,16 +2937,6 @@ input:checked+.slider:before {
     flex-direction: column;
     justify-content: space-between;
     padding: 10px;
-}
-
-/* Scrollbar fina para el grid */
-.boss-vehicles-grid::-webkit-scrollbar {
-    width: 4px;
-}
-
-.boss-vehicles-grid::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
 }
 
 
