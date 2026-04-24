@@ -62,7 +62,7 @@ let dummySanc = [
 ];
 let sancWorkingList = [...dummySanc];
 let sancCurrentPage = 1;
-const sancItemsPerPage = 15; // <-- AJUSTA ESTE NÚMERO A TU GUSTO
+const sancItemsPerPage = 15;
 
 // Variables del Boss Menu - Tablas Secundarias (Empleados)
 let dummyEmp = [
@@ -71,7 +71,7 @@ let dummyEmp = [
 ];
 let empWorkingList = [...dummyEmp];
 let empCurrentPage = 1;
-const empItemsPerPage = 10; // <-- AJUSTA ESTE NÚMERO A TU GUSTO
+const empItemsPerPage = 10;
 
 // Variables del Boss Menu - Tablas Secundarias (Descuentos)
 let dummyDisc = [
@@ -80,7 +80,7 @@ let dummyDisc = [
 ];
 let discWorkingList = [...dummyDisc];
 let discCurrentPage = 1;
-const discItemsPerPage = 15; // <-- AJUSTA ESTE NÚMERO A TU GUSTO (La tabla es más alta)
+const discItemsPerPage = 15;
 
 // Paleta de Colores de GTA V (Solo Metálicos) - Ordenada por flujo cromático
 const GTA_COLORS = [

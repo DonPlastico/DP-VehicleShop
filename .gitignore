@@ -1,1 +1,5 @@
-ui/veh_custom/
+# 1. Ignoramos TODO lo que haya dentro de la carpeta (tus 300 imágenes)
+ui/veh_custom/*
+
+# 2. Hacemos una excepción SOLO para este archivo fantasma
+!ui/veh_custom/.gitkeep

@@ -623,7 +623,7 @@ RegisterNetEvent('DP-VehicleShop:server:requestShowroom')
 AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
     local src = source
 
-    -- [NUEVO] 0. Identificamos al jugador para buscar sus reservas personales
+    -- 0. Identificamos al jugador para buscar sus reservas personales
     local citizenid = "unknown"
     if Config.Framework == 'qbcore' then
         local Player = Framework.Core.Functions.GetPlayer(src)
@@ -731,7 +731,7 @@ AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
                         end)
                     end
 
-                    -- [NUEVO] 4. Buscamos qué coches tiene reservados ESTE jugador en concreto
+                    -- 4. Buscamos qué coches tiene reservados ESTE jugador en concreto
                     exports['oxmysql']:execute(
                         'SELECT vehicle_model FROM dp_vehicleshop_reservations WHERE customer_citizenid = ?',
                         {citizenid}, function(resResult)
@@ -1733,7 +1733,7 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                     color2 = color
                 })
 
-                -- [NUEVO] Determinamos el estado: 1 = En Garaje, 0 = Fuera
+                -- Determinamos el estado: 1 = En Garaje, 0 = Fuera
                 local vehicleState = 0
                 if delivery == 'garage' then
                     vehicleState = 1
@@ -1745,7 +1745,7 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                     {Player.PlayerData.license, citizenid, model, GetHashKey(model), vehicleProps, plate,
                      'Pillbox Hill', vehicleState}, function()
 
-                        -- [NUEVO] Lógica de Entrega
+                        -- Lógica de Entrega
                         if delivery == 'drive' then
                             -- Le mandamos al cliente la orden de aparecer el coche en la puerta
                             TriggerClientEvent('DP-VehicleShop:client:spawnPurchasedVehicle', src, model, plate, color,

@@ -527,7 +527,7 @@ RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, catego
     -- Guardamos el ID del concesionario actual
     currentShowroomDealerId = dealerId
 
-    -- [NUEVO] Enviamos tus reservas activas al Javascript para bloquear los botones correspondientes
+    -- Enviamos tus reservas activas al Javascript para bloquear los botones correspondientes
     SendNUIMessage({
         action = 'loadMyReservations',
         myReservations = myReservations or {}
