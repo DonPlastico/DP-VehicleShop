@@ -1703,6 +1703,9 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
     -- Capturamos cómo quiere la entrega el cliente
     local delivery = vehicleData.deliveryType or 'drive'
 
+    -- Capturamos los extras que inyectó el cl_main.lua
+    local appliedExtras = vehicleData.extras or {}
+
     -- 1. Verificar Stock Real
     exports['oxmysql']:execute(
         'SELECT stock_count FROM dp_vehicleshop_stock WHERE dealership_id = ? AND vehicle_model = ?', {dealerId, model},
@@ -1715,34 +1718,29 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
             -- 2. Calcular Pago Inicial
             local amountToPayNow = price
             if installments > 1 then
-                -- Si es a plazos, el primer pago es una fracción del total
                 amountToPayNow = math.floor(price / installments)
             else
-                installments = 0 -- Si puso 0 o 1, se paga de golpe
+                installments = 0
             end
 
             -- 3. Intentar Cobrar al Jugador (Banco o Efectivo)
             if Player.Functions.RemoveMoney(payMethod, amountToPayNow, "Compra Vehículo: " .. model) then
 
-                -- Generar una Matrícula Aleatoria (Formato genérico, puedes cambiarlo si tienes un generador custom)
                 local plate = string.upper(tostring(math.random(10, 99)) .. "DP" .. tostring(math.random(100, 999)))
 
-                -- Preparamos los extras en el formato que entiende la base de datos (Ej: {"1": true, "3": true})
+                -- Preparamos los extras en formato QBCore/DP-Garages
                 local formattedExtras = {}
-                if vehicleData.extras then
-                    for _, extraId in ipairs(vehicleData.extras) do
-                        formattedExtras[tostring(extraId)] = true
-                    end
+                for _, extraId in ipairs(appliedExtras) do
+                    formattedExtras[tostring(extraId)] = false -- En QBCore, 'false' en las props significa extra activado
                 end
 
                 -- 4. Dar el coche al jugador (Guardar en su garaje de QBCore)
                 local vehicleProps = json.encode({
                     color1 = color,
                     color2 = color,
-                    extras = formattedExtras
+                    extras = formattedExtras -- Lo guardamos en la base de datos
                 })
 
-                -- Determinamos el estado: 1 = En Garaje, 0 = Fuera
                 local vehicleState = 0
                 if delivery == 'garage' then
                     vehicleState = 1
@@ -1750,17 +1748,14 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
 
                 exports['oxmysql']:execute(
                     'INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, garage, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    -- ¡CORRECCIÓN AQUÍ! Ahora usa 'Pillbox Hill' exacto a tu Config.Garages
                     {Player.PlayerData.license, citizenid, model, GetHashKey(model), vehicleProps, plate,
                      'Pillbox Hill', vehicleState}, function()
 
-                        -- Lógica de Entrega
+                        -- Pasamos appliedExtras al cliente para que spawnee el coche idéntico
                         if delivery == 'drive' then
-                            -- Le mandamos al cliente la orden de aparecer el coche en la puerta
                             TriggerClientEvent('DP-VehicleShop:client:spawnPurchasedVehicle', src, model, plate, color,
-                                dealerId, vehicleData.extras)
+                                dealerId, appliedExtras)
                         else
-                            -- Si es al garaje, solo le avisamos
                             TriggerClientEvent('QBCore:Notify', src,
                                 "Vehículo enviado automáticamente a Pillbox Hill.", "success")
                         end
@@ -1774,7 +1769,7 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                             TriggerClientEvent('QBCore:Notify', src,
                                 "Has financiado el vehículo. Cuota pagada: $" .. amountToPayNow, "success")
                         else
-                            if delivery == 'drive' then -- Evitamos doble notificación si ya le avisamos del garaje
+                            if delivery == 'drive' then
                                 TriggerClientEvent('QBCore:Notify', src,
                                     "Has comprado el vehículo al contado por $" .. price, "success")
                             end
@@ -1807,12 +1802,11 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                             'INSERT INTO dp_vehicleshop_logs (dealership_id, action_type, actor_citizenid, actor_name, details) VALUES (?, ?, ?, ?, ?)',
                             {dealerId, 'VENTA_VEHICULO', citizenid, charName, logDetails})
 
-                        -- 10. Refrescar el stock en vivo para todos los que miren el catálogo
+                        -- 10. Refrescar el stock en vivo
                         TriggerClientEvent('DP-VehicleShop:client:updateStockCount', -1, model,
                             (stockRes[1].stock_count - 1))
                     end)
             else
-                -- Si no tiene dinero
                 TriggerClientEvent('QBCore:Notify', src, "No tienes suficientes fondos en: " .. string.upper(payMethod),
                     "error")
             end

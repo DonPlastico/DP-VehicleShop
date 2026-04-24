@@ -378,8 +378,25 @@ RegisterNetEvent('DP-VehicleShop:client:enterShowroomMode', function(dealerName)
     local head = GetEntityHeading(ped)
     previousCoords = vector4(pos.x, pos.y, pos.z, head)
 
-    -- 2. NUEVAS Coordenadas de la "Void Room" / Habitación subterránea (con Heading)
+    -- LÓGICA DE SPAWNS DINÁMICOS (MAR/AIRE VS INTERIOR)
+    local dealerConfig = Config.Dealerships[currentShowroomDealerId]
+
+    -- Coordenadas por defecto (Habitación Subterránea)
     local showroomCoords = vector4(1187.23, -3252.78, -49.0, 90.67)
+    local camCoords = vector3(1187.23, -3252.78, -47.5) -- z + 1.5
+    local camHeading = 90.67 -- Rotación por defecto
+    local camRotX = -12.0
+
+    -- Si el concesionario tiene coords personalizadas de cámara, las usamos
+    if dealerConfig and dealerConfig.preview_cam then
+        -- Escondemos tu personaje debajo de la cámara para que no salga en pantalla
+        showroomCoords = vector4(dealerConfig.preview_cam.x, dealerConfig.preview_cam.y,
+            dealerConfig.preview_cam.z - 5.0, 0.0)
+
+        camCoords = vector3(dealerConfig.preview_cam.x, dealerConfig.preview_cam.y, dealerConfig.preview_cam.z)
+        camHeading = dealerConfig.preview_cam.w or 0.0 -- Extraemos la rotación Z (Heading) de la cámara
+        camRotX = -5.0 -- Inclinación más suave para exteriores grandes
+    end
 
     -- 3. Teletransportar, congelar, invisibilizar y desactivar colisiones
     SetEntityCoords(ped, showroomCoords.x, showroomCoords.y, showroomCoords.z, false, false, false, false)
@@ -392,10 +409,11 @@ RegisterNetEvent('DP-VehicleShop:client:enterShowroomMode', function(dealerName)
 
     -- 4. CONGELAR LA CÁMARA EXACTA (Scripted Camera)
     showroomCam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
-    -- 1. Subimos la cámara un poco más alto (z + 1.5)
-    SetCamCoord(showroomCam, showroomCoords.x, showroomCoords.y, showroomCoords.z + 1.5)
-    -- 2. Inclinamos la cámara hacia abajo poniendo el Pitch (primer valor) en negativo (-12.0)
-    SetCamRot(showroomCam, -12.0, 0.0, showroomCoords.w, 2)
+    SetCamCoord(showroomCam, camCoords.x, camCoords.y, camCoords.z)
+
+    -- Usamos 'camHeading' para rotar la cámara a la izquierda/derecha
+    SetCamRot(showroomCam, camRotX, 0.0, camHeading, 2)
+
     SetCamActive(showroomCam, true)
     RenderScriptCams(true, false, 0, true, true)
 
@@ -626,8 +644,11 @@ RegisterNetEvent('DP-VehicleShop:client:updateStockCount', function(model, newSt
     })
 end)
 
+-- =================================================================
 -- ENTREGA DE VEHÍCULO FÍSICO (SACAR DEL CONCESIONARIO)
-RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelName, plate, colorId, dealerId)
+-- =================================================================
+-- Añadido el parámetro 'extras' al final
+RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelName, plate, colorId, dealerId, extras)
     local dealerConfig = Config.Dealerships[dealerId]
     if not dealerConfig or not dealerConfig.ExitSpawnPoints then
         return
@@ -637,15 +658,13 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
 
     -- 1. SISTEMA ANTI-COLISIONES: Buscamos qué punto está completamente libre
     for _, point in ipairs(dealerConfig.ExitSpawnPoints) do
-        -- Comprobamos si hay algún vehículo en un radio de 3.0 metros
         local isOccupied = IsAnyVehicleNearPoint(point.x, point.y, point.z, 3.0)
         if not isOccupied then
             spawnPoint = point
-            break -- Encontramos uno libre, cortamos el bucle
+            break
         end
     end
 
-    -- Si por mala suerte TODOS los puntos están ocupados, forzamos el primero por seguridad
     if not spawnPoint then
         spawnPoint = dealerConfig.ExitSpawnPoints[1]
         if Config.Framework == 'qbcore' then
@@ -668,7 +687,6 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
     end
 
     -- 3. CREACIÓN DEL VEHÍCULO
-    -- isNetwork = true (para que todos lo vean), netMissionEntity = false
     local veh = CreateVehicle(modelHash, spawnPoint.x, spawnPoint.y, spawnPoint.z, spawnPoint.w, true, false)
 
     -- 4. PERSONALIZACIÓN BÁSICA (Matrícula y Color)
@@ -677,49 +695,36 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
     SetVehicleColours(veh, colorId, colorId)
     SetVehicleExtraColours(veh, colorId, colorId)
 
-    -- Blindamos el coche para que salga sin pegatinas aleatorias ni modificaciones raras
     SetVehicleModKit(veh, 0)
     SetVehicleLivery(veh, -1)
-    SetVehicleOnGroundProperly(veh)
 
-    -- =============== ARREGLO DE EXTRAS ===============
-    -- Le damos 300 milisegundos a GTA para que cargue la entidad física por completo
-    Wait(300)
-
-    print("EXTRAS RECIBIDOS DESDE EL SERVER: ", json.encode(extras))
-
-    -- 1. Apagamos TODOS los extras aleatorios que GTA haya puesto por defecto
-    for i = 0, 20 do
+    -- A) Apagamos absolutamente todos los extras para evitar la aleatoriedad de GTA
+    for i = 1, 20 do
         if DoesExtraExist(veh, i) then
-            SetVehicleExtra(veh, i, 1) -- 1 es OFF
+            SetVehicleExtra(veh, i, 1) -- 1 = APAGAR
         end
     end
 
-    Wait(50) -- Micro-pausa para que el motor asimile el apagón general
-
-    -- 2. Encendemos solo los que elegiste en el menú
+    -- B) Encendemos SOLO los extras que el servidor nos ha mandado
     if extras and type(extras) == "table" then
-        for _, extraId in pairs(extras) do
-            local id = tonumber(extraId)
-            if id and DoesExtraExist(veh, id) then
-                SetVehicleExtra(veh, id, 0) -- 0 es ON
-                print("EXTRA " .. id .. " ENCENDIDO CORRECTAMENTE")
+        for _, extraId in ipairs(extras) do
+            if DoesExtraExist(veh, extraId) then
+                SetVehicleExtra(veh, extraId, 0) -- 0 = ENCENDER
             end
         end
     end
-    -- =================================================
 
-    -- ENTREGA AL JUGADOR (Teletransporte al asiento)
+    SetVehicleOnGroundProperly(veh)
+
+    -- 5. ENTREGA AL JUGADOR
     TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
 
-    -- Le damos las llaves (Formato estándar de QBCore)
     if Config.Framework == 'qbcore' then
         TriggerEvent("vehiclekeys:client:SetOwner", plate)
         TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
         Framework.Core.Functions.Notify('¡Disfruta de tu nuevo vehículo!', 'success', 5000)
     end
 
-    -- Limpiamos la memoria
     SetModelAsNoLongerNeeded(modelHash)
 end)
 
@@ -835,10 +840,18 @@ RegisterNUICallback('previewVehicle', function(data, cb)
         DeleteEntity(previewVehicleEntity)
     end
 
-    -- 3. Coordenadas de aparición MEJORADAS
-    local spawnCoords = vector4(1181.54, -3252.64, -49.5, 225.0)
+    -- LÓGICA DE SPAWNS DINÁMICOS PARA EL VEHÍCULO
+    local spawnCoords = vector4(1181.54, -3252.64, -49.5, 225.0) -- Por defecto
+    local dealerConfig = Config.Dealerships[currentShowroomDealerId]
 
-    -- 4. Spawnear el coche SOLO EN LOCAL (isNetwork = false)
+    -- Usamos preview_spawn para posicionar el vehículo
+    if dealerConfig and dealerConfig.preview_spawn then
+        local sp = dealerConfig.preview_spawn
+        -- Nos aseguramos de capturar la rotación (w) o poner 0.0 si se olvidó ponerla
+        spawnCoords = vector4(sp.x, sp.y, sp.z, sp.w or 0.0)
+    end
+
+    -- 4. Spawnear el coche SOLO EN LOCAL (isNetwork = false) usando spawnCoords.w
     previewVehicleEntity = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnCoords.w, false,
         false)
 
@@ -966,7 +979,27 @@ end)
 
 RegisterNUICallback('buyVehicle', function(data, cb)
     if currentShowroomDealerId then
-        -- 1. Enviamos la orden de compra al servidor (con el método de pago y plazos)
+        -- =================================================================
+        -- ESCANEO DE EXTRAS ANTES DE COMPRAR
+        -- =================================================================
+        local appliedExtras = {}
+        if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+            for i = 1, 20 do
+                if DoesExtraExist(previewVehicleEntity, i) then
+                    -- Si la pieza existe y está encendida (0 o true según la build), la guardamos
+                    if IsVehicleExtraTurnedOn(previewVehicleEntity, i) == 1 or
+                        IsVehicleExtraTurnedOn(previewVehicleEntity, i) == true then
+                        table.insert(appliedExtras, i)
+                    end
+                end
+            end
+        end
+
+        -- Le inyectamos la lista de extras al paquete de datos que va al servidor
+        data.extras = appliedExtras
+        -- =================================================================
+
+        -- 1. Enviamos la orden de compra al servidor (con el método de pago, plazos y ahora EXTRAS)
         TriggerServerEvent('DP-VehicleShop:server:buyShowroomVehicle', currentShowroomDealerId, data)
 
         -- 2. Cerramos el modo Showroom (restaura la cámara, quita la invisibilidad, etc.)

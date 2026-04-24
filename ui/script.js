@@ -23,6 +23,7 @@ let currentBossDealerName = ""; // Guarda el nombre de la empresa para los títu
 let activeJobGrades = [];       // Guardará los rangos del trabajo del jugador para mostrar/ocultar categorías en el Boss Menu
 let currentPreviewColor = 0;    // 0 = Negro (Default de GTA)
 let currentPreviewVehicle = null;
+let currentActiveExtras = null; // Guardará la lista de extras activos
 let myPendingReservations = []; // Guarda los modelos que este jugador ya ha reservado
 
 // Variables del Showroom (Carrusel)
@@ -141,6 +142,18 @@ const GTA_COLORS = [
     { id: 36, hex: '#d44a17', name: 'Naranja Amanecer' }
 ];
 
+// =================================================================
+// BLOQUEO DE SEGURIDAD: PREVENIR DRAG & DROP EN TODO EL NUI
+// =================================================================
+document.addEventListener('dragstart', function (event) {
+    // Si intentan arrastrar una imagen, un enlace o cualquier elemento, lo bloqueamos
+    event.preventDefault();
+});
+
+// Bloquear también el menú contextual (clic derecho) por si acaso intentan "Guardar imagen como..."
+document.addEventListener('contextmenu', function (event) {
+    event.preventDefault();
+});
 
 // =================================================================
 // MÓDULO 2: SISTEMA DE TRADUCCIÓN Y FORMATO
@@ -193,6 +206,7 @@ function getSmartVehicleImage(model, shop) {
         
         <img src="${primaryImg}" 
             alt="${model}" 
+            draggable="false" 
             data-tries="${initialTries}"
             style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 15px 10px rgba(0,0,0,0.6)); z-index: 1; transition: transform 0.2s ease;"
             onerror="
@@ -776,6 +790,7 @@ function updateCarouselMask() {
 // Función para seleccionar un vehículo y mostrar su info
 function selectShowroomVehicle(vehicle) {
     currentPreviewVehicle = vehicle.model;
+    currentActiveExtras = null;
     const panel = document.getElementById('vehicle-info-panel');
     if (!panel) return;
 
@@ -969,9 +984,11 @@ if (closeExtrasBtn) {
 // 4. GENERADOR DINÁMICO DE LA LISTA DE EXTRAS
 function renderVehicleExtras(extras) {
     const container = document.getElementById('extras-list-container');
-    container.innerHTML = ''; // Limpiamos
+    container.innerHTML = '';
 
-    // Si la lista viene vacía o es nula (el coche no tiene extras)
+    // Inicializamos la memoria de extras para este coche
+    currentActiveExtras = [];
+
     if (!extras || extras.length === 0) {
         container.innerHTML = `
             <div class="empty-extras-msg">
@@ -982,24 +999,29 @@ function renderVehicleExtras(extras) {
         return;
     }
 
-    // Si tiene extras, creamos un div por cada uno
     extras.forEach(extra => {
-        const div = document.createElement('div');
-        // Si el extra ya está encendido en el coche, le ponemos la clase 'active'
-        div.className = `extra-item ${extra.enabled ? 'active' : ''}`;
-        div.dataset.id = extra.id;
+        // Si el extra ya viene encendido de fábrica, lo guardamos
+        if (extra.enabled) {
+            currentActiveExtras.push(extra.id);
+        }
 
+        const div = document.createElement('div');
+        div.className = `extra-item ${extra.enabled ? 'active' : ''}`;
         div.innerHTML = `
             <span>EXTRA ${extra.id}</span>
             <i class="fa-solid fa-power-off"></i>
         `;
 
-        // Evento al hacer clic en el extra
         div.addEventListener('click', function () {
-            // Cambiamos el color visual instantáneamente (on/off)
             const isNowActive = this.classList.toggle('active');
 
-            // Mandamos la orden al cliente (Lua) para que le ponga/quite la pieza al coche
+            // Actualizamos la lista mental del JS en tiempo real
+            if (isNowActive) {
+                if (!currentActiveExtras.includes(extra.id)) currentActiveExtras.push(extra.id);
+            } else {
+                currentActiveExtras = currentActiveExtras.filter(id => id !== extra.id);
+            }
+
             fetch(`https://${GetParentResourceName()}/toggleVehicleExtra`, {
                 method: 'POST',
                 body: JSON.stringify({
@@ -1157,7 +1179,7 @@ if (confirmFinalBuyBtn) {
             paymentType: paymentMethod,
             installments: installments,
             deliveryType: deliveryMethod,
-            extras: activeExtrasList
+            extras: currentActiveExtras
         };
 
         // =========================================================
