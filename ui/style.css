@@ -63,13 +63,16 @@ select:active {
 }
 
 img {
-    -webkit-user-drag: none;  /* Bloquea el arrastre en navegadores Chromium/FiveM */
+    -webkit-user-drag: none;
+    /* Bloquea el arrastre en navegadores Chromium/FiveM */
     -khtml-user-drag: none;
     -moz-user-drag: none;
     -o-user-drag: none;
-    user-select: none;        /* Evita que se resalte en azul si hacen doble clic */
+    user-select: none;
+    /* Evita que se resalte en azul si hacen doble clic */
     -webkit-user-select: none;
-    pointer-events: none;     /* Opcional: hace que el clic "atraviese" la imagen */
+    pointer-events: none;
+    /* Opcional: hace que el clic "atraviese" la imagen */
 }
 
 /* =================================================================
@@ -1449,15 +1452,21 @@ select option {
     letter-spacing: 1px;
 }
 
+.model-class-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
 #info-model-name {
     font-size: 1.8vw;
-    /* Más impacto */
     color: #fff;
     font-family: 'Orbitron', sans-serif;
     font-weight: 900;
     line-height: 1;
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
-    margin-top: 2px;
+    /* margin-top eliminado porque el wrapper lo centra perfectamente */
 }
 
 /* Stats (Precio y Stock) */
@@ -1599,6 +1608,7 @@ select option {
     top: 0;
     left: calc(100% + 10px);
     width: 22vw;
+    max-height: 31.2vw;
     background: rgba(0, 0, 0, 0.9);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1606,7 +1616,7 @@ select option {
     padding: 10px;
     box-shadow: 0 10px 30px rgb(0 0 0 / 80%);
     flex-direction: column;
-    gap: 5px;
+    gap: 5px px;
 }
 
 .payment-section {
@@ -2949,10 +2959,408 @@ input:checked+.slider:before {
     padding: 10px;
 }
 
+/* =================================================================
+   PANEL DERECHO PERSONALIZABLE (CLON ESTRUCTURAL)
+   ================================================================= */
+.right-panel-container {
+    position: absolute;
+    top: 1vw;
+    right: 1vw;
+    width: 22vw;
+    display: flex;
+    flex-direction: column;
+    z-index: 9999;
+    pointer-events: auto;
+    gap: 10px;
+}
 
+/* Cajas principales (Estilo idéntico a info-panel-main) */
+.right-panel-main,
+.right-panel-secondary {
+    background: rgba(15, 15, 15, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+}
 
+/* Contenedor temporal para que veas dónde va el contenido */
+.right-content-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 8vw;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6vw;
+    font-style: italic;
+    text-align: center;
+}
 
+.stats-bars-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
 
+.stat-bar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3vw;
+}
+
+.stat-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.stat-bar-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+    color: #fff;
+    font-family: 'Arial', sans-serif;
+    font-size: 0.7vw;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.stat-bar-title iconify-icon {
+    font-size: 1.2vw;
+    color: #fff;
+    /* Blanco puro para máxima claridad */
+}
+
+/* El texto de "X / 10" */
+.stat-bar-value {
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7vw;
+    font-weight: 900;
+}
+
+/* Fondo de la barra (Gris oscuro/Negro) */
+.stat-progress-bg {
+    width: 100%;
+    height: 0.45vw;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    /* Borde extremadamente sutil para enmarcar la barra cuando está vacía */
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* Relleno Escala de Grises (De gris humo a blanco puro) */
+.stat-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(120, 120, 120, 0.5), rgba(255, 255, 255, 0.8));
+    border-radius: 1px;
+    transition: width 0.4s ease-in-out;
+    /* Resplandor blanco elegante */
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Capa superior divisoria (Cortes negros MÁS ANCHOS para mayor separación) */
+.stat-progress-bg::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: repeating-linear-gradient(to right,
+            transparent,
+            transparent 1.5vw,
+            /* Ancho del bloque luminoso */
+            rgba(15, 15, 15, 1) 0.8vw,
+            rgba(15, 15, 15, 1) 1.6vw
+            /* La diferencia (0.2vw) es el grosor del hueco negro */
+        );
+    pointer-events: none;
+}
+
+.stats-divider {
+    border: none;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 10px 0 10px 0;
+    width: 100%;
+}
+
+.vehicle-extra-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    /* 2 columnas iguales */
+    gap: 10px;
+}
+
+.detail-box {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 10px;
+    gap: 10px;
+    transition: all 0.2s ease;
+}
+
+.detail-box:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.detail-box iconify-icon {
+    font-size: 1.5vw;
+    /* Iconos grandes y claros */
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.detail-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-label {
+    font-size: 0.55vw;
+    color: #888;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.detail-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75vw;
+    color: #fff;
+    font-weight: 700;
+}
+
+/* Clases dinámicas que usaremos con JS para el bloque de Tuning */
+.tuning-available iconify-icon {
+    color: #fff !important;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+}
+
+.tuning-unavailable .detail-value {
+    color: rgba(255, 255, 255, 0.3);
+    /* Texto apagado */
+}
+
+.vehicle-class-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 0.8vw;
+    padding: 0.2vw 0.6vw;
+    border-radius: 3px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+/* Nivel Dios: Blanco puro invertido con resplandor */
+.class-splus {
+    background: #fff;
+    color: #000;
+    border: 1px solid #fff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.8);
+}
+
+/* Nivel Alto: Gris muy claro sólido */
+.class-s {
+    background: rgba(200, 200, 200, 1);
+    color: #000;
+    border: 1px solid rgba(220, 220, 220, 1);
+}
+
+/* Nivel Muy Bueno: Fondo oscuro con borde blanco fuerte */
+.class-a {
+    background: rgba(100, 100, 100, 0.4);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Nivel Bueno: Gris medio */
+.class-b {
+    background: rgba(60, 60, 60, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Nivel Medio: Base estándar */
+.class-c {
+    background: rgba(30, 30, 30, 0.4);
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Nivel Básico: Borde punteado */
+.class-d {
+    background: rgba(15, 15, 15, 0.4);
+    color: rgba(255, 255, 255, 0.4);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+/* Nivel Chatarra: Transparente y muy apagado */
+.class-e {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.2);
+    border: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
+/* =================================================================
+   INTERFAZ DE VISTA PREVIA (MODO CINEMÁTICO 360º)
+   ================================================================= */
+.preview-mode-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    /* Ocupa toda la pantalla invisiblemente */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    /* Empuja el div Top arriba y el Bottom abajo */
+    padding: 10px;
+    /* Margen estricto de 10px en todos los bordes de la pantalla */
+    box-sizing: border-box;
+    z-index: 9999;
+    pointer-events: none;
+    /* Deja atravesar clics hacia el coche */
+}
+
+/* Contenedores de las barras */
+.preview-top-bar {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    cursor: default;
+}
+
+.preview-top-bar:hover {
+    cursor: default;
+}
+
+.preview-bottom-bar {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    pointer-events: none;
+}
+
+.preview-left,
+.preview-right {
+    pointer-events: auto;
+    /* Reactivamos el clic solo para los botones */
+    display: flex;
+    gap: 1vw;
+}
+
+/* NUEVO DISEÑO PREMIUM: Píldora flotante */
+.preview-center {
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(15, 15, 15, 0.85);
+    /* Fondo oscuro semitransparente */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    /* Borde sutil */
+    border-radius: 4px;
+    /* Bordes completamente redondeados */
+    padding: 10px 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    /* Sombra para que parezca que flota */
+}
+
+.preview-center iconify-icon {
+    color: #fff;
+    font-size: 1.1vw;
+}
+
+.preview-hint {
+    color: rgba(255, 255, 255, 0.7);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65vw;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+}
+
+/* Efecto Invertido para el 360 (Negro sobre Blanco) */
+.preview-hint .highlight {
+    color: #000;
+    background: #fff;
+    font-weight: 900;
+    padding: 0.1vw 0.5vw;
+    border-radius: 4px;
+    font-size: 0.6vw;
+    letter-spacing: 0px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* --- ESTILOS DE LOS BOTONES DE VISTA PREVIA --- */
+.preview-action-btn,
+.preview-toggle-btn {
+    background: rgba(15, 15, 15, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75vw;
+    font-weight: 900;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.preview-action-btn iconify-icon,
+.preview-toggle-btn iconify-icon {
+    font-size: 1vw;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.preview-action-btn:hover,
+.preview-toggle-btn:hover {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgba(255, 255, 255, 0.8);
+    color: #fff;
+}
+
+.preview-action-btn:hover iconify-icon,
+.preview-toggle-btn:hover iconify-icon {
+    color: #fff;
+}
+
+/* --- ESTADO ACTIVO (BOTÓN DE CÁMARA SELECCIONADO) --- */
+.preview-toggle-btn.active {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #fff !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.preview-toggle-btn.active iconify-icon {
+    color: #000 !important;
+}
 
 
 

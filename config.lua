@@ -30,6 +30,10 @@ Config.VehicleList = 'generarprimerstock'
 -- true = Muestra "No tienes permiso". | false = No hace nada (silencioso).
 Config.NotifyOnDeny = true
 
+-- Sistema de Medición de Velocidad en el Escaparate.
+-- Opciones: 'kmh' (Kilómetros por hora) o 'mph' (Millas por hora)
+Config.Velocity = 'kmh'
+
 -- =================================================================
 -- SECCIÓN 2.5: CONFIGURACIÓN DE CONCESIONARIOS (DEALERS)
 -- =================================================================

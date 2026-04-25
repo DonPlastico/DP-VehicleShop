@@ -794,18 +794,55 @@ function selectShowroomVehicle(vehicle) {
     const panel = document.getElementById('vehicle-info-panel');
     if (!panel) return;
 
-    // =================================================================
     // OCULTAR PANELES LATERALES AL CAMBIAR DE VEHÍCULO
-    // =================================================================
     const paymentPanel = document.getElementById('payment-selection-panel');
     if (paymentPanel) paymentPanel.style.display = 'none';
 
     const extrasPanel = document.getElementById('extras-selection-panel');
     if (extrasPanel) extrasPanel.style.display = 'none';
-    // =================================================================
 
     // 1. Mostramos el panel si estaba oculto
     panel.style.display = 'flex';
+
+    // MOSTRAR EL PANEL DERECHO CLONADO
+    const rightCustomPanel = document.getElementById('right-custom-panel');
+    if (rightCustomPanel) rightCustomPanel.style.display = 'flex';
+
+    // Las ponemos a 0 visualmente. Cuando el cliente termine de spawnear
+    // el coche, nos mandará los datos reales y se animarán hacia arriba.
+    const statFills = ['speed', 'accel', 'brakes', 'handling'];
+    statFills.forEach(stat => {
+        const fill = document.getElementById(`stat-${stat}-fill`);
+        const val = document.getElementById(`stat-${stat}-val`);
+        if (fill) fill.style.width = '0%';
+        if (val) val.innerText = '0.0 / 10';
+    });
+
+    // RESETEAR CUADRÍCULA EXTRA (Efecto Escáner)
+    const maxSpeedEl = document.getElementById('detail-max-speed');
+    if (maxSpeedEl) maxSpeedEl.innerText = '--';
+
+    // Resetear Medalla de Clase
+    const classBadgeEl = document.getElementById('info-vehicle-class');
+    if (classBadgeEl) {
+        classBadgeEl.innerText = '--';
+        classBadgeEl.className = 'vehicle-class-badge class-e'; // Estado apagado temporal
+    }
+
+    const seatsEl = document.getElementById('detail-seats');
+    if (seatsEl) seatsEl.innerText = '--';
+
+    const accelTimeEl = document.getElementById('detail-acceleration-time');
+    if (accelTimeEl) accelTimeEl.innerText = '--';
+
+    const tuningBox = document.getElementById('detail-tuning-box');
+    const tuningText = document.getElementById('detail-tuning-text');
+    if (tuningBox) {
+        // Por defecto lo ponemos en estado "apagado/calculando"
+        tuningBox.classList.remove('tuning-available');
+        tuningBox.classList.add('tuning-unavailable');
+    }
+    if (tuningText) tuningText.innerText = '--';
 
     // 2. Actualizamos los textos
     document.getElementById('info-brand-name').innerText = vehicle.brand || 'CUSTOM';
@@ -915,6 +952,12 @@ function hideVehicleInfo() {
 
     const extrasPanel = document.getElementById('extras-selection-panel');
     if (extrasPanel) extrasPanel.style.display = 'none';
+
+    // =================================================================
+    // OCULTAR EL PANEL DERECHO CLONADO
+    // =================================================================
+    const rightCustomPanel = document.getElementById('right-custom-panel');
+    if (rightCustomPanel) rightCustomPanel.style.display = 'none';
 
     currentPreviewVehicle = null;
 }
@@ -1042,9 +1085,12 @@ function closeShowroom() {
     isShowroomOpen = false;
     document.getElementById('showroom-container').style.display = 'none';
 
-    // [AQUÍ VA LO QUE PREGUNTABAS]
     hideVehicleInfo();      // Ocultamos el panel de la izquierda
     currentPreviewColor = 0; // Reseteamos el color a Negro para la próxima vez
+
+    // Nos aseguramos de apagar la barra cinemática si estaba encendida
+    const previewUI = document.getElementById('preview-mode-ui');
+    if (previewUI) previewUI.style.display = 'none';
 
     // Avisamos al cl_main.lua para que destruya la cámara y el coche
     fetch(`https://${GetParentResourceName()}/closeShowroomMenu`, {
@@ -1283,6 +1329,155 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// =================================================================
+// MÓDULO 7.5: MODO VISTA PREVIA (CÁMARA CINEMÁTICA 360º Y DRAG 360)
+// =================================================================
+const btnPreview = document.getElementById('preview-view');
+const btnExitPreview = document.getElementById('exit-preview-btn');
+const previewUI = document.getElementById('preview-mode-ui');
+
+const infoPanelPreview = document.getElementById('vehicle-info-panel');
+const rightPanelPreview = document.getElementById('right-custom-panel');
+const carouselContainerPreview = document.querySelector('.bottom-carousel-container');
+
+// Variables de Control para la Rotación
+let isPreviewModeActive = false;
+let isDraggingPreview = false;
+let previewLastX = 0;
+
+// 1. ENTRAR AL MODO VISTA PREVIA
+if (btnPreview) {
+    btnPreview.addEventListener('click', () => {
+        // Ocultamos toda la interfaz principal
+        if (infoPanelPreview) infoPanelPreview.style.display = 'none';
+        if (rightPanelPreview) rightPanelPreview.style.display = 'none';
+        if (carouselContainerPreview) carouselContainerPreview.style.display = 'none';
+
+        // Mostramos la barra de controles cinemáticos y activamos estado
+        if (previewUI) previewUI.style.display = 'flex';
+        isPreviewModeActive = true;
+        document.body.style.cursor = 'grab'; // Cursor de manita abierta
+
+        // Nos aseguramos de que el botón Exterior esté marcado por defecto al entrar
+        document.getElementById('cam-exterior-btn').classList.add('active');
+        document.getElementById('cam-interior-btn').classList.remove('active');
+
+        // Avisamos a Lua para que libere los controles y posicione la cámara exterior
+        fetch(`https://${GetParentResourceName()}/togglePreviewCamera`, {
+            method: 'POST',
+            body: JSON.stringify({ mode: 'exterior' })
+        }).catch(err => console.log("Error en el callback de Preview: ", err));
+    });
+}
+
+// 2. SALIR DEL MODO VISTA PREVIA
+if (btnExitPreview) {
+    btnExitPreview.addEventListener('click', () => {
+        // Ocultamos la barra cinemática y desactivamos estado
+        if (previewUI) previewUI.style.display = 'none';
+        isPreviewModeActive = false;
+        isDraggingPreview = false;
+        document.body.style.cursor = 'default'; // Restauramos cursor normal
+
+        // Restauramos los tres paneles principales
+        if (infoPanelPreview) infoPanelPreview.style.display = 'flex';
+        if (rightPanelPreview) rightPanelPreview.style.display = 'flex';
+        if (carouselContainerPreview) carouselContainerPreview.style.display = 'flex';
+
+        // Avisamos a Lua para que devuelva la cámara a su sitio original del catálogo
+        fetch(`https://${GetParentResourceName()}/togglePreviewCamera`, {
+            method: 'POST',
+            body: JSON.stringify({ mode: 'reset' })
+        });
+    });
+}
+
+// 3. ALTERNAR ENTRE CÁMARA EXTERIOR E INTERIOR
+const btnCamExt = document.getElementById('cam-exterior-btn');
+const btnCamInt = document.getElementById('cam-interior-btn');
+
+if (btnCamExt && btnCamInt) {
+    btnCamExt.addEventListener('click', () => {
+        if (btnCamExt.classList.contains('active')) return;
+        btnCamExt.classList.add('active');
+        btnCamInt.classList.remove('active');
+        fetch(`https://${GetParentResourceName()}/togglePreviewCamera`, {
+            method: 'POST',
+            body: JSON.stringify({ mode: 'exterior' })
+        }).catch(err => console.log("Error en el callback de Preview: ", err));
+    });
+
+    btnCamInt.addEventListener('click', () => {
+        if (btnCamInt.classList.contains('active')) return;
+        btnCamInt.classList.add('active');
+        btnCamExt.classList.remove('active');
+        fetch(`https://${GetParentResourceName()}/togglePreviewCamera`, {
+            method: 'POST',
+            body: JSON.stringify({ mode: 'interior' })
+        });
+    });
+}
+
+// 4. LÓGICA DE ROTACIÓN 360º (CLICK & DRAG)
+window.addEventListener('mousedown', (e) => {
+    if (!isPreviewModeActive) return;
+
+    // Si hacemos clic encima de un botón o de la pastilla superior de texto, ignoramos el drag
+    if (e.target.closest('.preview-action-btn') ||
+        e.target.closest('.preview-toggle-btn') ||
+        e.target.closest('.preview-center')) {
+        return;
+    }
+
+    isDraggingPreview = true;
+    previewLastX = e.clientX; // Guardamos la posición inicial X del ratón
+    document.body.style.cursor = 'grabbing'; // Manita cerrada (agarrando)
+});
+
+// Detectar cuando el usuario suelta el clic
+window.addEventListener('mouseup', () => {
+    if (!isPreviewModeActive) return;
+    isDraggingPreview = false;
+    document.body.style.cursor = 'grab'; // Manita abierta de nuevo
+});
+
+// Por si el usuario saca el ratón de la ventana de FiveM mientras arrastra
+window.addEventListener('mouseleave', () => {
+    if (!isPreviewModeActive) return;
+    isDraggingPreview = false;
+    document.body.style.cursor = 'grab';
+});
+
+// Detectar el movimiento constante del ratón
+window.addEventListener('mousemove', (e) => {
+    // Si no estamos en modo preview o no estamos manteniendo el clic, no hacemos nada
+    if (!isPreviewModeActive || !isDraggingPreview) return;
+
+    // Calculamos la diferencia matemática (Delta) entre la posición anterior y la nueva
+    let deltaX = e.clientX - previewLastX;
+    previewLastX = e.clientX; // Actualizamos para el siguiente frame
+
+    // Si hubo un movimiento real horizontal, se lo mandamos a Lua
+    if (deltaX !== 0) {
+        fetch(`https://${GetParentResourceName()}/rotatePreviewCamera`, {
+            method: 'POST',
+            body: JSON.stringify({ dragAmount: deltaX })
+        });
+    }
+});
+
+// LÓGICA DE ZOOM CON SCROLL (VISTA PREVIA)
+window.addEventListener('wheel', (e) => {
+    if (!isPreviewModeActive) return;
+
+    // Detectamos si el scroll va hacia arriba (negativo) o hacia abajo (positivo)
+    let zoomDir = e.deltaY > 0 ? 'out' : 'in';
+
+    fetch(`https://${GetParentResourceName()}/updatePreviewZoom`, {
+        method: 'POST',
+        body: JSON.stringify({ direction: zoomDir })
+    });
+});
 
 // =================================================================
 // MÓDULO 8: BOSS MENU (DASHBOARD Y NAVEGACIÓN)
@@ -2706,6 +2901,99 @@ document.addEventListener('DOMContentLoaded', () => {
             // Recibir la lista de extras de un coche específico
             case 'loadVehicleExtras':
                 renderVehicleExtras(data.extras);
+                break;
+            // Recibe las estadísticas reales de rendimiento desde Lua
+            case 'updateVehicleStats':
+                const stats = data.stats;
+
+                // 1. ACTUALIZAR BARRAS DE PROGRESO
+                const sVal = document.getElementById('stat-speed-val');
+                if (sVal) sVal.innerText = `${stats.speed.toFixed(1)} / 10`;
+                const sFill = document.getElementById('stat-speed-fill');
+                if (sFill) sFill.style.width = `${(stats.speed / 10) * 100}%`;
+
+                const aVal = document.getElementById('stat-accel-val');
+                if (aVal) aVal.innerText = `${stats.acceleration.toFixed(1)} / 10`;
+                const aFill = document.getElementById('stat-accel-fill');
+                if (aFill) aFill.style.width = `${(stats.acceleration / 10) * 100}%`;
+
+                const bVal = document.getElementById('stat-brakes-val');
+                if (bVal) bVal.innerText = `${stats.braking.toFixed(1)} / 10`;
+                const bFill = document.getElementById('stat-brakes-fill');
+                if (bFill) bFill.style.width = `${(stats.braking / 10) * 100}%`;
+
+                const hVal = document.getElementById('stat-handling-val');
+                if (hVal) hVal.innerText = `${stats.handling.toFixed(1)} / 10`;
+                const hFill = document.getElementById('stat-handling-fill');
+                if (hFill) hFill.style.width = `${(stats.handling / 10) * 100}%`;
+
+                // 2. ACTUALIZAR CUADRÍCULA EXTRA (Grid)
+                const maxSpeedEl2 = document.getElementById('detail-max-speed');
+                if (maxSpeedEl2 && stats.maxSpeedText) maxSpeedEl2.innerText = stats.maxSpeedText;
+
+                const seatsEl2 = document.getElementById('detail-seats');
+                if (seatsEl2 && stats.seats) seatsEl2.innerText = stats.seats;
+
+                const accelTimeEl2 = document.getElementById('detail-acceleration-time');
+                if (accelTimeEl2 && stats.accelTimeText) accelTimeEl2.innerText = stats.accelTimeText;
+
+                // Cambiar el título de 0-100 KM/H a 0-60 MP/H dinámicamente
+                const accelLabelEl = document.getElementById('detail-accel-label');
+                if (accelLabelEl && stats.measurementUnit) {
+                    if (stats.measurementUnit === 'mph') {
+                        accelLabelEl.innerText = '0-60 MP/H';
+                    } else {
+                        accelLabelEl.innerText = '0-100 KM/H';
+                    }
+                }
+
+                const tuningBox2 = document.getElementById('detail-tuning-box');
+                const tuningText2 = document.getElementById('detail-tuning-text');
+                if (tuningBox2 && tuningText2) {
+                    tuningBox2.classList.remove('tuning-available', 'tuning-unavailable');
+                    if (stats.hasTuning) {
+                        tuningBox2.classList.add('tuning-available');
+                        tuningText2.innerText = 'SÍ';
+                    } else {
+                        tuningBox2.classList.add('tuning-unavailable');
+                        tuningText2.innerText = 'NO';
+                    }
+                }
+
+                // CALCULAR LA CLASE/TIER DEL VEHÍCULO
+                const classBadge = document.getElementById('info-vehicle-class');
+                if (classBadge) {
+                    // Sumamos las 4 estadísticas y sacamos la media sobre 10
+                    const totalScore = stats.speed + stats.acceleration + stats.braking + stats.handling;
+                    const avgScore = totalScore / 4;
+
+                    let vehClass = 'E';
+                    let cssClass = 'class-e';
+
+                    // Sistema de Calificación Estricto
+                    if (avgScore >= 8.8) {
+                        vehClass = 'S+';
+                        cssClass = 'class-splus';
+                    } else if (avgScore >= 7.8) {
+                        vehClass = 'S';
+                        cssClass = 'class-s';
+                    } else if (avgScore >= 6.8) {
+                        vehClass = 'A';
+                        cssClass = 'class-a';
+                    } else if (avgScore >= 5.5) {
+                        vehClass = 'B';
+                        cssClass = 'class-b';
+                    } else if (avgScore >= 4.0) {
+                        vehClass = 'C';
+                        cssClass = 'class-c';
+                    } else if (avgScore >= 2.5) {
+                        vehClass = 'D';
+                        cssClass = 'class-d';
+                    }
+
+                    classBadge.innerText = vehClass;
+                    classBadge.className = `vehicle-class-badge ${cssClass}`;
+                }
                 break;
         }
     });

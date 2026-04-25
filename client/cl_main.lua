@@ -1,6 +1,7 @@
 -- =================================================================
--- OPTIMIZACIÓN: CACHÉ DE NATIVAS (Esto mejora el rendimiento drásticamente)
+-- MÓDULO 1: VARIABLES GLOBALES Y ESTADO
 -- =================================================================
+-- OPTIMIZACIÓN: CACHÉ DE NATIVAS (Esto mejora el rendimiento drásticamente)
 local isMenuOpen = false
 local spawnedShowroomVehicles = {}
 local nearbyVehicles = {}
@@ -16,11 +17,18 @@ local currentBossDealerId = nil
 local currentShowroomDealerId = nil
 local ShowroomVehicleData = {}
 local currentPreviewRequestId = 0
+local currentPreviewCameraMode = 'exterior'
+local currentInteriorCamHeading = 0.0
+local currentPreviewFOV = 50.0
+local PlayerData = {}
+local PlayerJob = {}
+local Framework = {}
+local currentPreviewRequestId = 0
 
 -- =================================================================
--- INICIALIZACIÓN DEL FRAMEWORK (AÑADIR ESTO AQUÍ)
+-- MÓDULO 2: CARGA DINÁMICA DEL FRAMEWORK
 -- =================================================================
-local Framework = {}
+
 if Config.Framework == 'qbcore' then
     Framework.Core = exports['qb-core']:GetCoreObject()
 elseif Config.Framework == 'esx' then
@@ -34,11 +42,8 @@ elseif Config.Framework == 'ox' then
 end
 
 -- =================================================================
--- SECCIÓN 1: FUNCIONES AUXILIARES Y DATOS DEL JUGADOR (CACHÉ)
+-- MÓDULO 3: FUNCIONES AUXILIARES Y DATOS DEL JUGADOR (CACHÉ)
 -- =================================================================
-
-local PlayerData = {}
-local PlayerJob = {}
 
 -- Guardamos los datos del jugador una sola vez para evitar 0.99 ms de lag
 local function UpdateLocalPlayerData()
@@ -90,7 +95,7 @@ local function IsPlayerAuthorized(dealerName, dealerConfig)
 end
 
 -- =================================================================
--- SECCIÓN 2: LÓGICA DEL MENÚ NUI
+-- MÓDULO 4: GESTIÓN DEL MENÚ NUI
 -- =================================================================
 
 local function SetMenuState(state)
@@ -115,7 +120,7 @@ local function SetMenuState(state)
 end
 
 -- =================================================================
--- SECCIÓN 3: GESTIÓN DE ENTIDADES
+-- MÓDULO 5: GESTIÓN DE ENTIDADES (VEHÍCULOS DEL ESCAPARATE)
 -- =================================================================
 
 local function SpawnShowroomVehicle(vehicleData)
@@ -196,7 +201,7 @@ local function DeleteSpecificShowroomVehicle(vehicleId)
 end
 
 -- =================================================================
--- SECCIÓN 3.5: GESTIÓN DE NPCs (VENDEDORES)
+-- MÓDULO 6: GESTIÓN DE NPCs (VENDEDORES Y AGENCIA)
 -- =================================================================
 
 local function SpawnDealershipNPCs()
@@ -264,7 +269,7 @@ local function DeleteDealershipNPCs()
 end
 
 -- =================================================================
--- SECCIÓN 4: INICIALIZACIÓN Y SISTEMA ANTI-BUGS
+-- MÓDULO 7: INICIALIZACIÓN Y SISTEMA ANTI-BUGS
 -- =================================================================
 
 local function InitializeClientLoad()
@@ -363,12 +368,58 @@ AddEventHandler('onResourceStop', function(resourceName)
 end)
 
 -- =================================================================
--- SECCIÓN 5: EVENTOS
+-- MÓDULO 8: EVENTOS DE RED - MENÚ DE GESTIÓN Y ESCAPARATE
 -- =================================================================
 
 RegisterNetEvent('DP-VehicleShop:client:openMenu', function()
     SetMenuState(true)
 end)
+
+RegisterNetEvent('DP-VehicleShop:client:sendVehicles', function(vehicleList)
+    ClearShowroomVehicles()
+    ShowroomVehicleData = vehicleList -- Guardamos la información
+    local nuiList = {}
+
+    for _, vehicleData in pairs(vehicleList) do
+        -- ¡YA NO SPAWNEAMOS AQUÍ DE GOLPE! (Lo hará el hilo de proximidad)
+        table.insert(nuiList, {
+            id = vehicleData.id,
+            model = vehicleData.model,
+            display_name = vehicleData.display_name,
+            setter_name = vehicleData.setter_name,
+            price = vehicleData.price,
+            date_added = tostring(vehicleData.date_added),
+            spawn_name = vehicleData.spawn_name,
+            spawn_x = vehicleData.spawn_x,
+            spawn_y = vehicleData.spawn_y,
+            spawn_z = vehicleData.spawn_z
+        })
+    end
+
+    SendNUIMessage({
+        action = 'sendVehicles',
+        vehicleList = nuiList
+    })
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:sendSpawns', function(spawnList)
+    SendNUIMessage({
+        action = 'sendSpawns',
+        spawnList = spawnList
+    })
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:deleteVehicleEntity', function(vehicleId)
+    DeleteSpecificShowroomVehicle(vehicleId)
+end)
+
+RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
+    InitializeClientLoad()
+end)
+
+-- =================================================================
+-- MÓDULO 9: EVENTOS DE RED - SHOWROOM (CATÁLOGO DE CLIENTES)
+-- =================================================================
 
 RegisterNetEvent('DP-VehicleShop:client:enterShowroomMode', function(dealerName)
     local ped = PlayerPedId()
@@ -467,79 +518,6 @@ RegisterNetEvent('DP-VehicleShop:client:exitShowroomMode', function()
     DisplayRadar(true)
 end)
 
-RegisterNetEvent('DP-VehicleShop:client:sendVehicles', function(vehicleList)
-    ClearShowroomVehicles()
-    ShowroomVehicleData = vehicleList -- Guardamos la información
-    local nuiList = {}
-
-    for _, vehicleData in pairs(vehicleList) do
-        -- ¡YA NO SPAWNEAMOS AQUÍ DE GOLPE! (Lo hará el hilo de proximidad)
-        table.insert(nuiList, {
-            id = vehicleData.id,
-            model = vehicleData.model,
-            display_name = vehicleData.display_name,
-            setter_name = vehicleData.setter_name,
-            price = vehicleData.price,
-            date_added = tostring(vehicleData.date_added),
-            spawn_name = vehicleData.spawn_name,
-            spawn_x = vehicleData.spawn_x,
-            spawn_y = vehicleData.spawn_y,
-            spawn_z = vehicleData.spawn_z
-        })
-    end
-
-    SendNUIMessage({
-        action = 'sendVehicles',
-        vehicleList = nuiList
-    })
-end)
-
-RegisterNetEvent('DP-VehicleShop:client:sendSpawns', function(spawnList)
-    SendNUIMessage({
-        action = 'sendSpawns',
-        spawnList = spawnList
-    })
-end)
-
-RegisterNetEvent('DP-VehicleShop:client:deleteVehicleEntity', function(vehicleId)
-    DeleteSpecificShowroomVehicle(vehicleId)
-end)
-
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    InitializeClientLoad()
-end)
-
--- =================================================================
--- EVENTOS DEL MENÚ NUI (RECEPCIÓN DE DATOS Y APERTURA)
--- =================================================================
-
--- 1. Apertura del Jefe
-RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealerLabel, categories, jobGrades, vehicles)
-    currentBossDealerId = dealerId
-
-    SendNUIMessage({
-        action = 'loadCategories',
-        categories = categories
-    })
-
-    SendNUIMessage({
-        action = 'loadJobGrades',
-        grades = jobGrades
-    })
-
-    -- Enviamos la lista de vehículos reales a la UI
-    SendNUIMessage({
-        action = 'loadBossStock',
-        vehicles = vehicles
-    })
-
-    SendNUIMessage({
-        action = 'openBossMenu',
-        dealerName = dealerLabel
-    })
-    SetNuiFocus(true, true)
-end)
-
 -- 2. Apertura del Showroom
 RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, categories, vehicles, myReservations)
     -- Guardamos el ID del concesionario actual
@@ -568,70 +546,6 @@ RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, catego
 
     -- 3. Iniciamos el modo Showroom (Cámaras y posición)
     TriggerEvent('DP-VehicleShop:client:enterShowroomMode', dealerLabel)
-end)
-
-RegisterNetEvent('DP-VehicleShop:client:updateBossData', function(balance, logs, sales)
-    SendNUIMessage({
-        action = 'updateBossData',
-        balance = balance,
-        transactions = logs,
-        sales = sales
-    })
-end)
-
-RegisterNetEvent('DP-VehicleShop:client:updateOwners', function(data)
-    -- Lógica para que el NPC se vaya caminando
-    for dealerKey, ped in pairs(spawnedAgencyNPCs) do
-        if data[dealerKey] and not DealerOwners[dealerKey] then
-            FreezeEntityPosition(ped, false)
-            SetEntityInvincible(ped, false)
-            SetBlockingOfNonTemporaryEvents(ped, false)
-            ClearPedTasksImmediately(ped)
-            TaskWanderStandard(ped, 10.0, 10)
-            spawnedAgencyNPCs[dealerKey] = nil
-            local pedToLeave = ped
-            SetTimeout(8000, function()
-                if DoesEntityExist(pedToLeave) then
-                    DeleteEntity(pedToLeave)
-                end
-            end)
-        end
-    end
-
-    -- Actualizamos la tabla de dueños
-    DealerOwners = data
-
-    -- Volvemos a generar NPCs por si acaso
-    SpawnDealershipNPCs()
-end)
-
--- Este evento recibe las categorías actualizadas del servidor y refresca el UI al instante
-RegisterNetEvent('DP-VehicleShop:client:refreshCategories', function(categories)
-    SendNUIMessage({
-        action = 'loadCategories',
-        categories = categories
-    })
-end)
-
--- Este evento recibe las reservas del servidor y las manda al JS para pintar el Boss Menu
-RegisterNetEvent('DP-VehicleShop:client:updateReservations', function(reservations)
-    SendNUIMessage({
-        action = 'updateReservations',
-        reservations = reservations
-    })
-end)
-
--- Este evento recibe los rangos de trabajo actualizados del servidor y refresca el UI al instante
-RegisterNetEvent('DP-VehicleShop:client:refreshJobGrades', function(grades)
-    SendNUIMessage({
-        action = 'loadJobGrades',
-        grades = grades
-    })
-
-    -- Ocultamos el formulario derecho después de guardar/borrar
-    SendNUIMessage({
-        action = 'closeGradeForm' -- Usaremos un truco sucio: si le pasamos una key falsa, el JS lo ignora pero igual le pasamos los rangos. JS ya tiene la función `closeGradeForm` vinculada al HTML.
-    })
 end)
 
 -- Recibe la orden del servidor cuando un coche pierde stock tras una compra
@@ -729,7 +643,102 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
 end)
 
 -- =================================================================
--- SECCIÓN 6: NUI CALLBACKS
+-- MÓDULO 10: EVENTOS DE RED - BOSS MENU
+-- =================================================================
+
+-- 1. Apertura del Jefe
+RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealerLabel, categories, jobGrades, vehicles)
+    currentBossDealerId = dealerId
+
+    SendNUIMessage({
+        action = 'loadCategories',
+        categories = categories
+    })
+
+    SendNUIMessage({
+        action = 'loadJobGrades',
+        grades = jobGrades
+    })
+
+    -- Enviamos la lista de vehículos reales a la UI
+    SendNUIMessage({
+        action = 'loadBossStock',
+        vehicles = vehicles
+    })
+
+    SendNUIMessage({
+        action = 'openBossMenu',
+        dealerName = dealerLabel
+    })
+    SetNuiFocus(true, true)
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:updateBossData', function(balance, logs, sales)
+    SendNUIMessage({
+        action = 'updateBossData',
+        balance = balance,
+        transactions = logs,
+        sales = sales
+    })
+end)
+
+RegisterNetEvent('DP-VehicleShop:client:updateOwners', function(data)
+    -- Lógica para que el NPC se vaya caminando
+    for dealerKey, ped in pairs(spawnedAgencyNPCs) do
+        if data[dealerKey] and not DealerOwners[dealerKey] then
+            FreezeEntityPosition(ped, false)
+            SetEntityInvincible(ped, false)
+            SetBlockingOfNonTemporaryEvents(ped, false)
+            ClearPedTasksImmediately(ped)
+            TaskWanderStandard(ped, 10.0, 10)
+            spawnedAgencyNPCs[dealerKey] = nil
+            local pedToLeave = ped
+            SetTimeout(8000, function()
+                if DoesEntityExist(pedToLeave) then
+                    DeleteEntity(pedToLeave)
+                end
+            end)
+        end
+    end
+
+    -- Actualizamos la tabla de dueños
+    DealerOwners = data
+
+    -- Volvemos a generar NPCs por si acaso
+    SpawnDealershipNPCs()
+end)
+
+-- Este evento recibe las categorías actualizadas del servidor y refresca el UI al instante
+RegisterNetEvent('DP-VehicleShop:client:refreshCategories', function(categories)
+    SendNUIMessage({
+        action = 'loadCategories',
+        categories = categories
+    })
+end)
+
+-- Este evento recibe las reservas del servidor y las manda al JS para pintar el Boss Menu
+RegisterNetEvent('DP-VehicleShop:client:updateReservations', function(reservations)
+    SendNUIMessage({
+        action = 'updateReservations',
+        reservations = reservations
+    })
+end)
+
+-- Este evento recibe los rangos de trabajo actualizados del servidor y refresca el UI al instante
+RegisterNetEvent('DP-VehicleShop:client:refreshJobGrades', function(grades)
+    SendNUIMessage({
+        action = 'loadJobGrades',
+        grades = grades
+    })
+
+    -- Ocultamos el formulario derecho después de guardar/borrar
+    SendNUIMessage({
+        action = 'closeGradeForm' -- Usaremos un truco sucio: si le pasamos una key falsa, el JS lo ignora pero igual le pasamos los rangos. JS ya tiene la función `closeGradeForm` vinculada al HTML.
+    })
+end)
+
+-- =================================================================
+-- MÓDULO 11: NUI CALLBACKS - MENÚ GENERAL
 -- =================================================================
 
 -- Callback que llama JS cuando se pulsa Escape en el NUI
@@ -793,8 +802,15 @@ RegisterNUICallback('editVehicle', function(data, cb)
     cb('ok')
 end)
 
--- Variable de control para evitar coches solapados (Fantasmas)
-local currentPreviewRequestId = 0
+RegisterNUICallback('closeBossMenu', function(data, cb)
+    SetNuiFocus(false, false)
+    currentBossDealerId = nil
+    cb('ok')
+end)
+
+-- =================================================================
+-- MÓDULO 12: NUI CALLBACKS - SHOWROOM Y PREVISUALIZACIÓN
+-- =================================================================
 
 RegisterNUICallback('previewVehicle', function(data, cb)
     local modelName = data.model
@@ -855,7 +871,6 @@ RegisterNUICallback('previewVehicle', function(data, cb)
     previewVehicleEntity = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnCoords.w, false,
         false)
 
-    -- [INICIO BLOQUE DE ESTANDARIZACIÓN]
     -- 1. Aplicamos el color seleccionado (o el negro por defecto)
     SetVehicleColours(previewVehicleEntity, colorId, colorId)
     SetVehicleExtraColours(previewVehicleEntity, colorId, colorId)
@@ -884,66 +899,91 @@ RegisterNUICallback('previewVehicle', function(data, cb)
             SetVehicleExtra(previewVehicleEntity, i, true)
         end
     end
-    -- [FIN BLOQUE DE ESTANDARIZACIÓN]
 
     FreezeEntityPosition(previewVehicleEntity, true)
 
+    -- Usamos las nativas de GTA que leen el "handling.meta" del coche
+    local maxSpeed = GetVehicleModelEstimatedMaxSpeed(modelHash)
+    local maxAccel = GetVehicleModelAcceleration(modelHash)
+    local maxBraking = GetVehicleModelMaxBraking(modelHash)
+    local maxTraction = GetVehicleModelMaxTraction(modelHash)
+
+    -- ESCALA BARRAS DE PROGRESO
+    local speedScore = math.ceil((maxSpeed / 65.0) * 100) / 10
+    local accelScore = math.ceil((maxAccel / 0.45) * 100) / 10
+    local brakingScore = math.ceil((maxBraking / 1.15) * 100) / 10
+    local handlingScore = math.ceil((maxTraction / 2.85) * 100) / 10
+
+    if speedScore > 10.0 then
+        speedScore = 10.0
+    end
+    if accelScore > 10.0 then
+        accelScore = 10.0
+    end
+    if brakingScore > 10.0 then
+        brakingScore = 10.0
+    end
+    if handlingScore > 10.0 then
+        handlingScore = 10.0
+    end
+
+    -- CÁLCULOS PARA LA CUADRÍCULA INFERIOR
+
+    -- 1. ASIENTOS
+    local seats = GetVehicleModelNumberOfSeats(modelHash)
+
+    -- 2. VELOCIDAD MÁXIMA EN TEXTO (KM/H o MP/H)
+    -- Asumimos que existe Config.Velocity en tu config.lua. Si no, usa 'kmh' por defecto.
+    local velocityConfig = Config.Velocity or 'kmh'
+    local maxSpeedText = "--"
+
+    if velocityConfig == 'kmh' then
+        -- Convertir m/s a km/h (x 3.6)
+        local speedKmh = math.ceil(maxSpeed * 3.6)
+        maxSpeedText = tostring(speedKmh) .. " KM/H"
+    else
+        -- Convertir m/s a mp/h (x 2.236936)
+        local speedMph = math.ceil(maxSpeed * 2.236936)
+        maxSpeedText = tostring(speedMph) .. " MP/H"
+    end
+
+    -- 3. TIEMPO DE ACELERACIÓN 0-100 (Fórmula de estimación física)
+    -- El valor maxAccel de GTA suele ir de 0.1 a 0.5. Aplicamos una fórmula para dar segundos realistas.
+    local accelTime = (1.0 / maxAccel) * 1.2
+    if accelTime < 1.5 then
+        accelTime = 1.5
+    end -- Capamos a 1.5s para que coches muy chetados no den 0 segundos
+    local accelTimeText = string.format("%.1f s", accelTime)
+
+    -- 4. DETECCIÓN DE TUNING ESTÉTICO
+    -- Comprobamos las categorías básicas de modificaciones visuales usando la entidad recién creada
+    local hasTuning = false
+    -- 0: Alerones | 1: Parachoques Delantero | 2: Parachoques Trasero | 3: Faldones | 4: Escapes
+    if GetNumVehicleMods(previewVehicleEntity, 0) > 0 or GetNumVehicleMods(previewVehicleEntity, 1) > 0 or
+        GetNumVehicleMods(previewVehicleEntity, 2) > 0 or GetNumVehicleMods(previewVehicleEntity, 3) > 0 or
+        GetNumVehicleMods(previewVehicleEntity, 4) > 0 then
+
+        hasTuning = true
+    end
+
+    -- Se lo enviamos TODO al Javascript (NUI)
+    SendNUIMessage({
+        action = 'updateVehicleStats',
+        stats = {
+            -- Barras de progreso
+            speed = speedScore,
+            acceleration = accelScore,
+            braking = brakingScore,
+            handling = handlingScore,
+            maxSpeedText = maxSpeedText,
+            seats = seats,
+            accelTimeText = accelTimeText,
+            hasTuning = hasTuning,
+            measurementUnit = velocityConfig
+        }
+    })
+
     SetModelAsNoLongerNeeded(modelHash)
-    cb('ok')
-end)
-
-RegisterNUICallback('closeBossMenu', function(data, cb)
-    SetNuiFocus(false, false)
-    currentBossDealerId = nil
-    cb('ok')
-end)
-
-RegisterNUICallback('bossAction', function(data, cb)
-    if currentBossDealerId and data.action and data.amount then
-        local amountNum = tonumber(data.amount)
-        if amountNum and amountNum > 0 then
-            TriggerServerEvent('DP-VehicleShop:server:bossAction', currentBossDealerId, data.action, amountNum)
-        end
-    end
-    cb('ok')
-end)
-
-RegisterNUICallback('saveCategory', function(data, cb)
-    if currentBossDealerId then
-        TriggerServerEvent('DP-VehicleShop:server:saveCategory', currentBossDealerId, data)
-    end
-    cb('ok')
-end)
-
-RegisterNUICallback('deleteCategory', function(data, cb)
-    if currentBossDealerId and data.id then
-        -- Le decimos al servidor qué categoría hay que eliminar pasando su ID y el ID del concesionario
-        TriggerServerEvent('DP-VehicleShop:server:deleteCategory', currentBossDealerId, data.id, data.name)
-    end
-    cb('ok')
-end)
-
-RegisterNUICallback('saveJobGrade', function(data, cb)
-    if currentBossDealerId then
-        -- Pasamos los datos del rango y el ID del concesionario al servidor
-        TriggerServerEvent('DP-VehicleShop:server:saveJobGrade', currentBossDealerId, data)
-    end
-    cb('ok')
-end)
-
-RegisterNUICallback('deleteJobGrade', function(data, cb)
-    if currentBossDealerId and data.grade then
-        -- Le decimos al servidor qué número de rango hay que eliminar
-        TriggerServerEvent('DP-VehicleShop:server:deleteJobGrade', currentBossDealerId, data.grade)
-    end
-    cb('ok')
-end)
-
-RegisterNUICallback('orderStock', function(data, cb)
-    -- currentBossDealerId ya lo tenemos guardado en el cliente desde que abrió el menú
-    if currentBossDealerId then
-        TriggerServerEvent('DP-VehicleShop:server:orderStock', currentBossDealerId, data)
-    end
     cb('ok')
 end)
 
@@ -957,61 +997,6 @@ RegisterNUICallback('updateVehicleColor', function(data, cb)
         SetVehicleExtraColours(previewVehicleEntity, colorId, colorId)
     end
 
-    cb('ok')
-end)
-
-RegisterNUICallback('reserveVehicle', function(data, cb)
-    if currentShowroomDealerId then
-        TriggerServerEvent('DP-VehicleShop:server:reserveVehicle', currentShowroomDealerId, data)
-    end
-    cb('ok')
-end)
-
-RegisterNUICallback('acceptReservation', function(data, cb)
-    TriggerServerEvent('DP-VehicleShop:server:acceptReservation', data.id)
-    cb('ok')
-end)
-
-RegisterNUICallback('cancelReservation', function(data, cb)
-    TriggerServerEvent('DP-VehicleShop:server:cancelReservation', data.id)
-    cb('ok')
-end)
-
-RegisterNUICallback('buyVehicle', function(data, cb)
-    if currentShowroomDealerId then
-        -- =================================================================
-        -- ESCANEO DE EXTRAS ANTES DE COMPRAR
-        -- =================================================================
-        local appliedExtras = {}
-        if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
-            for i = 1, 20 do
-                if DoesExtraExist(previewVehicleEntity, i) then
-                    -- Si la pieza existe y está encendida (0 o true según la build), la guardamos
-                    if IsVehicleExtraTurnedOn(previewVehicleEntity, i) == 1 or
-                        IsVehicleExtraTurnedOn(previewVehicleEntity, i) == true then
-                        table.insert(appliedExtras, i)
-                    end
-                end
-            end
-        end
-
-        -- Le inyectamos la lista de extras al paquete de datos que va al servidor
-        data.extras = appliedExtras
-        -- =================================================================
-
-        -- 1. Enviamos la orden de compra al servidor (con el método de pago, plazos y ahora EXTRAS)
-        TriggerServerEvent('DP-VehicleShop:server:buyShowroomVehicle', currentShowroomDealerId, data)
-
-        -- 2. Cerramos el modo Showroom (restaura la cámara, quita la invisibilidad, etc.)
-        TriggerEvent('DP-VehicleShop:client:exitShowroomMode')
-
-        -- 3. Forzamos el cierre de la interfaz NUI y quitamos el cursor
-        isMenuOpen = false
-        SendNUIMessage({
-            action = 'setVisible',
-            status = false
-        })
-    end
     cb('ok')
 end)
 
@@ -1068,10 +1053,210 @@ RegisterNUICallback('toggleVehicleExtra', function(data, cb)
     cb('ok')
 end)
 
+RegisterNUICallback('togglePreviewCamera', function(data, cb)
+    -- 1. Verificación de seguridad: ¿Existe la cámara y el vehículo?
+    if not showroomCam or not DoesEntityExist(previewVehicleEntity) then
+        cb('ok')
+        return
+    end
+
+    currentPreviewCameraMode = data.mode
+    currentPreviewFOV = 50.0
+    SetCamFov(showroomCam, currentPreviewFOV)
+
+    local dealerConfig = Config.Dealerships[currentShowroomDealerId]
+
+    -- 2. Verificación de Config: ¿Tiene el concesionario configurada la cámara?
+    -- Si no existe 'preview_cam', usamos un fallback para que no explote
+    local hasCamConfig = dealerConfig and dealerConfig.preview_cam
+    local hasSpawnConfig = dealerConfig and dealerConfig.preview_spawn
+
+    if data.mode == 'exterior' or data.mode == 'reset' then
+        DetachCam(showroomCam)
+
+        if hasCamConfig then
+            -- Si existe en el config, usamos esos valores
+            SetCamCoord(showroomCam, dealerConfig.preview_cam.x, dealerConfig.preview_cam.y, dealerConfig.preview_cam.z)
+            SetCamRot(showroomCam, 0.0, 0.0, dealerConfig.preview_cam.w, 2)
+        else
+            -- FALLBACK: Si no existe, mantenemos la cámara donde esté pero mirando al coche
+            PointCamAtEntity(showroomCam, previewVehicleEntity, 0.0, 0.0, 0.0, true)
+        end
+
+        if data.mode == 'reset' and hasSpawnConfig then
+            SetEntityHeading(previewVehicleEntity, dealerConfig.preview_spawn.w)
+        end
+
+    elseif data.mode == 'interior' then
+        StopCamPointing(showroomCam)
+        -- El interior suele funcionar siempre porque se pega a la entidad del coche directamente
+        AttachCamToEntity(showroomCam, previewVehicleEntity, 0.0, 0.1, 0.6, true)
+        currentInteriorCamHeading = GetEntityHeading(previewVehicleEntity)
+        SetCamRot(showroomCam, 0.0, 0.0, currentInteriorCamHeading, 2)
+    end
+
+    cb('ok') -- IMPORTANTE: Siempre responder al JS para evitar el error de Fetch
+end)
+
+RegisterNUICallback('rotatePreviewCamera', function(data, cb)
+    if not showroomCam or not DoesEntityExist(previewVehicleEntity) then
+        cb('ok')
+        return
+    end
+
+    local dragAmount = data.dragAmount
+    local sensitivity = 0.4
+
+    if currentPreviewCameraMode == 'exterior' then
+        local currentHeading = GetEntityHeading(previewVehicleEntity)
+        -- Cambiado de - a + para corregir la rotación invertida
+        local newHeading = currentHeading + (dragAmount * sensitivity)
+        SetEntityHeading(previewVehicleEntity, newHeading)
+    elseif currentPreviewCameraMode == 'interior' then
+        -- Cambiado de + a - para que el interior también se sienta natural
+        currentInteriorCamHeading = currentInteriorCamHeading - (dragAmount * sensitivity)
+        SetCamRot(showroomCam, 0.0, 0.0, currentInteriorCamHeading, 2)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('updatePreviewZoom', function(data, cb)
+    if not showroomCam then
+        cb('ok')
+        return
+    end
+
+    if data.direction == 'in' then
+        currentPreviewFOV = currentPreviewFOV - 2.0
+    else
+        currentPreviewFOV = currentPreviewFOV + 2.0
+    end
+
+    -- Limites de Zoom (Min: 20 para mucho zoom | Max: 70 para alejar)
+    if currentPreviewFOV < 20.0 then
+        currentPreviewFOV = 20.0
+    end
+    if currentPreviewFOV > 70.0 then
+        currentPreviewFOV = 70.0
+    end
+
+    SetCamFov(showroomCam, currentPreviewFOV)
+    cb('ok')
+end)
+
+RegisterNUICallback('buyVehicle', function(data, cb)
+    if currentShowroomDealerId then
+        -- =================================================================
+        -- ESCANEO DE EXTRAS ANTES DE COMPRAR
+        -- =================================================================
+        local appliedExtras = {}
+        if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+            for i = 1, 20 do
+                if DoesExtraExist(previewVehicleEntity, i) then
+                    -- Si la pieza existe y está encendida (0 o true según la build), la guardamos
+                    if IsVehicleExtraTurnedOn(previewVehicleEntity, i) == 1 or
+                        IsVehicleExtraTurnedOn(previewVehicleEntity, i) == true then
+                        table.insert(appliedExtras, i)
+                    end
+                end
+            end
+        end
+
+        -- Le inyectamos la lista de extras al paquete de datos que va al servidor
+        data.extras = appliedExtras
+        -- =================================================================
+
+        -- 1. Enviamos la orden de compra al servidor (con el método de pago, plazos y ahora EXTRAS)
+        TriggerServerEvent('DP-VehicleShop:server:buyShowroomVehicle', currentShowroomDealerId, data)
+
+        -- 2. Cerramos el modo Showroom (restaura la cámara, quita la invisibilidad, etc.)
+        TriggerEvent('DP-VehicleShop:client:exitShowroomMode')
+
+        -- 3. Forzamos el cierre de la interfaz NUI y quitamos el cursor
+        isMenuOpen = false
+        SendNUIMessage({
+            action = 'setVisible',
+            status = false
+        })
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('reserveVehicle', function(data, cb)
+    if currentShowroomDealerId then
+        TriggerServerEvent('DP-VehicleShop:server:reserveVehicle', currentShowroomDealerId, data)
+    end
+    cb('ok')
+end)
+
 -- =================================================================
--- SECCIÓN 7: HILOS DE EJECUCIÓN OPTIMIZADOS
+-- MÓDULO 13: NUI CALLBACKS - BOSS MENU
 -- =================================================================
 
+RegisterNUICallback('bossAction', function(data, cb)
+    if currentBossDealerId and data.action and data.amount then
+        local amountNum = tonumber(data.amount)
+        if amountNum and amountNum > 0 then
+            TriggerServerEvent('DP-VehicleShop:server:bossAction', currentBossDealerId, data.action, amountNum)
+        end
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('saveCategory', function(data, cb)
+    if currentBossDealerId then
+        TriggerServerEvent('DP-VehicleShop:server:saveCategory', currentBossDealerId, data)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('deleteCategory', function(data, cb)
+    if currentBossDealerId and data.id then
+        -- Le decimos al servidor qué categoría hay que eliminar pasando su ID y el ID del concesionario
+        TriggerServerEvent('DP-VehicleShop:server:deleteCategory', currentBossDealerId, data.id, data.name)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('saveJobGrade', function(data, cb)
+    if currentBossDealerId then
+        -- Pasamos los datos del rango y el ID del concesionario al servidor
+        TriggerServerEvent('DP-VehicleShop:server:saveJobGrade', currentBossDealerId, data)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('deleteJobGrade', function(data, cb)
+    if currentBossDealerId and data.grade then
+        -- Le decimos al servidor qué número de rango hay que eliminar
+        TriggerServerEvent('DP-VehicleShop:server:deleteJobGrade', currentBossDealerId, data.grade)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('orderStock', function(data, cb)
+    -- currentBossDealerId ya lo tenemos guardado en el cliente desde que abrió el menú
+    if currentBossDealerId then
+        TriggerServerEvent('DP-VehicleShop:server:orderStock', currentBossDealerId, data)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('acceptReservation', function(data, cb)
+    TriggerServerEvent('DP-VehicleShop:server:acceptReservation', data.id)
+    cb('ok')
+end)
+
+RegisterNUICallback('cancelReservation', function(data, cb)
+    TriggerServerEvent('DP-VehicleShop:server:cancelReservation', data.id)
+    cb('ok')
+end)
+
+-- =================================================================
+-- MÓDULO 14: HILOS DE EJECUCIÓN OPTIMIZADOS
+-- =================================================================
+
+-- [HILO 0: ESC MENÚ DE GESTIÓN]
 CreateThread(function()
     while true do
         Wait(0)
@@ -1211,7 +1396,7 @@ CreateThread(function()
 end)
 
 -- =================================================================
--- SECCIÓN 8: ZONAS DE INTERACCIÓN (TEXTUI Y TECLAS) - OPTIMIZADA
+-- MÓDULO 15: ZONAS DE INTERACCIÓN (TEXTUI Y TECLAS) - OPTIMIZADA
 -- =================================================================
 
 CreateThread(function()

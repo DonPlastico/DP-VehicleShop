@@ -18,13 +18,18 @@
 
     <div id="showroom-container" class="showroom-ui" style="display:none;">
         <div id="vehicle-info-panel" class="info-panel-container" style="display: none;">
-
             <div class="info-panel-main">
                 <div class="main-info-header">
                     <h2 class="panel-category-title">INFORMACIÓN</h2>
                     <div class="vehicle-header">
                         <span id="info-brand-name">MARCA</span>
-                        <span id="info-model-name">MODELO</span>
+
+                        <div class="model-class-wrapper">
+                            <span id="info-model-name">MODELO</span>
+                            <div id="info-vehicle-class" class="vehicle-class-badge class-c"
+                                title="Categoría de Rendimiento">C</div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -127,6 +132,113 @@
             </div>
         </div>
 
+        <div id="right-custom-panel" class="right-panel-container" style="display: none;">
+            <div class="right-panel-main">
+                <div class="main-info-header" style="margin-bottom: 10px;">
+                    <h2 class="panel-category-title">RENDIMIENTO</h2>
+                </div>
+
+                <div class="stats-bars-container">
+                    <div class="stat-bar-item">
+                        <div class="stat-bar-header">
+                            <div class="stat-bar-title">
+                                <iconify-icon icon="mdi:speedometer"></iconify-icon>
+                                <span>Velocidad</span>
+                            </div>
+                            <div class="stat-bar-value" id="stat-speed-val">0 / 10</div>
+                        </div>
+                        <div class="stat-progress-bg">
+                            <div class="stat-progress-fill" id="stat-speed-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-bar-item">
+                        <div class="stat-bar-header">
+                            <div class="stat-bar-title">
+                                <iconify-icon icon="mdi:rocket-launch"></iconify-icon>
+                                <span>Aceleración</span>
+                            </div>
+                            <div class="stat-bar-value" id="stat-accel-val">0 / 10</div>
+                        </div>
+                        <div class="stat-progress-bg">
+                            <div class="stat-progress-fill" id="stat-accel-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-bar-item">
+                        <div class="stat-bar-header">
+                            <div class="stat-bar-title">
+                                <iconify-icon icon="qlementine-icons:pedal-16"></iconify-icon>
+                                <span>Frenado</span>
+                            </div>
+                            <div class="stat-bar-value" id="stat-brakes-val">0 / 10</div>
+                        </div>
+                        <div class="stat-progress-bg">
+                            <div class="stat-progress-fill" id="stat-brakes-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-bar-item">
+                        <div class="stat-bar-header">
+                            <div class="stat-bar-title">
+                                <iconify-icon icon="fluent:drive-train-20-regular"></iconify-icon>
+                                <span>Conducción</span>
+                            </div>
+                            <div class="stat-bar-value" id="stat-handling-val">0 / 10</div>
+                        </div>
+                        <div class="stat-progress-bg">
+                            <div class="stat-progress-fill" id="stat-handling-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="stats-divider">
+
+                <div class="vehicle-extra-details-grid">
+                    <div class="detail-box">
+                        <iconify-icon icon="mdi:car-speed-limiter"></iconify-icon>
+                        <div class="detail-info">
+                            <span class="detail-label">VELOCIDAD MÁXIMA</span>
+                            <span class="detail-value" id="detail-max-speed">-- KM/H</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-box">
+                        <iconify-icon icon="mdi:car-seat"></iconify-icon>
+                        <div class="detail-info">
+                            <span class="detail-label">ASIENTOS</span>
+                            <span class="detail-value" id="detail-seats">--</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-box">
+                        <iconify-icon icon="mdi:timer-outline"></iconify-icon>
+                        <div class="detail-info">
+                            <span class="detail-label" id="detail-accel-label">0-100 KM/H</span>
+                            <span class="detail-value" id="detail-acceleration-time">-- s</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-box" id="detail-tuning-box">
+                        <iconify-icon icon="mdi:wrench"></iconify-icon>
+                        <div class="detail-info">
+                            <span class="detail-label">TUNING ESTÉTICO</span>
+                            <span class="detail-value" id="detail-tuning-text">NO</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-panel-secondary">
+                <div class="main-info-header" style="margin: 0;">
+                    <h2 class="panel-category-title">SECCIÓN SECUNDARIA</h2>
+                </div>
+                <div class="right-content-placeholder">
+                    <span>Contenido secundario vacío...</span>
+                </div>
+            </div>
+        </div>
+
         <div class="bottom-carousel-container">
             <div class="carousel-toolbar">
                 <div class="toolbar-box toolbar-search" id="showroom-search-box">
@@ -217,6 +329,34 @@
                 </div>
 
                 <button id="carousel-next" class="carousel-nav-btn"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </div>
+
+        <div id="preview-mode-ui" class="preview-mode-container" style="display: none;">
+            <div class="preview-top-bar">
+                <div class="preview-center">
+                    <iconify-icon icon="streamline-ultimate:hand-drag-bold"></iconify-icon>
+                    <span class="preview-hint">GIRA EL VEHÍCULO PARA UNA MEJOR VISTA
+                        <span class="highlight">360º</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="preview-bottom-bar">
+                <div class="preview-left">
+                    <button id="exit-preview-btn" class="preview-action-btn">
+                        SALIR DE VISTA PREVIA
+                    </button>
+                </div>
+
+                <div class="preview-right">
+                    <button id="cam-exterior-btn" class="preview-toggle-btn active">
+                        <iconify-icon icon="maki:car"></iconify-icon> Inspeccionar Exterior
+                    </button>
+                    <button id="cam-interior-btn" class="preview-toggle-btn">
+                        <iconify-icon icon="mingcute:seat-fill"></iconify-icon> Inspeccionar Interior
+                    </button>
+                </div>
             </div>
         </div>
     </div>

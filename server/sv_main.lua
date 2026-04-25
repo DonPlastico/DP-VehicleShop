@@ -1,5 +1,5 @@
 -- =================================================================
--- VARIABLES GLOBALES DEL SERVIDOR
+-- MÓDULO 1: VARIABLES GLOBALES DEL SERVIDOR
 -- =================================================================
 local Framework = {}
 local DealershipOwners = {} -- Caché local de dueños
@@ -18,7 +18,7 @@ function RefreshDealerCache()
 end
 
 -- =================================================================
--- SECCIÓN 1: CARGA DINÁMICA DEL FRAMEWORK
+-- MÓDULO 2: CARGA DINÁMICA DEL FRAMEWORK
 -- =================================================================
 
 if Config.Framework == 'qbcore' then
@@ -34,7 +34,7 @@ elseif Config.Framework == 'ox' then
 end
 
 -- =================================================================
--- SECCIÓN 2: INICIALIZACIÓN DE LA BASE DE DATOS
+-- MÓDULO 3: INICIALIZACIÓN DE LA BASE DE DATOS
 -- =================================================================
 
 local function InitializeDatabaseSchema()
@@ -226,7 +226,99 @@ AddEventHandler('onResourceStart', function(resourceName)
 end)
 
 -- =================================================================
--- SECCIÓN 3: FUNCIONES DE UTILIDAD
+-- INICIALIZACIÓN DE CATEGORÍAS (AUTO-CREACIÓN)
+-- =================================================================
+CreateThread(function()
+    -- 1. Crear la tabla si no existe
+    exports['oxmysql']:execute([[
+        CREATE TABLE IF NOT EXISTS dp_vehicleshop_categories (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            dealership_id VARCHAR(50),
+            category_name VARCHAR(50),
+            category_label VARCHAR(50),
+            sort_order INT
+        )
+    ]], {}, function()
+        -- 2. Listado de categorías por defecto según el concesionario
+        local defaultCategories = {
+            ['cars'] = {{
+                n = 'compacts',
+                l = 'Compactos'
+            }, {
+                n = 'coupes',
+                l = 'Coupés'
+            }, {
+                n = 'muscle',
+                l = 'Muscle Cars'
+            }, {
+                n = 'offroad',
+                l = 'Off-Road'
+            }, {
+                n = 'openwheel',
+                l = 'Fórmula'
+            }, {
+                n = 'suvs',
+                l = 'SUVs'
+            }, {
+                n = 'sedans',
+                l = 'Sedanes'
+            }, {
+                n = 'sportsclassics',
+                l = 'Deportivos Clásicos'
+            }, {
+                n = 'sports',
+                l = 'Deportivos'
+            }, {
+                n = 'super',
+                l = 'Súper'
+            }, {
+                n = 'vans',
+                l = 'Furgonetas'
+            }},
+            ['bikes'] = {{
+                n = 'cycles',
+                l = 'Bicicletas'
+            }, {
+                n = 'motorcycles',
+                l = 'Motocicletas'
+            }},
+            ['air'] = {{
+                n = 'helicopters',
+                l = 'Helicópteros'
+            }, {
+                n = 'planes',
+                l = 'Aviones'
+            }},
+            ['sea'] = {{
+                n = 'boats',
+                l = 'Barcos'
+            }},
+            ['vip'] = {{
+                n = 'luxury',
+                l = 'Exclusivos'
+            }}
+            -- El 'used' lo dejamos fuera porque como bien has dicho, no lleva categorías normales.
+        }
+
+        -- 3. Comprobar e insertar por cada concesionario
+        for dealer, cats in pairs(defaultCategories) do
+            exports['oxmysql']:scalar('SELECT COUNT(*) FROM dp_vehicleshop_categories WHERE dealership_id = ?',
+                {dealer}, function(count)
+                    if count == 0 then
+                        for i, cat in ipairs(cats) do
+                            exports['oxmysql']:execute(
+                                'INSERT INTO dp_vehicleshop_categories (dealership_id, category_name, category_label, sort_order) VALUES (?, ?, ?, ?)',
+                                {dealer, cat.n, cat.l, i})
+                        end
+                        print('^2[DP-VehicleShop]^7 Categorías generadas para el concesionario: ' .. dealer)
+                    end
+                end)
+        end
+    end)
+end)
+
+-- =================================================================
+-- MÓDULO 4: FUNCIONES DE UTILIDAD
 -- =================================================================
 
 local function HasJob(source)
@@ -259,7 +351,7 @@ local function HasJob(source)
 end
 
 -- =================================================================
--- SECCIÓN 4: CAPA DE PERSISTENCIA (Base de Datos)
+-- MÓDULO 5: CAPA DE PERSISTENCIA (BASE DE DATOS - ESCAPARATE)
 -- =================================================================
 
 local function GetShowroomVehicles(cb)
@@ -329,7 +421,375 @@ local function AddShowroomVehicle(vehicleData, src)
 end
 
 -- =================================================================
--- SECCIÓN 5: EVENTOS DE RED
+-- MÓDULO 6: FUNCIONES AUXILIARES DE REFRESCO (BOSS MENU)
+-- =================================================================
+
+-- Función auxiliar para refrescar el menú en vivo
+local function RefreshBossData(dealerId, src)
+    exports['oxmysql']:execute('SELECT balance FROM dp_vehicleshop_dealerships WHERE dealership_id = ?', {dealerId},
+        function(balResult)
+            local balance = balResult[1] and balResult[1].balance or 0
+
+            -- 1. Obtenemos los Logs (Ingresos/Retiros)
+            exports['oxmysql']:execute(
+                "SELECT actor_name, action_type, details, DATE_FORMAT(timestamp, '%d-%m-%Y | %H:%i') as date FROM dp_vehicleshop_logs WHERE dealership_id = ? AND action_type IN ('DEPOSITO', 'RETIRO', 'VENTA_VEHICULO') ORDER BY timestamp DESC LIMIT 20",
+                {dealerId}, function(logsResult)
+                    local formattedLogs = {}
+                    for _, log in ipairs(logsResult) do
+                        local detailsObj = json.decode(log.details) or {}
+                        table.insert(formattedLogs, {
+                            employee = log.actor_name,
+                            action = log.action_type,
+                            rank = detailsObj.rank or "Sistema",
+                            amount = detailsObj.amount or detailsObj.price or 0,
+                            date = log.date,
+                            model = detailsObj.model or detailsObj.vehicle_name or "N/A"
+                        })
+                    end
+
+                    -- 2. Obtenemos las últimas Ventas Reales
+                    exports['oxmysql']:execute(
+                        "SELECT customer_name as buyer, vehicle_name as modelLabel, vehicle_model as modelId, price, DATE_FORMAT(timestamp, '%d-%m-%Y | %H:%i') as date FROM dp_vehicleshop_sales WHERE dealership_id = ? ORDER BY timestamp DESC LIMIT 15",
+                        {dealerId}, function(salesResult)
+                            -- Enviamos todo al cliente (Boss Menu)
+                            TriggerClientEvent('DP-VehicleShop:client:updateBossData', src, balance, formattedLogs,
+                                salesResult)
+                        end)
+                end)
+        end)
+end
+
+-- Función auxiliar para cargar y enviar las reservas al menú del Jefe
+local function RefreshReservationsForBoss(dealerId, src)
+    exports['oxmysql']:execute(
+        'SELECT * FROM dp_vehicleshop_reservations WHERE dealership_id = ? ORDER BY created_at ASC', {dealerId},
+        function(results)
+            -- Si no hay resultados, oxmysql devuelve un array vacío, lo cual está bien para el JS
+            TriggerClientEvent('DP-VehicleShop:client:updateReservations', src, results)
+        end)
+end
+
+-- Función interna para refrescar y enviar las categorías al instante
+local function RefreshCategoriesForBoss(dealerId, src)
+    exports['oxmysql']:execute(
+        'SELECT * FROM dp_vehicleshop_categories WHERE dealership_id = ? ORDER BY sort_order ASC', {dealerId},
+        function(catResult)
+            local cats = {}
+            for _, v in ipairs(catResult) do
+                table.insert(cats, {
+                    id = v.id,
+                    name = v.category_name,
+                    label = v.category_label,
+                    order = v.sort_order
+                })
+            end
+            -- Le enviamos las categorías nuevas de vuelta al cliente
+            TriggerClientEvent('DP-VehicleShop:client:refreshCategories', src, cats)
+        end)
+end
+
+-- Función interna para refrescar los rangos al instante en el UI del Jefe
+local function RefreshJobGradesForBoss(dealerId, src)
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig then
+        return
+    end
+
+    local jobGrades = {}
+    if Config.Framework == 'qbcore' then
+        local jobName = dealerConfig.job
+        local sharedJob = Framework.Core.Shared.Jobs[jobName]
+        if sharedJob and sharedJob.grades then
+            for gradeLevel, gradeData in pairs(sharedJob.grades) do
+                table.insert(jobGrades, {
+                    grade = tonumber(gradeLevel),
+                    name = gradeData.name,
+                    payment = gradeData.payment or 0,
+                    isboss = gradeData.isboss or false,
+                    permissions = gradeData.permissions or {}
+                })
+            end
+            table.sort(jobGrades, function(a, b)
+                return a.grade < b.grade
+            end)
+        end
+    end
+    -- Le enviamos las categorías nuevas de vuelta al cliente
+    TriggerClientEvent('DP-VehicleShop:client:refreshJobGrades', src, jobGrades)
+end
+
+-- =================================================================
+-- MÓDULO 7: GUARDADO DE ARCHIVOS (JOBS.LUA Y VEHICLES.LUA)
+-- =================================================================
+
+-- =================================================================
+-- GUARDADO DE JOBS.LUA (A TRAVÉS DE EXPORT A QB-CORE)
+-- =================================================================
+local function SaveJobsToFile()
+    if Config.Framework ~= 'qbcore' then
+        return
+    end
+
+    local jobs = Framework.Core.Shared.Jobs
+
+    -- Función recursiva para formatear la tabla a texto
+    local function serialize(tbl, indent)
+        local result = ""
+        local formatting = string.rep("    ", indent)
+        local isFirst = true
+
+        local keys = {}
+        for k in pairs(tbl) do
+            table.insert(keys, k)
+        end
+        table.sort(keys, function(a, b)
+            local numA = tonumber(a)
+            local numB = tonumber(b)
+            if numA and numB then
+                return numA < numB
+            end
+            return tostring(a) < tostring(b)
+        end)
+
+        for _, k in ipairs(keys) do
+            local v = tbl[k]
+            if type(v) ~= "function" and type(v) ~= "userdata" then
+                if not isFirst then
+                    result = result .. ",\n"
+                else
+                    isFirst = false
+                end
+
+                local keyStr = ""
+                if type(k) == "number" then
+                    keyStr = "[" .. k .. "]"
+                elseif type(k) == "string" and string.match(k, "^%a[%w_]*$") then
+                    keyStr = k
+                else
+                    keyStr = "['" .. tostring(k) .. "']"
+                end
+
+                if type(v) == "table" then
+                    result = result .. formatting .. keyStr .. " = {\n" .. serialize(v, indent + 1) .. "\n" ..
+                                 formatting .. "}"
+                elseif type(v) == "string" then
+                    local safeStr = string.gsub(v, "'", "\\'")
+                    result = result .. formatting .. keyStr .. " = '" .. safeStr .. "'"
+                elseif type(v) == "boolean" then
+                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
+                else
+                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
+                end
+            end
+        end
+        return result
+    end
+
+    local success, serializedData = pcall(serialize, jobs, 1)
+    if not success then
+        return
+    end
+
+    -- ¡LA MAGIA! Le pasamos los datos formateados a qb-core para que él mismo guarde
+    local saved = exports['qb-core']:SaveJobsFile(serializedData)
+
+    if saved then
+        print(
+            "^2[DP-VehicleShop] ÉXITO TOTAL: El archivo jobs.lua original de qb-core se ha modificado automáticamente.^7")
+    else
+        print("^1[DP-VehicleShop] ERROR: Falla al comunicar con el export de qb-core.^7")
+    end
+
+    TriggerClientEvent('QBCore:Client:UpdateObject', -1)
+end
+
+-- =================================================================
+-- GUARDADO DE VEHICLES.LUA (A TRAVÉS DE EXPORT A QB-CORE)
+-- =================================================================
+local function SaveVehiclesToFile()
+    if Config.Framework ~= 'qbcore' then
+        return
+    end
+
+    local vehicles = Framework.Core.Shared.Vehicles
+
+    -- Función recursiva para formatear la tabla a texto Lua legible
+    local function serialize(tbl, indent)
+        local result = ""
+        local formatting = string.rep("    ", indent)
+        local isFirst = true
+
+        local keys = {}
+        for k in pairs(tbl) do
+            table.insert(keys, k)
+        end
+        table.sort(keys, function(a, b)
+            local numA = tonumber(a)
+            local numB = tonumber(b)
+            if numA and numB then
+                return numA < numB
+            end
+            return tostring(a) < tostring(b)
+        end)
+
+        for _, k in ipairs(keys) do
+            local v = tbl[k]
+            if type(v) ~= "function" and type(v) ~= "userdata" then
+                if not isFirst then
+                    result = result .. ",\n"
+                else
+                    isFirst = false
+                end
+
+                local keyStr = ""
+                if type(k) == "number" then
+                    keyStr = "[" .. k .. "]"
+                elseif type(k) == "string" and string.match(k, "^%a[%w_]*$") then
+                    keyStr = k
+                else
+                    keyStr = "['" .. tostring(k) .. "']"
+                end
+
+                if type(v) == "table" then
+                    result = result .. formatting .. keyStr .. " = {\n" .. serialize(v, indent + 1) .. "\n" ..
+                                 formatting .. "}"
+                elseif type(v) == "string" then
+                    local safeStr = string.gsub(v, "'", "\\'")
+                    result = result .. formatting .. keyStr .. " = '" .. safeStr .. "'"
+                elseif type(v) == "boolean" then
+                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
+                else
+                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
+                end
+            end
+        end
+        return result
+    end
+
+    local success, serializedData = pcall(serialize, vehicles, 1)
+    if not success then
+        return
+    end
+
+    -- Mandamos los datos al export de qb-core que acabamos de crear
+    local saved = exports['qb-core']:SaveVehiclesFile(serializedData)
+
+    if saved then
+        print("^2[DP-VehicleShop] ÉXITO TOTAL: El archivo vehicles.lua de qb-core se ha guardado y actualizado.^7")
+    else
+        print("^1[DP-VehicleShop] ERROR: Falla al comunicar con el export de vehicles de qb-core.^7")
+    end
+
+    -- Sincronizamos la memoria RAM de todos los jugadores
+    TriggerClientEvent('QBCore:Client:UpdateObject', -1)
+end
+
+-- =================================================================
+-- MÓDULO 8: COMANDOS
+-- =================================================================
+
+-- COMANDO PARA ABRIR EL MENÚ DE GESTIÓN DEL ESCAPARATE (RESTRINGIDO A TRABAJO)
+RegisterCommand(Config.PDM, function(source, args, rawCommand)
+    local src = source
+    -- El comando SÍ se mantiene restringido, solo el menú de gestión.
+    if HasJob(src) then
+        TriggerClientEvent('DP-VehicleShop:client:openMenu', src)
+    else
+        if Config.NotifyOnDeny then
+            TriggerClientEvent('QBCore:Notify', src, _L('no_permission'), 'error', 5000)
+        end
+    end
+end)
+
+-- COMANDO DE ADMINISTRACIÓN PARA GENERAR EL ARCHIVO SQL CON EL STOCK INICIAL DE VEHÍCULOS (MAPEO DIRECTO)
+RegisterCommand(Config.VehicleList, function(source, args, rawCommand)
+    local src = source
+    local vehicles = nil
+
+    -- Obtenemos los vehículos (Compatible con QBCore)
+    if Config.Framework == 'qbcore' then
+        vehicles = Framework.Core.Shared.Vehicles
+    end
+
+    if not vehicles then
+        print('^1[DP-VehicleShop] Error: No se encontró la tabla de vehículos.^7')
+        return
+    end
+
+    -- DICCIONARIO DE CATEGORÍAS (Mapeo directo a Concesionarios)
+    local dealerMapping = {
+        -- Coches (Premium Deluxe Motorsport)
+        ['compacts'] = 'cars',
+        ['coupes'] = 'cars',
+        ['muscle'] = 'cars',
+        ['offroad'] = 'cars',
+        ['openwheel'] = 'cars',
+        ['suvs'] = 'cars',
+        ['sedans'] = 'cars',
+        ['sportsclassics'] = 'cars',
+        ['sports'] = 'cars',
+        ['super'] = 'cars',
+        ['vans'] = 'cars',
+
+        -- Motos (Sanders Motorcycles)
+        ['cycles'] = 'bikes',
+        ['motorcycles'] = 'bikes',
+
+        -- Aéreos (Los Santos Flight Sales)
+        ['helicopters'] = 'air',
+        ['planes'] = 'air',
+
+        -- Marítimos (Nautical Showroom)
+        ['boats'] = 'sea',
+
+        -- VIP (Luxury Autos)
+        ['luxury'] = 'vip'
+    }
+
+    local sqlContent = "-- =================================================================\n"
+    sqlContent = sqlContent .. "-- ARCHIVO GENERADO AUTOMÁTICAMENTE: PRIMER STOCK (MAPEO EXACTO)\n"
+    sqlContent = sqlContent .. "-- =================================================================\n\n"
+
+    local count = 0
+
+    -- Recorremos todos los vehículos
+    for model, v in pairs(vehicles) do
+        local category = v.category and string.lower(v.category) or 'sin_categoria'
+
+        -- Buscamos a qué concesionario pertenece esta categoría
+        local dealerId = dealerMapping[category]
+
+        -- Si la categoría tiene un concesionario asignado, generamos la línea SQL
+        if dealerId then
+            local finalCategory = v.category or 'sin_categoria'
+            sqlContent = sqlContent .. string.format(
+                "INSERT IGNORE INTO `dp_vehicleshop_stock` (`dealership_id`, `vehicle_model`, `stock_count`, `category_name`) VALUES ('%s', '%s', 1000, '%s');\n",
+                dealerId, model, finalCategory)
+            count = count + 1
+        end
+    end
+
+    -- Guardar el archivo
+    local resourcePath = GetResourcePath(GetCurrentResourceName())
+    local file = io.open(resourcePath .. '/primer_stock.sql', 'w')
+
+    if file then
+        file:write(sqlContent)
+        file:close()
+        if src ~= 0 then
+            TriggerClientEvent('QBCore:Notify', src,
+                '¡ÉXITO! Archivo generado con ' .. count .. ' vehículos mapeados.', 'success', 8000)
+        end
+        print('^2[DP-VehicleShop]^7 Archivo primer_stock.sql generado (' .. count .. ' vehículos mapeados).')
+    else
+        if src ~= 0 then
+            TriggerClientEvent('QBCore:Notify', src, 'Error: No se pudo crear el archivo.', 'error')
+        end
+    end
+end, true) -- El 'true' al final restringe el comando a administradores mediante el sistema ACE nativo de FiveM
+
+-- =================================================================
+-- MÓDULO 9: EVENTOS DE RED - ESCAPARATE (GESTIÓN INTERNA)
 -- =================================================================
 
 RegisterNetEvent('DP-VehicleShop:server:getVehicles')
@@ -410,50 +870,9 @@ AddEventHandler('DP-VehicleShop:server:deleteVehicle', function(vehicleId)
         end)
 end)
 
--- Función auxiliar para refrescar el menú en vivo
-local function RefreshBossData(dealerId, src)
-    exports['oxmysql']:execute('SELECT balance FROM dp_vehicleshop_dealerships WHERE dealership_id = ?', {dealerId},
-        function(balResult)
-            local balance = balResult[1] and balResult[1].balance or 0
-
-            -- 1. Obtenemos los Logs (Ingresos/Retiros)
-            exports['oxmysql']:execute(
-                "SELECT actor_name, action_type, details, DATE_FORMAT(timestamp, '%d-%m-%Y | %H:%i') as date FROM dp_vehicleshop_logs WHERE dealership_id = ? AND action_type IN ('DEPOSITO', 'RETIRO', 'VENTA_VEHICULO') ORDER BY timestamp DESC LIMIT 20",
-                {dealerId}, function(logsResult)
-                    local formattedLogs = {}
-                    for _, log in ipairs(logsResult) do
-                        local detailsObj = json.decode(log.details) or {}
-                        table.insert(formattedLogs, {
-                            employee = log.actor_name,
-                            action = log.action_type,
-                            rank = detailsObj.rank or "Sistema",
-                            amount = detailsObj.amount or detailsObj.price or 0,
-                            date = log.date,
-                            model = detailsObj.model or detailsObj.vehicle_name or "N/A"
-                        })
-                    end
-
-                    -- 2. Obtenemos las últimas Ventas Reales
-                    exports['oxmysql']:execute(
-                        "SELECT customer_name as buyer, vehicle_name as modelLabel, vehicle_model as modelId, price, DATE_FORMAT(timestamp, '%d-%m-%Y | %H:%i') as date FROM dp_vehicleshop_sales WHERE dealership_id = ? ORDER BY timestamp DESC LIMIT 15",
-                        {dealerId}, function(salesResult)
-                            -- Enviamos todo al cliente (Boss Menu)
-                            TriggerClientEvent('DP-VehicleShop:client:updateBossData', src, balance, formattedLogs,
-                                salesResult)
-                        end)
-                end)
-        end)
-end
-
--- Función auxiliar para cargar y enviar las reservas al menú del Jefe
-local function RefreshReservationsForBoss(dealerId, src)
-    exports['oxmysql']:execute(
-        'SELECT * FROM dp_vehicleshop_reservations WHERE dealership_id = ? ORDER BY created_at ASC', {dealerId},
-        function(results)
-            -- Si no hay resultados, oxmysql devuelve un array vacío, lo cual está bien para el JS
-            TriggerClientEvent('DP-VehicleShop:client:updateReservations', src, results)
-        end)
-end
+-- =================================================================
+-- MÓDULO 10: EVENTOS DE RED - BOSS MENU
+-- =================================================================
 
 -- =================================================================
 -- SOLICITUD DEL MENÚ DE JEFE
@@ -616,6 +1035,118 @@ AddEventHandler('DP-VehicleShop:server:requestBossMenu', function(dealerId)
     end
 end)
 
+-- Evento que recibe la orden de Depositar o Retirar desde JS
+RegisterNetEvent('DP-VehicleShop:server:bossAction', function(dealerId, action, amount)
+    local src = source
+    local Player = Framework.Core.Functions.GetPlayer(src)
+    if not Player then
+        return
+    end
+
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig then
+        return
+    end
+
+    -- Seguridad Extra: Comprobamos que el jugador tenga el trabajo correcto para ESTE concesionario
+    if Player.PlayerData.job.name ~= dealerConfig.job or not Player.PlayerData.job.isboss then
+        TriggerClientEvent('QBCore:Notify', src, 'No tienes permisos de administración en esta empresa.', 'error')
+        return
+    end
+
+    local amountNum = math.floor(tonumber(amount) or 0)
+    if amountNum <= 0 then
+        return
+    end
+
+    local employeeName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
+    local rankName = Player.PlayerData.job.grade.name or "Gerente"
+
+    if action == 'deposit' then
+        if Player.PlayerData.money['bank'] >= amountNum then
+            Player.Functions.RemoveMoney('bank', amountNum, "Deposito en empresa: " .. dealerId)
+
+            exports['oxmysql']:execute(
+                'UPDATE dp_vehicleshop_dealerships SET balance = balance + ? WHERE dealership_id = ?',
+                {amountNum, dealerId}, function()
+
+                    local logDetails = json.encode({
+                        amount = amountNum,
+                        rank = rankName
+                    })
+                    exports['oxmysql']:execute(
+                        'INSERT INTO dp_vehicleshop_logs (dealership_id, action_type, actor_citizenid, actor_name, details) VALUES (?, ?, ?, ?, ?)',
+                        {dealerId, 'DEPOSITO', Player.PlayerData.citizenid, employeeName, logDetails}, function()
+                            RefreshBossData(dealerId, src)
+                            TriggerClientEvent('QBCore:Notify', src,
+                                'Has depositado $' .. amountNum .. ' en la cuenta de la empresa.', 'success')
+                        end)
+                end)
+        else
+            TriggerClientEvent('QBCore:Notify', src, 'No tienes suficientes fondos en tu banco personal.', 'error')
+        end
+
+    elseif action == 'withdraw' then
+        exports['oxmysql']:query('SELECT balance FROM dp_vehicleshop_dealerships WHERE dealership_id = ?', {dealerId},
+            function(result)
+                local currentBalance = 0
+                if result and result[1] and result[1].balance then
+                    currentBalance = tonumber(result[1].balance)
+                end
+
+                if currentBalance >= amountNum then
+                    exports['oxmysql']:execute(
+                        'UPDATE dp_vehicleshop_dealerships SET balance = balance - ? WHERE dealership_id = ?',
+                        {amountNum, dealerId}, function()
+                            Player.Functions.AddMoney('bank', amountNum, "Retiro de empresa: " .. dealerId)
+
+                            local logDetails = json.encode({
+                                amount = amountNum,
+                                rank = rankName
+                            })
+                            exports['oxmysql']:execute(
+                                'INSERT INTO dp_vehicleshop_logs (dealership_id, action_type, actor_citizenid, actor_name, details) VALUES (?, ?, ?, ?, ?)',
+                                {dealerId, 'RETIRO', Player.PlayerData.citizenid, employeeName, logDetails}, function()
+                                    RefreshBossData(dealerId, src)
+                                    TriggerClientEvent('QBCore:Notify', src,
+                                        'Has retirado $' .. amountNum .. ' a tu cuenta bancaria.', 'success')
+                                end)
+                        end)
+                else
+                    TriggerClientEvent('QBCore:Notify', src, 'La empresa no dispone de tantos fondos para retirar.',
+                        'error')
+                end
+            end)
+    end
+end)
+
+RegisterNetEvent('DP-VehicleShop:server:buyDealership', function(dealerId)
+    local src = source
+    local Player = Framework.Core.Functions.GetPlayer(src)
+    local price = Config.DefaultDealershipPrice
+
+    if Player.PlayerData.money['bank'] >= price then
+        Player.Functions.RemoveMoney('bank', price, "Compra de Concesionario: " .. dealerId)
+
+        -- Insertar o actualizar en DB
+        exports['oxmysql']:execute(
+            'INSERT INTO dp_vehicleshop_dealerships (dealership_id, owner_citizenid, owner_name, balance) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner_citizenid = ?, owner_name = ?',
+            {dealerId, Player.PlayerData.citizenid,
+             Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname, 0,
+             Player.PlayerData.citizenid,
+             Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname}, function()
+                RefreshDealerCache()
+                TriggerClientEvent('QBCore:Notify', src, '¡Felicidades! Ahora eres dueño de ' .. dealerId, 'success')
+            end)
+    else
+        TriggerClientEvent('QBCore:Notify', src, 'No tienes suficiente dinero en el banco.', 'error')
+    end
+end)
+
+-- =================================================================
+-- MÓDULO 11: EVENTOS DE RED - SHOWROOM (CATÁLOGO DE CLIENTES)
+-- =================================================================
+
 -- =================================================================
 -- SOLICITUD DEL SHOWROOM (CATÁLOGO DE CLIENTES)
 -- =================================================================
@@ -772,312 +1303,12 @@ RegisterNetEvent('DP-VehicleShop:server:fetchCategories', function(dealerId)
         end)
 end)
 
--- Evento que recibe la orden de Depositar o Retirar desde JS
-RegisterNetEvent('DP-VehicleShop:server:bossAction', function(dealerId, action, amount)
-    local src = source
-    local Player = Framework.Core.Functions.GetPlayer(src)
-    if not Player then
-        return
-    end
-
-    local dealerConfig = Config.Dealerships[dealerId]
-    if not dealerConfig then
-        return
-    end
-
-    -- Seguridad Extra: Comprobamos que el jugador tenga el trabajo correcto para ESTE concesionario
-    if Player.PlayerData.job.name ~= dealerConfig.job or not Player.PlayerData.job.isboss then
-        TriggerClientEvent('QBCore:Notify', src, 'No tienes permisos de administración en esta empresa.', 'error')
-        return
-    end
-
-    local amountNum = math.floor(tonumber(amount) or 0)
-    if amountNum <= 0 then
-        return
-    end
-
-    local employeeName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
-    local rankName = Player.PlayerData.job.grade.name or "Gerente"
-
-    if action == 'deposit' then
-        if Player.PlayerData.money['bank'] >= amountNum then
-            Player.Functions.RemoveMoney('bank', amountNum, "Deposito en empresa: " .. dealerId)
-
-            exports['oxmysql']:execute(
-                'UPDATE dp_vehicleshop_dealerships SET balance = balance + ? WHERE dealership_id = ?',
-                {amountNum, dealerId}, function()
-
-                    local logDetails = json.encode({
-                        amount = amountNum,
-                        rank = rankName
-                    })
-                    exports['oxmysql']:execute(
-                        'INSERT INTO dp_vehicleshop_logs (dealership_id, action_type, actor_citizenid, actor_name, details) VALUES (?, ?, ?, ?, ?)',
-                        {dealerId, 'DEPOSITO', Player.PlayerData.citizenid, employeeName, logDetails}, function()
-                            RefreshBossData(dealerId, src)
-                            TriggerClientEvent('QBCore:Notify', src,
-                                'Has depositado $' .. amountNum .. ' en la cuenta de la empresa.', 'success')
-                        end)
-                end)
-        else
-            TriggerClientEvent('QBCore:Notify', src, 'No tienes suficientes fondos en tu banco personal.', 'error')
-        end
-
-    elseif action == 'withdraw' then
-        exports['oxmysql']:query('SELECT balance FROM dp_vehicleshop_dealerships WHERE dealership_id = ?', {dealerId},
-            function(result)
-                local currentBalance = 0
-                if result and result[1] and result[1].balance then
-                    currentBalance = tonumber(result[1].balance)
-                end
-
-                if currentBalance >= amountNum then
-                    exports['oxmysql']:execute(
-                        'UPDATE dp_vehicleshop_dealerships SET balance = balance - ? WHERE dealership_id = ?',
-                        {amountNum, dealerId}, function()
-                            Player.Functions.AddMoney('bank', amountNum, "Retiro de empresa: " .. dealerId)
-
-                            local logDetails = json.encode({
-                                amount = amountNum,
-                                rank = rankName
-                            })
-                            exports['oxmysql']:execute(
-                                'INSERT INTO dp_vehicleshop_logs (dealership_id, action_type, actor_citizenid, actor_name, details) VALUES (?, ?, ?, ?, ?)',
-                                {dealerId, 'RETIRO', Player.PlayerData.citizenid, employeeName, logDetails}, function()
-                                    RefreshBossData(dealerId, src)
-                                    TriggerClientEvent('QBCore:Notify', src,
-                                        'Has retirado $' .. amountNum .. ' a tu cuenta bancaria.', 'success')
-                                end)
-                        end)
-                else
-                    TriggerClientEvent('QBCore:Notify', src, 'La empresa no dispone de tantos fondos para retirar.',
-                        'error')
-                end
-            end)
-    end
-end)
-
-RegisterNetEvent('DP-VehicleShop:server:buyDealership', function(dealerId)
-    local src = source
-    local Player = Framework.Core.Functions.GetPlayer(src)
-    local price = Config.DefaultDealershipPrice
-
-    if Player.PlayerData.money['bank'] >= price then
-        Player.Functions.RemoveMoney('bank', price, "Compra de Concesionario: " .. dealerId)
-
-        -- Insertar o actualizar en DB
-        exports['oxmysql']:execute(
-            'INSERT INTO dp_vehicleshop_dealerships (dealership_id, owner_citizenid, owner_name, balance) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner_citizenid = ?, owner_name = ?',
-            {dealerId, Player.PlayerData.citizenid,
-             Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname, 0,
-             Player.PlayerData.citizenid,
-             Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname}, function()
-                RefreshDealerCache()
-                TriggerClientEvent('QBCore:Notify', src, '¡Felicidades! Ahora eres dueño de ' .. dealerId, 'success')
-            end)
-    else
-        TriggerClientEvent('QBCore:Notify', src, 'No tienes suficiente dinero en el banco.', 'error')
-    end
-end)
-
 -- =================================================================
--- SECCIÓN 6: COMANDOS
+-- MÓDULO 12: EVENTOS DE RED - CATEGORÍAS (CRUD)
 -- =================================================================
-
--- COMANDO PARA ABRIR EL MENÚ DE GESTIÓN DEL ESCAPARATE (RESTRINGIDO A TRABAJO)
-RegisterCommand(Config.PDM, function(source, args, rawCommand)
-    local src = source
-    -- El comando SÍ se mantiene restringido, solo el menú de gestión.
-    if HasJob(src) then
-        TriggerClientEvent('DP-VehicleShop:client:openMenu', src)
-    else
-        if Config.NotifyOnDeny then
-            TriggerClientEvent('QBCore:Notify', src, _L('no_permission'), 'error', 5000)
-        end
-    end
-end)
-
--- COMANDO DE ADMINISTRACIÓN PARA GENERAR EL ARCHIVO SQL CON EL STOCK INICIAL DE VEHÍCULOS (MAPEO DIRECTO)
-RegisterCommand(Config.VehicleList, function(source, args, rawCommand)
-    local src = source
-    local vehicles = nil
-
-    -- Obtenemos los vehículos (Compatible con QBCore)
-    if Config.Framework == 'qbcore' then
-        vehicles = Framework.Core.Shared.Vehicles
-    end
-
-    if not vehicles then
-        print('^1[DP-VehicleShop] Error: No se encontró la tabla de vehículos.^7')
-        return
-    end
-
-    -- DICCIONARIO DE CATEGORÍAS (Mapeo directo a Concesionarios)
-    local dealerMapping = {
-        -- Coches (Premium Deluxe Motorsport)
-        ['compacts'] = 'cars',
-        ['coupes'] = 'cars',
-        ['muscle'] = 'cars',
-        ['offroad'] = 'cars',
-        ['openwheel'] = 'cars',
-        ['suvs'] = 'cars',
-        ['sedans'] = 'cars',
-        ['sportsclassics'] = 'cars',
-        ['sports'] = 'cars',
-        ['super'] = 'cars',
-        ['vans'] = 'cars',
-
-        -- Motos (Sanders Motorcycles)
-        ['cycles'] = 'bikes',
-        ['motorcycles'] = 'bikes',
-
-        -- Aéreos (Los Santos Flight Sales)
-        ['helicopters'] = 'air',
-        ['planes'] = 'air',
-
-        -- Marítimos (Nautical Showroom)
-        ['boats'] = 'sea',
-
-        -- VIP (Luxury Autos)
-        ['luxury'] = 'vip'
-    }
-
-    local sqlContent = "-- =================================================================\n"
-    sqlContent = sqlContent .. "-- ARCHIVO GENERADO AUTOMÁTICAMENTE: PRIMER STOCK (MAPEO EXACTO)\n"
-    sqlContent = sqlContent .. "-- =================================================================\n\n"
-
-    local count = 0
-
-    -- Recorremos todos los vehículos
-    for model, v in pairs(vehicles) do
-        local category = v.category and string.lower(v.category) or 'sin_categoria'
-
-        -- Buscamos a qué concesionario pertenece esta categoría
-        local dealerId = dealerMapping[category]
-
-        -- Si la categoría tiene un concesionario asignado, generamos la línea SQL
-        if dealerId then
-            local finalCategory = v.category or 'sin_categoria'
-            sqlContent = sqlContent .. string.format(
-                "INSERT IGNORE INTO `dp_vehicleshop_stock` (`dealership_id`, `vehicle_model`, `stock_count`, `category_name`) VALUES ('%s', '%s', 1000, '%s');\n",
-                dealerId, model, finalCategory)
-            count = count + 1
-        end
-    end
-
-    -- Guardar el archivo
-    local resourcePath = GetResourcePath(GetCurrentResourceName())
-    local file = io.open(resourcePath .. '/primer_stock.sql', 'w')
-
-    if file then
-        file:write(sqlContent)
-        file:close()
-        if src ~= 0 then
-            TriggerClientEvent('QBCore:Notify', src,
-                '¡ÉXITO! Archivo generado con ' .. count .. ' vehículos mapeados.', 'success', 8000)
-        end
-        print('^2[DP-VehicleShop]^7 Archivo primer_stock.sql generado (' .. count .. ' vehículos mapeados).')
-    else
-        if src ~= 0 then
-            TriggerClientEvent('QBCore:Notify', src, 'Error: No se pudo crear el archivo.', 'error')
-        end
-    end
-end, true) -- El 'true' al final restringe el comando a administradores mediante el sistema ACE nativo de FiveM
-
--- =================================================================
--- INICIALIZACIÓN DE CATEGORÍAS (AUTO-CREACIÓN)
--- =================================================================
-CreateThread(function()
-    -- 1. Crear la tabla si no existe
-    exports['oxmysql']:execute([[
-        CREATE TABLE IF NOT EXISTS dp_vehicleshop_categories (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            dealership_id VARCHAR(50),
-            category_name VARCHAR(50),
-            category_label VARCHAR(50),
-            sort_order INT
-        )
-    ]], {}, function()
-        -- 2. Listado de categorías por defecto según el concesionario
-        local defaultCategories = {
-            ['cars'] = {{
-                n = 'compacts',
-                l = 'Compactos'
-            }, {
-                n = 'coupes',
-                l = 'Coupés'
-            }, {
-                n = 'muscle',
-                l = 'Muscle Cars'
-            }, {
-                n = 'offroad',
-                l = 'Off-Road'
-            }, {
-                n = 'openwheel',
-                l = 'Fórmula'
-            }, {
-                n = 'suvs',
-                l = 'SUVs'
-            }, {
-                n = 'sedans',
-                l = 'Sedanes'
-            }, {
-                n = 'sportsclassics',
-                l = 'Deportivos Clásicos'
-            }, {
-                n = 'sports',
-                l = 'Deportivos'
-            }, {
-                n = 'super',
-                l = 'Súper'
-            }, {
-                n = 'vans',
-                l = 'Furgonetas'
-            }},
-            ['bikes'] = {{
-                n = 'cycles',
-                l = 'Bicicletas'
-            }, {
-                n = 'motorcycles',
-                l = 'Motocicletas'
-            }},
-            ['air'] = {{
-                n = 'helicopters',
-                l = 'Helicópteros'
-            }, {
-                n = 'planes',
-                l = 'Aviones'
-            }},
-            ['sea'] = {{
-                n = 'boats',
-                l = 'Barcos'
-            }},
-            ['vip'] = {{
-                n = 'luxury',
-                l = 'Exclusivos'
-            }}
-            -- El 'used' lo dejamos fuera porque como bien has dicho, no lleva categorías normales.
-        }
-
-        -- 3. Comprobar e insertar por cada concesionario
-        for dealer, cats in pairs(defaultCategories) do
-            exports['oxmysql']:scalar('SELECT COUNT(*) FROM dp_vehicleshop_categories WHERE dealership_id = ?',
-                {dealer}, function(count)
-                    if count == 0 then
-                        for i, cat in ipairs(cats) do
-                            exports['oxmysql']:execute(
-                                'INSERT INTO dp_vehicleshop_categories (dealership_id, category_name, category_label, sort_order) VALUES (?, ?, ?, ?)',
-                                {dealer, cat.n, cat.l, i})
-                        end
-                        print('^2[DP-VehicleShop]^7 Categorías generadas para el concesionario: ' .. dealer)
-                    end
-                end)
-        end
-    end)
-end)
 
 -- Envía las categorías específicas de un concesionario a quien las pida
-Framework.Core.Functions.CreateCallback('DP-VehicleShop:server:getCategories', function(source, cb, dealerId)
+QBCore.Functions.CreateCallback('DP-VehicleShop:server:getCategories', function(source, cb, dealerId)
     exports['oxmysql']:execute(
         'SELECT * FROM dp_vehicleshop_categories WHERE dealership_id = ? ORDER BY sort_order ASC', {dealerId},
         function(result)
@@ -1093,29 +1324,6 @@ Framework.Core.Functions.CreateCallback('DP-VehicleShop:server:getCategories', f
             cb(cats)
         end)
 end)
-
--- =================================================================
--- CRUD CATEGORÍAS (CREAR, EDITAR, ELIMINAR)
--- =================================================================
-
--- Función interna para refrescar y enviar las categorías al instante
-local function RefreshCategoriesForBoss(dealerId, src)
-    exports['oxmysql']:execute(
-        'SELECT * FROM dp_vehicleshop_categories WHERE dealership_id = ? ORDER BY sort_order ASC', {dealerId},
-        function(catResult)
-            local cats = {}
-            for _, v in ipairs(catResult) do
-                table.insert(cats, {
-                    id = v.id,
-                    name = v.category_name,
-                    label = v.category_label,
-                    order = v.sort_order
-                })
-            end
-            -- Le enviamos las categorías nuevas de vuelta al cliente
-            TriggerClientEvent('DP-VehicleShop:client:refreshCategories', src, cats)
-        end)
-end
 
 -- Evento de Guardar/Editar
 RegisterNetEvent('DP-VehicleShop:server:saveCategory', function(dealerId, data)
@@ -1170,199 +1378,7 @@ RegisterNetEvent('DP-VehicleShop:server:deleteCategory', function(dealerId, catI
 end)
 
 -- =================================================================
--- GUARDADO DE JOBS.LUA (A TRAVÉS DE EXPORT A QB-CORE)
--- =================================================================
-local function SaveJobsToFile()
-    if Config.Framework ~= 'qbcore' then
-        return
-    end
-
-    local jobs = Framework.Core.Shared.Jobs
-
-    -- Función recursiva para formatear la tabla a texto
-    local function serialize(tbl, indent)
-        local result = ""
-        local formatting = string.rep("    ", indent)
-        local isFirst = true
-
-        local keys = {}
-        for k in pairs(tbl) do
-            table.insert(keys, k)
-        end
-        table.sort(keys, function(a, b)
-            local numA = tonumber(a)
-            local numB = tonumber(b)
-            if numA and numB then
-                return numA < numB
-            end
-            return tostring(a) < tostring(b)
-        end)
-
-        for _, k in ipairs(keys) do
-            local v = tbl[k]
-            if type(v) ~= "function" and type(v) ~= "userdata" then
-                if not isFirst then
-                    result = result .. ",\n"
-                else
-                    isFirst = false
-                end
-
-                local keyStr = ""
-                if type(k) == "number" then
-                    keyStr = "[" .. k .. "]"
-                elseif type(k) == "string" and string.match(k, "^%a[%w_]*$") then
-                    keyStr = k
-                else
-                    keyStr = "['" .. tostring(k) .. "']"
-                end
-
-                if type(v) == "table" then
-                    result = result .. formatting .. keyStr .. " = {\n" .. serialize(v, indent + 1) .. "\n" ..
-                                 formatting .. "}"
-                elseif type(v) == "string" then
-                    local safeStr = string.gsub(v, "'", "\\'")
-                    result = result .. formatting .. keyStr .. " = '" .. safeStr .. "'"
-                elseif type(v) == "boolean" then
-                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
-                else
-                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
-                end
-            end
-        end
-        return result
-    end
-
-    local success, serializedData = pcall(serialize, jobs, 1)
-    if not success then
-        return
-    end
-
-    -- ¡LA MAGIA! Le pasamos los datos formateados a qb-core para que él mismo guarde
-    local saved = exports['qb-core']:SaveJobsFile(serializedData)
-
-    if saved then
-        print(
-            "^2[DP-VehicleShop] ÉXITO TOTAL: El archivo jobs.lua original de qb-core se ha modificado automáticamente.^7")
-    else
-        print("^1[DP-VehicleShop] ERROR: Falla al comunicar con el export de qb-core.^7")
-    end
-
-    TriggerClientEvent('QBCore:Client:UpdateObject', -1)
-end
-
--- Función interna para refrescar los rangos al instante en el UI del Jefe
-local function RefreshJobGradesForBoss(dealerId, src)
-    local dealerConfig = Config.Dealerships[dealerId]
-    if not dealerConfig then
-        return
-    end
-
-    local jobGrades = {}
-    if Config.Framework == 'qbcore' then
-        local jobName = dealerConfig.job
-        local sharedJob = Framework.Core.Shared.Jobs[jobName]
-        if sharedJob and sharedJob.grades then
-            for gradeLevel, gradeData in pairs(sharedJob.grades) do
-                table.insert(jobGrades, {
-                    grade = tonumber(gradeLevel),
-                    name = gradeData.name,
-                    payment = gradeData.payment or 0,
-                    isboss = gradeData.isboss or false,
-                    permissions = gradeData.permissions or {}
-                })
-            end
-            table.sort(jobGrades, function(a, b)
-                return a.grade < b.grade
-            end)
-        end
-    end
-    -- Le enviamos las categorías nuevas de vuelta al cliente
-    TriggerClientEvent('DP-VehicleShop:client:refreshJobGrades', src, jobGrades)
-end
-
--- =================================================================
--- GUARDADO DE VEHICLES.LUA (A TRAVÉS DE EXPORT A QB-CORE)
--- =================================================================
-local function SaveVehiclesToFile()
-    if Config.Framework ~= 'qbcore' then
-        return
-    end
-
-    local vehicles = Framework.Core.Shared.Vehicles
-
-    -- Función recursiva para formatear la tabla a texto Lua legible
-    local function serialize(tbl, indent)
-        local result = ""
-        local formatting = string.rep("    ", indent)
-        local isFirst = true
-
-        local keys = {}
-        for k in pairs(tbl) do
-            table.insert(keys, k)
-        end
-        table.sort(keys, function(a, b)
-            local numA = tonumber(a)
-            local numB = tonumber(b)
-            if numA and numB then
-                return numA < numB
-            end
-            return tostring(a) < tostring(b)
-        end)
-
-        for _, k in ipairs(keys) do
-            local v = tbl[k]
-            if type(v) ~= "function" and type(v) ~= "userdata" then
-                if not isFirst then
-                    result = result .. ",\n"
-                else
-                    isFirst = false
-                end
-
-                local keyStr = ""
-                if type(k) == "number" then
-                    keyStr = "[" .. k .. "]"
-                elseif type(k) == "string" and string.match(k, "^%a[%w_]*$") then
-                    keyStr = k
-                else
-                    keyStr = "['" .. tostring(k) .. "']"
-                end
-
-                if type(v) == "table" then
-                    result = result .. formatting .. keyStr .. " = {\n" .. serialize(v, indent + 1) .. "\n" ..
-                                 formatting .. "}"
-                elseif type(v) == "string" then
-                    local safeStr = string.gsub(v, "'", "\\'")
-                    result = result .. formatting .. keyStr .. " = '" .. safeStr .. "'"
-                elseif type(v) == "boolean" then
-                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
-                else
-                    result = result .. formatting .. keyStr .. " = " .. tostring(v)
-                end
-            end
-        end
-        return result
-    end
-
-    local success, serializedData = pcall(serialize, vehicles, 1)
-    if not success then
-        return
-    end
-
-    -- Mandamos los datos al export de qb-core que acabamos de crear
-    local saved = exports['qb-core']:SaveVehiclesFile(serializedData)
-
-    if saved then
-        print("^2[DP-VehicleShop] ÉXITO TOTAL: El archivo vehicles.lua de qb-core se ha guardado y actualizado.^7")
-    else
-        print("^1[DP-VehicleShop] ERROR: Falla al comunicar con el export de vehicles de qb-core.^7")
-    end
-
-    -- Sincronizamos la memoria RAM de todos los jugadores
-    TriggerClientEvent('QBCore:Client:UpdateObject', -1)
-end
-
--- =================================================================
--- EVENTOS DE RANGOS
+-- MÓDULO 13: EVENTOS DE RED - RANGOS Y PERMISOS
 -- =================================================================
 
 RegisterNetEvent('DP-VehicleShop:server:saveJobGrade', function(dealerId, data)
@@ -1457,8 +1473,9 @@ RegisterNetEvent('DP-VehicleShop:server:deleteJobGrade', function(dealerId, grad
 end)
 
 -- =================================================================
--- COMPRA DE STOCK (DESDE EL BOSS MENU)
+-- MÓDULO 14: EVENTOS DE RED - STOCK (COMPRAS AL POR MAYOR)
 -- =================================================================
+
 RegisterNetEvent('DP-VehicleShop:server:orderStock', function(dealerId, orderData)
     local src = source
     local Player = Framework.Core.Functions.GetPlayer(src)
@@ -1559,7 +1576,7 @@ RegisterNetEvent('DP-VehicleShop:server:orderStock', function(dealerId, orderDat
 end)
 
 -- =================================================================
--- SISTEMA DE RESERVAS (CLIENTES Y JEFES)
+-- MÓDULO 15: SISTEMA DE RESERVAS (CLIENTES Y JEFES)
 -- =================================================================
 
 -- 1. Un jugador normal realiza una reserva desde el Showroom
@@ -1682,8 +1699,9 @@ function FinalizeSale(src, res, BossPlayer)
 end
 
 -- =================================================================
--- SISTEMA DE COMPRA DIRECTA Y FINANCIACIÓN (SHOWROOM)
+-- MÓDULO 16: SISTEMA DE COMPRA DIRECTA Y FINANCIACIÓN (SHOWROOM)
 -- =================================================================
+
 RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, vehicleData)
     local src = source
     local Player = Framework.Core.Functions.GetPlayer(src)
