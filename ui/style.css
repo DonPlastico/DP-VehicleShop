@@ -238,14 +238,18 @@ h2 {
 /* Botones de Icono (Editar, Eliminar en la tabla) */
 .btn-icon {
     cursor: pointer;
-    padding: 7px;
+    padding: 5px;
+    width: 100%;
     border: none;
+    font-size: 18px;
+    color: grey;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
+    border-radius: 5px;
     transition: var(--transition);
 }
 
 .btn-icon:hover {
+    color: white;
     background: rgba(255, 255, 255, 0.3) !important;
     box-shadow: 0 0 10px rgb(255 255 255 / 20%);
 }
@@ -1397,7 +1401,7 @@ select option {
 
 .panel-category-title {
     font-family: 'Orbitron', sans-serif;
-    font-size: 1vw;
+    font-size: 16px;
     /* Aumentado de 0.55vw para que sea legible como título */
     color: rgba(255, 255, 255, 0.5);
     /* Un poco más de brillo para resaltar */
@@ -1405,6 +1409,7 @@ select option {
     text-transform: uppercase;
     margin: 0 0 10px 0;
     font-weight: 700;
+    text-align: center;
 }
 
 .info-panel-section {
@@ -1554,7 +1559,7 @@ select option {
 
 .colors-header span {
     font-family: 'Orbitron', sans-serif;
-    font-size: 1vw;
+    font-size: 16px;
     color: rgba(255, 255, 255, 0.5);
     letter-spacing: 1.5px;
     font-weight: 700;
@@ -2986,20 +2991,87 @@ input:checked+.slider:before {
     flex-direction: column;
 }
 
-/* Contenedor temporal para que veas dónde va el contenido */
-.right-content-placeholder {
+.plate-image-container {
+    display: flex;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 10px;
+    overflow: hidden;
+}
+
+.custom-plate-img {
+    max-width: 100%;
+    max-height: 8vw;
+    object-fit: contain;
+    filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.5));
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.custom-plate-img:hover {
+    transform: scale(1.05);
+}
+
+/* --- SISTEMA DE MATRÍCULA CUSTOM --- */
+.plate-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+/* El input invisible sobre la imagen */
+.plate-input {
+    position: absolute;
+    top: 65%;
+    left: 50%;
+    /* Magia visual: scale(X, Y). Estrecha el texto al 85% de ancho y lo estira al 140% de alto */
+    transform: translate(-50%, -50%) scale(0.85, 1.4);
+    width: 100%;
+    /* Subimos el width para compensar que lo hemos estrechado */
+    background: transparent !important;
+    border: none !important;
+    color: #162e48 !important;
+    /* Azul matrícula GTA */
+    font-size: 2.2vw;
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 600;
+    /* Letra menos gorda (antes estaba en 900) */
+    text-align: center;
+    text-transform: uppercase;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 0;
+    margin: 0;
+    text-shadow: 0 0 5px rgb(0, 0, 0);
+}
+
+.plate-input::placeholder {
+    color: rgba(100, 100, 100, 0.3);
+    font-weight: 600;
+    text-shadow: none;
+    /* Le quitamos la sombra al texto de "XXXXXXXX" para que parezca vacío */
+}
+
+/* Caja de alerta roja debajo de la matrícula */
+.plate-warning-msg {
+    color: #e74c3c;
+    font-size: 0.65vw;
+    font-weight: bold;
+    text-align: center;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    padding: 6px 10px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 8vw;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px dashed rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    color: rgba(255, 255, 255, 0.3);
-    font-family: 'Orbitron', sans-serif;
-    font-size: 0.6vw;
-    font-style: italic;
-    text-align: center;
+    gap: 5px;
+    width: 90%;
+    animation: fadeIn 0.2s ease;
 }
 
 .stats-bars-container {
@@ -3362,6 +3434,331 @@ input:checked+.slider:before {
     color: #000 !important;
 }
 
+/* =================================================================
+   LISTA DE CATEGORÍAS (REEMPLAZO DE LA TABLA FEA)
+   ================================================================= */
+.categories-custom-list {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow: visible;
+    /* El contenedor padre NO debe scrollear */
+    position: relative;
+}
+
+.cat-list-body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow-y: auto;
+    /* Solo este contenedor tiene el scroll activo */
+    flex-grow: 1;
+    padding-right: 0.4vw;
+}
+
+.cat-list-header {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6vw;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: sticky;
+    top: -1.1vw;
+    z-index: 100;
+    background: #0f0f0f;
+    margin-top: -1vw;
+    padding-top: 1.5vw;
+}
+
+/* =================================================================
+   CONTROLES DE ORDEN (FLECHAS SUBIR/BAJAR)
+   ================================================================= */
+.cat-col-order {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5vw;
+}
+
+.cat-order-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.order-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.6vw;
+    cursor: pointer;
+    /* La manita de hacer clic normal */
+    transition: all 0.2s ease;
+    padding: 2px;
+    pointer-events: auto !important;
+}
+
+.order-btn:hover:not(:disabled) {
+    color: rgba(255, 255, 255, 0.9);
+    transform: scale(1.2);
+}
+
+.order-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+}
+
+.cat-list-item .cat-col-order,
+.cat-list-item .cat-col-name {
+    pointer-events: auto !important;
+}
+
+.cat-col-name {
+    flex: 1;
+    padding-left: 1vw;
+}
+
+.cat-col-actions {
+    flex: 0 0 35%;
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+}
+
+.cat-list-item>div,
+.cat-list-item span {
+    pointer-events: none;
+}
+
+.cat-list-item .cat-col-actions,
+.cat-list-item .cat-col-actions button,
+.cat-list-item .cat-col-actions i {
+    pointer-events: auto !important;
+}
+
+/* Tarjeta Individual de Categoría */
+.cat-list-item {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    padding: 7.5px;
+    transition: all 0.2s ease;
+    position: relative;
+    user-select: none;
+    cursor: default;
+}
+
+.cat-list-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(2px);
+}
+
+/* Flex para que el icono y el número queden en línea */
+.cat-col-order {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5vw;
+}
+
+/* Ocultar el puntero del clon arrastrado para evitar interferencias en FiveM */
+.sortable-fallback {
+    pointer-events: none !important;
+    opacity: 0.8;
+}
+
+/* Estado activo de la categoría seleccionada (Estética Monocromática) */
+.cat-list-item.active-cat {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateX(7px);
+}
+
+/* Insignia del número de Orden */
+.cat-order-badge {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: .8vw;
+    font-weight: 900;
+    width: 3vw;
+    height: 1.75vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    margin: 0 auto;
+}
+
+/* Textos de la Categoría */
+.cat-name-box {
+    display: flex;
+    flex-direction: column;
+}
+
+.cat-name-label {
+    color: #fff;
+    font-size: 0.8vw;
+    font-weight: bold;
+    margin-right: 0.2vw;
+    text-transform: uppercase;
+}
+
+.cat-name-id {
+    color: #888;
+    font-size: 0.55vw;
+    text-transform: lowercase;
+}
+
+/* ================================================================= */
+/* HUD: PRUEBA DE MANEJO                                              */
+/* ================================================================= */
+#testdrive-hud {
+    position: fixed;
+    top: 1vw;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+#testdrive-hud-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    padding: 5px 10px;
+    animation: testdrive-slidein 0.4s ease;
+}
+
+#testdrive-icon {
+    font-size: 1.4vw;
+    color: white;
+}
+
+#testdrive-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1vw;
+}
+
+#testdrive-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75vw;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.1em;
+}
+
+#testdrive-sub {
+    font-size: 0.6vw;
+    color: #aaa;
+}
+
+#testdrive-countdown {
+    display: flex;
+    align-items: baseline;
+    gap: 0.2vw;
+    margin-left: 0.5vw;
+}
+
+#testdrive-timer {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.6vw;
+    font-weight: 900;
+    color: white;
+    transition: color 0.3s ease;
+    min-width: 2.5vw;
+    text-align: right;
+}
+
+#testdrive-unit {
+    font-size: 0.65vw;
+    color: #aaa;
+    font-family: 'Orbitron', sans-serif;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3385,5 +3782,29 @@ input:checked+.slider:before {
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes testdrive-slidein {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }

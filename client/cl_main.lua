@@ -24,6 +24,11 @@ local PlayerData = {}
 local PlayerJob = {}
 local Framework = {}
 local currentPreviewRequestId = 0
+local baseCamCoords = nil
+local baseCamRot = nil
+local baseCamFOV = nil
+local prePlateHeading = nil
+local testDriveReturnCoords = nil -- Coordenadas del NPC para volver al terminar
 
 -- =================================================================
 -- MÓDULO 2: CARGA DINÁMICA DEL FRAMEWORK
@@ -267,6 +272,51 @@ local function DeleteDealershipNPCs()
     end
     spawnedAgencyNPCs = {}
 end
+
+-- =================================================================
+-- MÓDULO 6.5: CREACIÓN DE BLIPS (ICONOS DEL MAPA)
+-- =================================================================
+local dealerBlips = {} -- Guardamos los blips en memoria para borrarlos al reiniciar
+
+CreateThread(function()
+    for dealerName, data in pairs(Config.Dealerships) do
+        if data.blip and data.blip.enabled then
+            local blip = AddBlipForCoord(data.blip.coords.x, data.blip.coords.y, data.blip.coords.z)
+
+            -- Forzamos a que lo lea como número para evitar errores de sintaxis
+            SetBlipSprite(blip, tonumber(data.blip.id))
+            SetBlipDisplay(blip, 4)
+            SetBlipScale(blip, tonumber(data.blip.scale) or 0.8)
+
+            -- FIX: El color 0 a veces rompe el icono. El 4 es el Blanco Puro oficial.
+            local blipColor = tonumber(data.blip.color)
+            if blipColor == 0 then
+                blipColor = 4
+            end
+            SetBlipColour(blip, blipColor)
+
+            SetBlipAsShortRange(blip, true)
+
+            BeginTextCommandSetBlipName("STRING")
+            AddTextComponentString(data.label)
+            EndTextCommandSetBlipName(blip)
+
+            -- Lo añadimos a la lista de "activos"
+            table.insert(dealerBlips, blip)
+        end
+    end
+end)
+
+-- SISTEMA DE LIMPIEZA: Al reiniciar el script, borra los blips fantasma
+AddEventHandler('onResourceStop', function(resourceName)
+    if GetCurrentResourceName() == resourceName then
+        for _, blip in ipairs(dealerBlips) do
+            if DoesBlipExist(blip) then
+                RemoveBlip(blip)
+            end
+        end
+    end
+end)
 
 -- =================================================================
 -- MÓDULO 7: INICIALIZACIÓN Y SISTEMA ANTI-BUGS
@@ -522,6 +572,11 @@ end)
 RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, categories, vehicles, myReservations)
     -- Guardamos el ID del concesionario actual
     currentShowroomDealerId = dealerId
+
+    -- Guardamos coords AHORA, antes de cualquier TP, para el test drive
+    local p = PlayerPedId()
+    local pos = GetEntityCoords(p)
+    testDriveReturnCoords = vector4(pos.x, pos.y, pos.z, GetEntityHeading(p))
 
     -- Enviamos tus reservas activas al Javascript para bloquear los botones correspondientes
     SendNUIMessage({
@@ -1053,50 +1108,135 @@ RegisterNUICallback('toggleVehicleExtra', function(data, cb)
     cb('ok')
 end)
 
-RegisterNUICallback('togglePreviewCamera', function(data, cb)
-    -- 1. Verificación de seguridad: ¿Existe la cámara y el vehículo?
+RegisterNUICallback('updateVehiclePlate', function(data, cb)
+    -- Verificamos que el coche de la vista previa exista físicamente
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        -- Convertimos a string por seguridad y aplicamos el texto
+        local newPlate = tostring(data.plate or "")
+        SetVehicleNumberPlateText(previewVehicleEntity, newPlate)
+    end
+
+    cb('ok')
+end)
+
+RegisterNUICallback('updateCategoryOrder', function(data, cb)
+    if data then
+        if data.orderData then
+            TriggerServerEvent('DP-VehicleShop:server:updateCategoryOrder', data.orderData)
+        end
+    end
+
+    cb('ok')
+end)
+
+RegisterNUICallback('focusPlateCamera', function(data, cb)
+    -- Si no hay cámara o no hay coche, no hacemos nada
     if not showroomCam or not DoesEntityExist(previewVehicleEntity) then
         cb('ok')
         return
     end
 
-    currentPreviewCameraMode = data.mode
-    currentPreviewFOV = 50.0
-    SetCamFov(showroomCam, currentPreviewFOV)
-
     local dealerConfig = Config.Dealerships[currentShowroomDealerId]
+    local baseHeading = 225.0
+    if dealerConfig and dealerConfig.preview_spawn then
+        baseHeading = dealerConfig.preview_spawn.w or 0.0
+    end
 
-    -- 2. Verificación de Config: ¿Tiene el concesionario configurada la cámara?
-    -- Si no existe 'preview_cam', usamos un fallback para que no explote
-    local hasCamConfig = dealerConfig and dealerConfig.preview_cam
-    local hasSpawnConfig = dealerConfig and dealerConfig.preview_spawn
+    -- Asegurarnos de tener guardada la posición original de la cámara principal
+    if not baseCamCoords then
+        baseCamCoords = GetCamCoord(showroomCam)
+        baseCamRot = GetCamRot(showroomCam, 2)
+        baseCamFOV = GetCamFov(showroomCam)
+    end
+
+    if data.focus then
+        -- 1. Guardamos la rotación actual por si el jugador lo había girado a mano
+        prePlateHeading = GetEntityHeading(previewVehicleEntity)
+
+        -- 2. Giramos el coche 180º exactos para que dé el culo directamente a la cámara
+        SetEntityHeading(previewVehicleEntity, baseHeading + 225.0)
+
+        -- 3. BAJAMOS LA CÁMARA: Le restamos 1.75 metros a la altura (Z) original
+        local newCamZ = baseCamCoords.z - 1.75
+        SetCamCoord(showroomCam, baseCamCoords.x, baseCamCoords.y, newCamZ)
+
+        -- 4. LEVANTAMOS LA MIRADA: Ponemos la inclinación (RotX) a -2.0 para mirar casi recto
+        SetCamRot(showroomCam, -2.0, baseCamRot.y, baseCamRot.z, 2)
+
+        -- 5. Ajustamos el Zoom (Un 35.0 suele encuadrar perfectamente la trasera entera)
+        currentPreviewFOV = 35.0
+        SetCamFov(showroomCam, currentPreviewFOV)
+    else
+        -- 1. Restauramos la rotación del coche
+        if prePlateHeading then
+            SetEntityHeading(previewVehicleEntity, prePlateHeading)
+            prePlateHeading = nil
+        else
+            SetEntityHeading(previewVehicleEntity, baseHeading)
+        end
+
+        -- 2. Restauramos la cámara original (Altura, Inclinación y Zoom)
+        if baseCamCoords and baseCamRot then
+            SetCamCoord(showroomCam, baseCamCoords.x, baseCamCoords.y, baseCamCoords.z)
+            SetCamRot(showroomCam, baseCamRot.x, baseCamRot.y, baseCamRot.z, 2)
+        end
+
+        currentPreviewFOV = baseCamFOV or 50.0
+        SetCamFov(showroomCam, currentPreviewFOV)
+    end
+
+    cb('ok')
+end)
+
+RegisterNUICallback('togglePreviewCamera', function(data, cb)
+    if not showroomCam or not DoesEntityExist(previewVehicleEntity) then
+        cb('ok')
+        return
+    end
+
+    if currentPreviewCameraMode ~= 'interior' and not baseCamCoords then
+        baseCamCoords = GetCamCoord(showroomCam)
+        baseCamRot = GetCamRot(showroomCam, 2)
+        baseCamFOV = GetCamFov(showroomCam) -- Guardamos el FOV original para evitar el zoom
+    end
+
+    currentPreviewCameraMode = data.mode
+    local dealerConfig = Config.Dealerships[currentShowroomDealerId]
 
     if data.mode == 'exterior' or data.mode == 'reset' then
         DetachCam(showroomCam)
+        StopCamPointing(showroomCam)
 
-        if hasCamConfig then
-            -- Si existe en el config, usamos esos valores
-            SetCamCoord(showroomCam, dealerConfig.preview_cam.x, dealerConfig.preview_cam.y, dealerConfig.preview_cam.z)
-            SetCamRot(showroomCam, 0.0, 0.0, dealerConfig.preview_cam.w, 2)
-        else
-            -- FALLBACK: Si no existe, mantenemos la cámara donde esté pero mirando al coche
-            PointCamAtEntity(showroomCam, previewVehicleEntity, 0.0, 0.0, 0.0, true)
+        if baseCamCoords and baseCamRot and baseCamFOV then
+            SetCamCoord(showroomCam, baseCamCoords.x, baseCamCoords.y, baseCamCoords.z)
+            SetCamRot(showroomCam, baseCamRot.x, baseCamRot.y, baseCamRot.z, 2)
+            currentPreviewFOV = baseCamFOV -- Restauramos el FOV original
+            SetCamFov(showroomCam, currentPreviewFOV)
         end
 
-        if data.mode == 'reset' and hasSpawnConfig then
-            SetEntityHeading(previewVehicleEntity, dealerConfig.preview_spawn.w)
+        if data.mode == 'reset' then
+            if dealerConfig and dealerConfig.preview_spawn then
+                SetEntityHeading(previewVehicleEntity, dealerConfig.preview_spawn.w)
+            end
+            baseCamCoords = nil
+            baseCamRot = nil
+            baseCamFOV = nil
         end
 
     elseif data.mode == 'interior' then
+        currentPreviewFOV = 60.0 -- FOV un poco más alejado para el interior
+        SetCamFov(showroomCam, currentPreviewFOV)
+
         StopCamPointing(showroomCam)
-        -- El interior suele funcionar siempre porque se pega a la entidad del coche directamente
         AttachCamToEntity(showroomCam, previewVehicleEntity, 0.0, 0.1, 0.6, true)
         currentInteriorCamHeading = GetEntityHeading(previewVehicleEntity)
         SetCamRot(showroomCam, 0.0, 0.0, currentInteriorCamHeading, 2)
     end
 
-    cb('ok') -- IMPORTANTE: Siempre responder al JS para evitar el error de Fetch
+    cb('ok')
 end)
+
+-- (El resto de callbacks de rotatePreviewCamera y updatePreviewZoom se quedan igual)
 
 RegisterNUICallback('rotatePreviewCamera', function(data, cb)
     if not showroomCam or not DoesEntityExist(previewVehicleEntity) then
@@ -1249,6 +1389,32 @@ end)
 
 RegisterNUICallback('cancelReservation', function(data, cb)
     TriggerServerEvent('DP-VehicleShop:server:cancelReservation', data.id)
+    cb('ok')
+end)
+
+RegisterNUICallback('startTestDrive', function(data, cb)
+    if not currentShowroomDealerId then
+        cb('ok')
+        return
+    end
+
+    -- Escaneamos los extras activos del coche de preview antes de cerrar
+    local appliedExtras = {}
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        for i = 1, 20 do
+            if DoesExtraExist(previewVehicleEntity, i) then
+                if IsVehicleExtraTurnedOn(previewVehicleEntity, i) == 1 or
+                    IsVehicleExtraTurnedOn(previewVehicleEntity, i) == true then
+                    table.insert(appliedExtras, i)
+                end
+            end
+        end
+    end
+
+    data.extras = appliedExtras
+
+    -- Mandamos al servidor para que nos asigne el bucket y nos devuelva el evento
+    TriggerServerEvent('DP-VehicleShop:server:startTestDrive', currentShowroomDealerId, data)
     cb('ok')
 end)
 
@@ -1507,5 +1673,194 @@ CreateThread(function()
         end
 
         Wait(sleep)
+    end
+end)
+
+-- =================================================================
+-- MÓDULO 16: PRUEBA DE MANEJO (TEST DRIVE)
+-- =================================================================
+
+local testDriveVehicle = nil -- Entidad del coche de prueba
+local testDriveActive = false -- Flag para el hilo de vigilancia
+local testDriveTimer = 0 -- Segundos restantes
+
+-- Evento recibido del servidor: spawnear coche y arrancar timer
+RegisterNetEvent('DP-VehicleShop:client:beginTestDrive')
+AddEventHandler('DP-VehicleShop:client:beginTestDrive', function(dealerId, vehicleData, bucket)
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig or not dealerConfig.ExitSpawnPoints then
+        return
+    end
+
+    -- 1. Cerramos el NUI del showroom (sin avisar al servidor, ya lo gestionamos aquí)
+    isMenuOpen = false
+    SendNUIMessage({
+        action = 'setVisible',
+        status = false
+    })
+    SendNUIMessage({
+        action = 'hideTestDriveHUD'
+    })
+
+    -- 2. Destruir cámara y restaurar jugador (igual que exitShowroomMode)
+    local ped = PlayerPedId()
+
+    SetNuiFocus(false, false)
+
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        DeleteEntity(previewVehicleEntity)
+        previewVehicleEntity = nil
+    end
+
+    if showroomCam then
+        RenderScriptCams(false, false, 0, true, true)
+        DestroyCam(showroomCam, false)
+        showroomCam = nil
+    end
+
+    if previousCoords then
+        SetEntityCoords(ped, previousCoords.x, previousCoords.y, previousCoords.z, false, false, false, false)
+        SetEntityHeading(ped, previousCoords.w)
+        previousCoords = nil
+    end
+
+    FreezeEntityPosition(ped, false)
+    SetEntityVisible(ped, true, true)
+    SetEntityCollision(ped, true, true)
+    SetPedCanRagdoll(ped, true)
+    TriggerEvent('chat:client:showChat', true)
+    DisplayRadar(true)
+
+    -- 3. Buscar spawn libre
+    local spawnPoint = dealerConfig.ExitSpawnPoints[1]
+    for _, point in ipairs(dealerConfig.ExitSpawnPoints) do
+        if not IsAnyVehicleNearPoint(point.x, point.y, point.z, 3.0) then
+            spawnPoint = point
+            break
+        end
+    end
+
+    -- 4. Spawnear el vehículo de prueba
+    local modelHash = GetHashKey(vehicleData.model)
+    RequestModel(modelHash)
+    local timeout = 0
+    while not HasModelLoaded(modelHash) and timeout < 2000 do
+        Wait(10)
+        timeout = timeout + 10
+    end
+    if not HasModelLoaded(modelHash) then
+        return
+    end
+
+    testDriveVehicle = CreateVehicle(modelHash, spawnPoint.x, spawnPoint.y, spawnPoint.z, spawnPoint.w, true, false)
+
+    -- 5. Personalización (color, matrícula, extras)
+    local colorId = tonumber(vehicleData.color) or 0
+    SetVehicleNumberPlateText(testDriveVehicle, vehicleData.plate or 'PRUEBA')
+    SetVehicleColours(testDriveVehicle, colorId, colorId)
+    SetVehicleExtraColours(testDriveVehicle, colorId, colorId)
+    SetVehicleModKit(testDriveVehicle, 0)
+    SetVehicleLivery(testDriveVehicle, -1)
+
+    -- Extras
+    for i = 1, 20 do
+        if DoesExtraExist(testDriveVehicle, i) then
+            SetVehicleExtra(testDriveVehicle, i, 1) -- Apagar todos
+        end
+    end
+    if vehicleData.extras and type(vehicleData.extras) == 'table' then
+        for _, extraId in ipairs(vehicleData.extras) do
+            if DoesExtraExist(testDriveVehicle, extraId) then
+                SetVehicleExtra(testDriveVehicle, extraId, 0)
+            end
+        end
+    end
+
+    -- 6. Sin colisión con otros jugadores (solo con el mundo)
+    SetEntityNoCollisionEntity(testDriveVehicle, ped, false)
+
+    SetVehicleOnGroundProperly(testDriveVehicle)
+
+    -- 7. Meter al jugador dentro como conductor
+    TaskWarpPedIntoVehicle(ped, testDriveVehicle, -1)
+
+    SetModelAsNoLongerNeeded(modelHash)
+
+    -- 8. Arrancar el HUD con el timer y el hilo de vigilancia
+    testDriveActive = true
+    testDriveTimer = Config.TestDrive.Duration
+
+    SendNUIMessage({
+        action = 'showTestDriveHUD',
+        duration = Config.TestDrive.Duration
+    })
+
+    -- 9. Hilo de vigilancia: countdown + detección de bajada del coche
+    CreateThread(function()
+        while testDriveActive and testDriveTimer > 0 do
+            Wait(1000)
+            testDriveTimer = testDriveTimer - 1
+
+            -- Actualizar HUD cada segundo
+            SendNUIMessage({
+                action = 'updateTestDriveTimer',
+                timeLeft = testDriveTimer
+            })
+
+            -- Si se bajó del coche, terminamos antes
+            local currentPed = PlayerPedId()
+            if not IsPedInVehicle(currentPed, testDriveVehicle, false) then
+                break
+            end
+        end
+
+        -- Tiempo agotado o se bajó: terminar prueba
+        if testDriveActive then
+            EndTestDrive()
+        end
+    end)
+end)
+
+-- Función interna para limpiar y volver al showroom
+function EndTestDrive()
+    if not testDriveActive then
+        return
+    end
+    testDriveActive = false
+
+    -- 1. Ocultar HUD
+    SendNUIMessage({
+        action = 'hideTestDriveHUD'
+    })
+
+    -- 2. Borrar coche de prueba
+    if testDriveVehicle and DoesEntityExist(testDriveVehicle) then
+        local ped = PlayerPedId()
+        -- Sacar al jugador del coche antes de borrarlo
+        TaskLeaveVehicle(ped, testDriveVehicle, 0)
+        Wait(500)
+        DeleteEntity(testDriveVehicle)
+        testDriveVehicle = nil
+    end
+
+    -- 3. Avisar al servidor para que devuelva al jugador al bucket 0
+    TriggerServerEvent('DP-VehicleShop:server:endTestDrive')
+end
+
+-- Evento del servidor confirmando que ya está en bucket 0: reabrir showroom
+RegisterNetEvent('DP-VehicleShop:client:finishTestDrive')
+AddEventHandler('DP-VehicleShop:client:finishTestDrive', function()
+    -- Teletransportar de vuelta a donde estaba frente al NPC
+    if testDriveReturnCoords then
+        local ped = PlayerPedId()
+        SetEntityCoords(ped, testDriveReturnCoords.x, testDriveReturnCoords.y, testDriveReturnCoords.z, false, false,
+            false, false)
+        SetEntityHeading(ped, testDriveReturnCoords.w)
+        testDriveReturnCoords = nil
+    end
+
+    -- Reabrimos el showroom desde cero (el servidor nos mandará los datos de nuevo)
+    if currentShowroomDealerId then
+        TriggerServerEvent('DP-VehicleShop:server:requestShowroom', currentShowroomDealerId)
     end
 end)

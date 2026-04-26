@@ -17,6 +17,7 @@ let itemsPerPage = 7;           // Elementos por página (se actualiza desde Lua
 let sortColumn = 'date_added';  // Columna activa de ordenación
 let sortDirection = 'desc';     // 'asc' o 'desc'
 let currentFilter = '';         // Texto del buscador
+let isPlateViewActive = false;  // Controla si la cámara está enfocando la matrícula
 let isShowroomOpen = false;     // Controla si el catálogo de clientes está abierto
 let isBossMenuOpen = false;     // Controla si el Boss Menu está abierto
 let currentBossDealerName = ""; // Guarda el nombre de la empresa para los títulos
@@ -25,6 +26,8 @@ let currentPreviewColor = 0;    // 0 = Negro (Default de GTA)
 let currentPreviewVehicle = null;
 let currentActiveExtras = null; // Guardará la lista de extras activos
 let myPendingReservations = []; // Guarda los modelos que este jugador ya ha reservado
+let currentCustomPlate = ""; // Guarda la matrícula personalizada escrita por el usuario
+let dragStartCategoryIndex = -1; // Obligatoria para que el renderBossCatsTable sepa qué arrastras
 
 // Variables del Showroom (Carrusel)
 let currentShowroomCategory = 'all';
@@ -146,7 +149,8 @@ const GTA_COLORS = [
 // BLOQUEO DE SEGURIDAD: PREVENIR DRAG & DROP EN TODO EL NUI
 // =================================================================
 document.addEventListener('dragstart', function (event) {
-    // Si intentan arrastrar una imagen, un enlace o cualquier elemento, lo bloqueamos
+    // Bloqueamos absolutamente todo el drag nativo de HTML5.
+    // (Esto no afecta a la rotación del coche en VISTA PREVIA porque usa otro sistema)
     event.preventDefault();
 });
 
@@ -801,6 +805,33 @@ function selectShowroomVehicle(vehicle) {
     const extrasPanel = document.getElementById('extras-selection-panel');
     if (extrasPanel) extrasPanel.style.display = 'none';
 
+    // RESETEAR CÁMARA DE MATRÍCULA AL CAMBIAR DE COCHE
+    if (isPlateViewActive) {
+        isPlateViewActive = false;
+        const btnPlate = document.getElementById('change-plate');
+        if (btnPlate) {
+            btnPlate.classList.remove('active');
+            btnPlate.innerText = 'CAMBIAR MATRÍCULA';
+            btnPlate.style.background = '';
+        }
+        // Avisamos a Lua para que devuelva la cámara a su sitio frontal/lateral
+        fetch(`https://${GetParentResourceName()}/focusPlateCamera`, {
+            method: 'POST',
+            body: JSON.stringify({ focus: false })
+        });
+    }
+
+    // Limpiar el input de la matrícula y ocultar alertas
+    currentCustomPlate = "";
+    const plateInput = document.getElementById('custom-plate-input');
+    const plateWarning = document.getElementById('plate-warning');
+    if (plateInput) plateInput.value = "";
+    if (plateWarning) plateWarning.style.display = 'none';
+
+    // Asegurarnos de que el panel se oculte al seleccionar otro coche
+    const platePanel = document.getElementById('plate-modifier-panel');
+    if (platePanel) platePanel.style.display = 'none';
+
     // 1. Mostramos el panel si estaba oculto
     panel.style.display = 'flex';
 
@@ -953,11 +984,18 @@ function hideVehicleInfo() {
     const extrasPanel = document.getElementById('extras-selection-panel');
     if (extrasPanel) extrasPanel.style.display = 'none';
 
-    // =================================================================
     // OCULTAR EL PANEL DERECHO CLONADO
-    // =================================================================
     const rightCustomPanel = document.getElementById('right-custom-panel');
     if (rightCustomPanel) rightCustomPanel.style.display = 'none';
+
+    // Ocultar el panel de la matrícula al cerrar los menús
+    const platePanel = document.getElementById('plate-modifier-panel');
+    if (platePanel) platePanel.style.display = 'none';
+
+    // Resetear variables de matrícula al cerrar todo
+    currentCustomPlate = "";
+    const pInput = document.getElementById('custom-plate-input');
+    if (pInput) pInput.value = "";
 
     currentPreviewVehicle = null;
 }
@@ -1024,6 +1062,68 @@ if (closeExtrasBtn) {
     });
 }
 
+// 3.5 ALTERNANCIA: Cuando le damos a "CAMBIAR MATRÍCULA"
+const btnChangePlate = document.getElementById('change-plate');
+if (btnChangePlate) {
+    btnChangePlate.addEventListener('click', () => {
+        isPlateViewActive = !isPlateViewActive; // Invertimos el estado
+        const platePanel = document.getElementById('plate-modifier-panel'); // Panel de matrícula
+
+        if (isPlateViewActive) {
+            // Activado: Cambiamos visualmente el botón y avisamos a Lua
+            btnChangePlate.classList.add('active');
+            btnChangePlate.innerText = 'VISTA NORMAL';
+            btnChangePlate.style.background = 'rgba(255, 255, 255, 0.2)';
+            if (platePanel) platePanel.style.display = 'flex'; // MOSTRAMOS EL PANEL
+        } else {
+            // Desactivado: Restauramos el botón y avisamos a Lua
+            btnChangePlate.classList.remove('active');
+            btnChangePlate.innerText = 'CAMBIAR MATRÍCULA';
+            btnChangePlate.style.background = '';
+            if (platePanel) platePanel.style.display = 'none'; // OCULTAMOS EL PANEL
+        }
+
+        // Enviamos la orden al cliente para mover la cámara
+        fetch(`https://${GetParentResourceName()}/focusPlateCamera`, {
+            method: 'POST',
+            body: JSON.stringify({ focus: isPlateViewActive })
+        });
+    });
+}
+
+// 3.6 LÓGICA DEL INPUT DE LA MATRÍCULA CUSTOM EN TIEMPO REAL
+const plateInput = document.getElementById('custom-plate-input');
+const plateWarning = document.getElementById('plate-warning');
+if (plateInput) {
+    plateInput.addEventListener('input', function (e) {
+        // 1. Filtramos todo lo que no sea Letra (incluida la Ñ), Número o Espacio
+        let rawValue = this.value.toUpperCase();
+        let filteredValue = rawValue.replace(/[^A-Z0-9Ñ\s]/g, '');
+
+        // 2. Si el usuario escribió un símbolo raro, lo forzamos a borrarse visualmente
+        if (rawValue !== filteredValue) {
+            this.value = filteredValue;
+        }
+
+        currentCustomPlate = filteredValue;
+
+        // 3. Validación de Longitud (Mínimo 1, Máximo 8)
+        if (currentCustomPlate.length < 1 || currentCustomPlate.length > 8) {
+            // Mostramos la alerta roja
+            if (plateWarning) plateWarning.style.display = 'flex';
+        } else {
+            // Ocultamos la alerta roja
+            if (plateWarning) plateWarning.style.display = 'none';
+
+            // Enviamos la matrícula validada a Lua para que la ponga en el coche 3D
+            fetch(`https://${GetParentResourceName()}/updateVehiclePlate`, {
+                method: 'POST',
+                body: JSON.stringify({ plate: currentCustomPlate })
+            });
+        }
+    });
+}
+
 // 4. GENERADOR DINÁMICO DE LA LISTA DE EXTRAS
 function renderVehicleExtras(extras) {
     const container = document.getElementById('extras-list-container');
@@ -1079,33 +1179,83 @@ function renderVehicleExtras(extras) {
 }
 
 // =================================================================
+// EVENTO DEL BOTÓN PRUEBA DE MANEJO
+// =================================================================
+const testDriveBtn = document.getElementById('test-drive');
+if (testDriveBtn) {
+    testDriveBtn.addEventListener('click', function () {
+        if (!currentPreviewVehicle) return;
+
+        // Recogemos la matrícula personalizada si la pusieron
+        const plateInput = document.getElementById('custom-plate-input');
+        const customPlate = plateInput ? plateInput.value.trim().toUpperCase() : '';
+
+        // Recogemos los extras activos en el coche de preview
+        fetch(`https://${GetParentResourceName()}/requestVehicleExtras`, {
+            method: 'POST',
+            body: JSON.stringify({})
+        });
+
+        // Empaquetamos todo lo que necesita el cliente para spawnear el coche
+        const testDriveData = {
+            model: currentPreviewVehicle,
+            color: currentPreviewColor,
+            plate: customPlate !== '' ? customPlate : 'PRUEBA',
+            extras: [] // Se rellenarán en el NUICallback del cliente
+        };
+
+        fetch(`https://${GetParentResourceName()}/startTestDrive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+            body: JSON.stringify(testDriveData)
+        });
+    });
+}
+
+// =================================================================
 // FUNCIÓN DE CIERRE DEL SHOWROOM
 // =================================================================
 function closeShowroom() {
     isShowroomOpen = false;
     document.getElementById('showroom-container').style.display = 'none';
 
-    hideVehicleInfo();      // Ocultamos el panel de la izquierda
-    currentPreviewColor = 0; // Reseteamos el color a Negro para la próxima vez
+    hideVehicleInfo();       // Oculta el panel izquierdo y derecho
+    currentPreviewColor = 0;
+    currentPreviewVehicle = null; // Limpiamos la memoria del coche seleccionado
 
-    // Nos aseguramos de apagar la barra cinemática si estaba encendida
-    const previewUI = document.getElementById('preview-mode-ui');
-    if (previewUI) previewUI.style.display = 'none';
-
-    // Avisamos al cl_main.lua para que destruya la cámara y el coche
-    fetch(`https://${GetParentResourceName()}/closeShowroomMenu`, {
-        method: 'POST'
-    });
-}
-
-// Escuchar la tecla ESCAPE para cerrar
-document.onkeyup = function (data) {
-    if (data.which == 27) { // 27 es la tecla ESC
-        if (isShowroomOpen) {
-            closeShowroom();
+    // Resetear el estado de la matrícula al cerrar
+    if (isPlateViewActive) {
+        isPlateViewActive = false;
+        const btnPlate = document.getElementById('change-plate');
+        if (btnPlate) {
+            btnPlate.classList.remove('active');
+            btnPlate.innerText = 'CAMBIAR MATRÍCULA';
+            btnPlate.style.background = '';
         }
     }
-};
+
+    // Apagamos completamente el modo Vista Previa
+    const previewUI = document.getElementById('preview-mode-ui');
+    if (previewUI) previewUI.style.display = 'none';
+    isPreviewModeActive = false;
+    isDraggingPreview = false;
+    document.body.style.cursor = 'default';
+
+    // Nos aseguramos por fuerza bruta de que los paneles no se queden encendidos
+    const infoPanelPreview = document.getElementById('vehicle-info-panel');
+    const rightPanelPreview = document.getElementById('right-custom-panel');
+    const carouselContainerPreview = document.querySelector('.bottom-carousel-container');
+
+    if (infoPanelPreview) infoPanelPreview.style.display = 'none';
+    if (rightPanelPreview) rightPanelPreview.style.display = 'none';
+
+    // Al cerrar, nos aseguramos de que la próxima vez que se abra, el carrusel SÍ se vea
+    if (carouselContainerPreview) carouselContainerPreview.style.display = 'flex';
+
+    fetch(`https://${GetParentResourceName()}/closeShowroomMenu`, {
+        method: 'POST'
+    }).catch(err => console.log(err));
+}
 
 // =================================================================
 // EVENTO DE COMPRA / RESERVA DE VEHÍCULO
@@ -1122,7 +1272,8 @@ if (mainBuyBtn) {
             price: parseInt(this.dataset.price),
             brand: this.dataset.brand,
             name: this.dataset.name,
-            color: currentPreviewColor // Mandamos también el color que el jugador haya elegido en la paleta
+            color: currentPreviewColor,
+            plate: currentCustomPlate,
         };
 
         if (action === 'buy') {
@@ -1225,7 +1376,8 @@ if (confirmFinalBuyBtn) {
             paymentType: paymentMethod,
             installments: installments,
             deliveryType: deliveryMethod,
-            extras: currentActiveExtras
+            extras: currentActiveExtras,
+            plate: currentCustomPlate,
         };
 
         // =========================================================
@@ -1379,9 +1531,12 @@ if (btnExitPreview) {
         isDraggingPreview = false;
         document.body.style.cursor = 'default'; // Restauramos cursor normal
 
-        // Restauramos los tres paneles principales
-        if (infoPanelPreview) infoPanelPreview.style.display = 'flex';
-        if (rightPanelPreview) rightPanelPreview.style.display = 'flex';
+        // Restauramos los paneles SOLO si hay un vehículo seleccionado previamente
+        if (currentPreviewVehicle) {
+            if (infoPanelPreview) infoPanelPreview.style.display = 'flex';
+            if (rightPanelPreview) rightPanelPreview.style.display = 'flex';
+        }
+
         if (carouselContainerPreview) carouselContainerPreview.style.display = 'flex';
 
         // Avisamos a Lua para que devuelva la cámara a su sitio original del catálogo
@@ -2281,27 +2436,106 @@ document.addEventListener('dblclick', (e) => {
 // =================================================================
 
 function renderBossCatsTable() {
-    const tbody = document.getElementById('cats-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+    const container = document.getElementById('cats-list-container');
+    if (!container) return;
 
-    if (activeCategories.length === 0) return tbody.innerHTML = `<tr><td colspan="3" style="border:none;"><div class="empty-state"><iconify-icon icon="solar:folder-error-bold-duotone" class="empty-state-icon"></iconify-icon><span class="empty-state-text">No hay categorías creadas</span></div></td></tr>`;
+    container.innerHTML = '';
 
-    activeCategories.sort((a, b) => a.order - b.order).forEach((c) => {
-        tbody.innerHTML += `<tr>
-            <td style="color:#aaa;">
-                <span style="margin: 0 0.3vw; font-weight:bold; color:rgb(200 200 200);">${c.order}</span>
-            </td>
-            <td style="text-align: left; padding-left: 1vw;">
-                <strong style="color: rgb(200 200 200); font-size: 0.8vw;">${c.label}</strong><br>
-                <span style="color: #888; font-size: 0.6vw; text-transform: lowercase;">${c.name}</span>
-            </td>
-            <td class="centro" style="white-space: nowrap;">
-                <button class="btn-icon" style="color:#fff;" onclick="viewCategory(${c.id})" title="Mostrar Vehículos"><i class="fa-solid fa-eye"></i></button>
-                <button class="btn-icon" style="color:#ccc;" onclick="editDummyCat(${c.id})" title="Editar"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn-icon" style="color:#888;" onclick="deleteCategory(${c.id})" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
-            </td>
-        </tr>`;
+    // Asegurarnos de que se pintan en orden
+    activeCategories.sort((a, b) => a.order - b.order);
+
+    if (activeCategories.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <iconify-icon icon="solar:tag-list-bold-duotone" class="empty-state-icon"></iconify-icon>
+                <span class="empty-state-text">No hay categorías creadas</span>
+            </div>`;
+        return;
+    }
+
+    activeCategories.forEach((cat, index) => {
+        const item = document.createElement('div');
+        item.className = 'cat-list-item';
+        item.id = `cat-item-${cat.id}`;
+
+        item.innerHTML = `
+            <div class="cat-col-order">
+                <div class="cat-order-controls">
+                    <button class="order-btn" title="Subir" onclick="moveCategoryUp(${index})" ${index === 0 ? 'disabled' : ''}>
+                        <i class="fa-solid fa-chevron-up"></i>
+                    </button>
+                    <button class="order-btn" title="Bajar" onclick="moveCategoryDown(${index})" ${index === activeCategories.length - 1 ? 'disabled' : ''}>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="cat-order-badge">${index + 1}</div>
+            </div>
+            <div class="cat-col-name">
+                <div class="cat-name-box">
+                    <span class="cat-name-label">${cat.label}</span>
+                    <span class="cat-name-id">ID: ${cat.name}</span>
+                </div>
+            </div>
+            <div class="cat-col-actions">
+                <button class="btn-icon" title="Ver vehículos" onclick="viewCategory(${cat.id})">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+                <button class="btn-icon" title="Editar" onclick="editDummyCat(${cat.id})">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="btn-icon" title="Eliminar" onclick="deleteCategory(${cat.id})">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        `;
+
+        container.appendChild(item);
+    });
+}
+
+// --- FUNCIONES PARA MOVER EL ORDEN ---
+function moveCategoryUp(index) {
+    if (index <= 0) return; // Si ya es el primero, no hace nada
+
+    // Intercambiamos posiciones en el array
+    const temp = activeCategories[index];
+    activeCategories[index] = activeCategories[index - 1];
+    activeCategories[index - 1] = temp;
+
+    saveAndRenderNewCategoryOrder();
+}
+
+function moveCategoryDown(index) {
+    if (index >= activeCategories.length - 1) return; // Si ya es el último, no hace nada
+
+    // Intercambiamos posiciones en el array
+    const temp = activeCategories[index];
+    activeCategories[index] = activeCategories[index + 1];
+    activeCategories[index + 1] = temp;
+
+    saveAndRenderNewCategoryOrder();
+}
+
+function saveAndRenderNewCategoryOrder() {
+    const newOrderData = [];
+
+    // Reasignamos los números
+    activeCategories.forEach((cat, idx) => {
+        cat.order = idx + 1;
+        newOrderData.push({ id: cat.id, order: cat.order });
+    });
+
+    // Refrescamos vistas
+    renderBossCatsTable();
+    renderShowroomFilters();
+
+    // Hacemos el envío
+    fetch(`https://${GetParentResourceName()}/updateCategoryOrder`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: JSON.stringify({ orderData: newOrderData })
     });
 }
 
@@ -2445,6 +2679,13 @@ document.getElementById('confirm-delete-cat-btn')?.addEventListener('click', () 
 function viewCategory(id) {
     const cat = activeCategories.find(c => c.id === id);
     if (!cat) return;
+
+    // 1. Le quitamos la clase 'active-cat' a todas las categorías
+    document.querySelectorAll('.cat-list-item').forEach(el => el.classList.remove('active-cat'));
+
+    // 2. Se la ponemos solo a la fila que hemos clickeado
+    const selectedRow = document.getElementById(`cat-item-${id}`);
+    if (selectedRow) selectedRow.classList.add('active-cat');
 
     const grid = document.querySelector('.category-vehicles-grid');
     const rightWidget = grid.parentElement;
@@ -2995,6 +3236,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     classBadge.className = `vehicle-class-badge ${cssClass}`;
                 }
                 break;
+            // Mostrar HUD de Test Drive con el tiempo restante
+            case 'showTestDriveHUD':
+                const hudEl = document.getElementById('testdrive-hud');
+                if (hudEl) {
+                    hudEl.style.display = 'flex';
+                    document.getElementById('testdrive-timer').innerText = data.duration;
+                }
+                // Ocultar paneles del showroom durante la prueba
+                const infoPanel = document.getElementById('vehicle-info-panel');
+                const rightPanel = document.getElementById('right-custom-panel');
+                const carousel = document.querySelector('.bottom-carousel-container');
+                if (infoPanel) infoPanel.style.display = 'none';
+                if (rightPanel) rightPanel.style.display = 'none';
+                if (carousel) carousel.style.display = 'none';
+                break;
+            // Actualizar el tiempo restante en el HUD de Test Drive
+            case 'updateTestDriveTimer':
+                const timerEl = document.getElementById('testdrive-timer');
+                if (timerEl) timerEl.innerText = data.timeLeft;
+                break;
+            // Ocultar el HUD de Test Drive
+            case 'hideTestDriveHUD':
+                const hudElHide = document.getElementById('testdrive-hud');
+                if (hudElHide) hudElHide.style.display = 'none';
+                // Restaurar paneles al terminar la prueba
+                const infoPanelR = document.getElementById('vehicle-info-panel');
+                const rightPanelR = document.getElementById('right-custom-panel');
+                const carouselR = document.querySelector('.bottom-carousel-container');
+                if (infoPanelR) infoPanelR.style.display = 'flex';
+                if (rightPanelR) rightPanelR.style.display = 'flex';
+                if (carouselR) carouselR.style.display = 'flex';
+                break;
         }
     });
 
@@ -3022,9 +3295,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // PRIORIDAD 1: Si el Showroom está abierto, cerrarlo
             if (isShowroomOpen) {
-                isShowroomOpen = false;
-                document.getElementById('showroom-container').style.display = 'none';
-                fetch(`https://${GetParentResourceName()}/closeShowroomMenu`, { method: 'POST', body: JSON.stringify({}) });
+                closeShowroom(); // Usamos la función de limpieza total
                 return;
             }
 

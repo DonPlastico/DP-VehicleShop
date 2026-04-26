@@ -23,6 +23,14 @@ Config.PDM = 'pdmescaparate'
 Config.VehicleList = 'generarprimerstock'
 
 -- =================================================================
+-- SECCIÓN 1.5: PRUEBA DE MANEJO
+-- =================================================================
+Config.TestDrive = {
+    Duration = 60,          -- Segundos de prueba
+    BucketBase = 1000,      -- Bucket base (cada jugador usará BucketBase + playerId)
+}
+
+-- =================================================================
 -- SECCIÓN 2: AJUSTES DE INTERFAZ Y NOTIFICACIONES
 -- =================================================================
 
@@ -48,18 +56,18 @@ Config.Dealerships = {
         job = 'cardealer',
         blip = {
             enabled = true,
-            id = 326,
-            color = 3,
-            scale = 0.8,
-            coords = vector3(-33.8, -1102.0, 26.4)
+            id = 225,
+            color = 0,
+            scale = 0.55,
+            coords = vector3(-42.98, -1100.89, 26.44)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1234.39, -3379.61, 13.94, 48.1),
+        coords_npc = vector4(-1234.39, -3379.61, 13.94, 48.1), -- vector4(-40.56, -1093.43, 26.44, 155.02)
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1236.0, -3382.66, 13.94),
-        npc_buy = vector4(-1236.99, -3384.55, 13.94, 60.77),
+        bossMenu = vector3(-1236.0, -3382.66, 13.94), -- vector3(-52.45, -1100.43, 26.44)
+        npc_buy = vector4(-1236.99, -3384.55, 13.94, 60.77), -- vector4(-59.99, -1096.89, 26.44, 298.13)
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1230.0, -3380.0, 13.94, 90.0), vector4(-1230.0, -3385.0, 13.94, 90.0)}
+        ExitSpawnPoints = {vector4(-1238.27, -3340.5, 13.46, 330.57)} -- vector4(-38.34, -1078.26, 26.2, 70.56), vector4(-15.71, -1101.64, 26.22, 159.81)
     },
 
     -- 2. BIKES (Motos y Bicicletas)
@@ -69,17 +77,17 @@ Config.Dealerships = {
         blip = {
             enabled = true,
             id = 226,
-            color = 1,
-            scale = 0.8,
+            color = 0,
+            scale = 0.55,
             coords = vector3(287.0, -1146.0, 29.0)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1239.1, -3377.4, 13.94, 62.31),
+        coords_npc = vector4(-1239.1, -3377.4, 13.94, 62.31), -- vector4(-873.92, -198.17, 37.84, 296.61)
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1240.64, -3380.26, 13.94),
-        npc_buy = vector4(-1241.79, -3382.31, 13.94, 60.04),
+        bossMenu = vector3(-1240.64, -3380.26, 13.94), -- vector3(-873.11, -181.49, 37.84)
+        npc_buy = vector4(-1241.79, -3382.31, 13.94, 60.04), -- vector4(-863.75, -194.73, 37.84, 89.28)
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1235.0, -3375.0, 13.94, 90.0), vector4(-1235.0, -3378.0, 13.94, 90.0)}
+        ExitSpawnPoints = {vector4(-1238.27, -3340.5, 13.46, 330.57)} -- vector4(-859.23, -210.42, 37.6, 273.44), vector4(-885.9, -194.75, 37.56, 25.88)
     },
 
     -- 3. AIRE (Aviones y Helicópteros)
@@ -90,9 +98,9 @@ Config.Dealerships = {
         preview_spawn = vector4(-1135.0, -3375.0, 13.0, 60.0), -- Dónde se coloca tu cámara para verlo
         blip = {
             enabled = true,
-            id = 251,
-            color = 4,
-            scale = 0.8,
+            id = 307,
+            color = 0,
+            scale = 0.55,
             coords = vector3(-1130.0, -2565.0, 14.0)
         },
         npc_model = 'a_m_y_business_02',
@@ -112,18 +120,18 @@ Config.Dealerships = {
         preview_spawn = vector4(-741.88, -1370.38, 0.0, 138.21), -- En el muelle mirándolo
         blip = {
             enabled = true,
-            id = 410,
-            color = 3,
-            scale = 0.8,
-            coords = vector3(-739.0, -1333.0, 1.5)
+            id = 427,
+            color = 0,
+            scale = 0.55,
+            coords = vector3(-803.89, -1355.11, 5.2)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1246.0, -3374.16, 13.94, 59.71),
+        coords_npc = vector4(-1246.0, -3374.16, 13.94, 59.71), -- vector4(-805.75, -1368.5, 5.18, 347.36)
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1247.42, -3376.86, 13.94),
-        npc_buy = vector4(-1248.63, -3378.81, 13.94, 56.83),
+        bossMenu = vector3(-1247.42, -3376.86, 13.94), -- vector3(-788.78, -1346.52, 5.18)
+        npc_buy = vector4(-1248.63, -3378.81, 13.94, 56.83), -- vector4(-813.0, -1345.81, 5.18, 230.36)
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1260.0, -3350.0, 1.5, 0.0), vector4(-1265.0, -3350.0, 1.5, 0.0)}
+        ExitSpawnPoints = {vector4(-1260.0, -3350.0, 1.5, 0.0), vector4(-1265.0, -3350.0, 1.5, 0.0)} -- vector4(-855.63, -1396.55, 0.18, 196.16), vector4(-891.61, -1444.27, 0.12, 285.04)
     },
 
     -- 5. VIP (Vehículos Custom / Importación)
@@ -133,17 +141,17 @@ Config.Dealerships = {
         blip = {
             enabled = true,
             id = 523,
-            color = 5,
-            scale = 0.8,
-            coords = vector3(-795.0, -225.2, 37.0)
+            color = 0,
+            scale = 0.55,
+            coords = vector3(-3375.47, -1270.96, 24.07)
         },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1249.64, -3372.49, 13.94, 59.62),
+        coords_npc = vector4(-1249.64, -3372.49, 13.94, 59.62), -- vector4(-3373.43, -1257.97, 24.24, 169.68)
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1250.93, -3374.75, 13.94),
-        npc_buy = vector4(-1252.07, -3377.0, 13.94, 58.87),
+        bossMenu = vector3(-1250.93, -3374.75, 13.94), -- vector3(-3380.07, -1254.74, 24.24)
+        npc_buy = vector4(-1252.07, -3377.0, 13.94, 58.87), -- vector4(-3378.38, -1277.74, 24.07, 286.38)
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1255.0, -3370.0, 13.94, 90.0), vector4(-1255.0, -3375.0, 13.94, 90.0)}
+        ExitSpawnPoints = {vector4(-1238.27, -3340.5, 13.46, 330.57)} -- vector4(-3355.38, -1264.22, 23.87, 172.18), vector4(-3374.11, -1251.5, 23.85, 82.55)
     },
 
     -- 6. COMPRA/VENTA (Jugador a Jugador)
@@ -152,9 +160,9 @@ Config.Dealerships = {
         job = 'useddealer',
         blip = {
             enabled = true,
-            id = 225,
-            color = 6,
-            scale = 0.8,
+            id = 524,
+            color = 0,
+            scale = 0.55,
             coords = vector3(200.0, -200.0, 30.0)
         },
         npc_model = 'a_m_y_business_02',

@@ -9,6 +9,7 @@
 
     <script src="https://kit.fontawesome.com/610ae1a27e.js" crossorigin="anonymous"></script>
     <script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -229,12 +230,19 @@
                 </div>
             </div>
 
-            <div class="right-panel-secondary">
-                <div class="main-info-header" style="margin: 0;">
-                    <h2 class="panel-category-title">SECCIÓN SECUNDARIA</h2>
+            <div id="plate-modifier-panel" class="right-panel-secondary" style="display: none;">
+                <div class="main-info-header" style="margin-bottom: 10px;">
+                    <h2 class="panel-category-title">MODIFICA LA MATRÍCULA CUSTOM</h2>
                 </div>
-                <div class="right-content-placeholder">
-                    <span>Contenido secundario vacío...</span>
+                <div class="plate-image-container" style="flex-direction: column; align-items: center; gap: 10px;">
+                    <div class="plate-wrapper">
+                        <img src="./Matricula.png" alt="Matrícula Custom" class="custom-plate-img">
+                        <input type="text" id="custom-plate-input" class="plate-input" placeholder="XXXXXXXX"
+                            maxlength="8" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div id="plate-warning" class="plate-warning-msg" style="display: none;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Mínimo 1 dígito, máximo 8 caracteres.
+                    </div>
                 </div>
             </div>
         </div>
@@ -825,20 +833,18 @@
                                     <i class="fa-solid fa-plus"></i> NUEVA
                                 </button>
                             </div>
-                            <p class="widget-desc" style="margin-bottom: 1vw;">Filtros del catálogo de clientes.</p>
 
                             <div class="sales-table-container" style="overflow-y: auto;">
-                                <table class="custom-table table-centered">
-                                    <thead>
-                                        <tr>
-                                            <th>ORDEN</th>
-                                            <th>CATEGORÍA</th>
-                                            <th>ACCIONES</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="cats-tbody">
-                                    </tbody>
-                                </table>
+                                <div class="categories-custom-list">
+                                    <div class="cat-list-header">
+                                        <div class="cat-col-order">ORDEN</div>
+                                        <div class="cat-col-name">CATEGORÍA</div>
+                                        <div class="cat-col-actions">ACCIONES</div>
+                                    </div>
+
+                                    <div class="cat-list-body" id="cats-list-container">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1443,6 +1449,22 @@
                 <button class="btn-primary" id="confirm-delete-cat-btn" style="background:#e74c3c; color:#fff;">
                     Sí, Eliminar Todo
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="testdrive-hud" style="display: none;">
+        <div id="testdrive-hud-inner">
+            <div id="testdrive-icon">
+                <iconify-icon icon="game-icons:time-trap"></iconify-icon>
+            </div>
+            <div id="testdrive-info">
+                <span id="testdrive-label">PRUEBA DE MANEJO</span>
+                <span id="testdrive-sub">Bájate del vehículo para terminar antes</span>
+            </div>
+            <div id="testdrive-countdown">
+                <span id="testdrive-timer">60</span>
+                <span id="testdrive-unit">seg</span>
             </div>
         </div>
     </div>

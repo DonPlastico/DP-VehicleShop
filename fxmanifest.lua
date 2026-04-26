@@ -36,6 +36,7 @@ files {
     'ui/index.html',
     'ui/style.css',
     'ui/script.js',
+    'ui/Matricula.png',
     -- Cargamos todas las imágenes de la carpeta custom de forma masiva
     'ui/veh_custom/*.png',
     'ui/veh_custom/*.jpg',
@@ -48,7 +49,10 @@ files {
 
 -- Scripts compartidos (Se cargan en Cliente Y Servidor simultáneamente).
 -- Ideal para Configuración y Tablas de traducción.
-shared_scripts {'config.lua'}
+shared_scripts {
+    'config.lua',
+    'locales/*.lua'
+}
 
 -- Scripts del Servidor (Base de Datos, Seguridad, Permisos).
 -- Nadie puede ver este código desde el juego.

@@ -1308,7 +1308,7 @@ end)
 -- =================================================================
 
 -- Envía las categorías específicas de un concesionario a quien las pida
-QBCore.Functions.CreateCallback('DP-VehicleShop:server:getCategories', function(source, cb, dealerId)
+Framework.Core.Functions.CreateCallback('DP-VehicleShop:server:getCategories', function(source, cb, dealerId)
     exports['oxmysql']:execute(
         'SELECT * FROM dp_vehicleshop_categories WHERE dealership_id = ? ORDER BY sort_order ASC', {dealerId},
         function(result)
@@ -1829,4 +1829,55 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                     "error")
             end
         end)
+end)
+
+-- =================================================================
+-- MÓDULO 17: ACTUALIZAR ORDEN DE CATEGORÍAS (FLECHAS)
+-- =================================================================
+
+RegisterNetEvent('DP-VehicleShop:server:updateCategoryOrder')
+AddEventHandler('DP-VehicleShop:server:updateCategoryOrder', function(orderData)
+    local src = source
+
+    if orderData and #orderData > 0 then
+        -- Usamos tu columna 'sort_order' para actualizar el orden
+        for _, cat in ipairs(orderData) do
+            exports['oxmysql']:execute('UPDATE dp_vehicleshop_categories SET sort_order = ? WHERE id = ?',
+                {cat.order, cat.id})
+        end
+    end
+end)
+
+-- =================================================================
+-- MÓDULO 18: PRUEBA DE MANEJO (TEST DRIVE)
+-- =================================================================
+
+-- Export para que DP-AdminMenu pueda usarlo también si quiere
+exports('setPlayerBucket', function(targetSrc, bucket)
+    SetPlayerRoutingBucket(targetSrc, bucket)
+end)
+
+RegisterNetEvent('DP-VehicleShop:server:startTestDrive')
+AddEventHandler('DP-VehicleShop:server:startTestDrive', function(dealerId, vehicleData)
+    local src = source
+
+    -- Asignamos una dimensión única: BucketBase + server ID del jugador
+    local bucket = Config.TestDrive.BucketBase + src
+
+    -- Metemos al jugador en su dimensión privada
+    SetPlayerRoutingBucket(src, bucket)
+
+    -- Le mandamos al cliente los datos para que spawnee el coche y arranque el timer
+    TriggerClientEvent('DP-VehicleShop:client:beginTestDrive', src, dealerId, vehicleData, bucket)
+end)
+
+RegisterNetEvent('DP-VehicleShop:server:endTestDrive')
+AddEventHandler('DP-VehicleShop:server:endTestDrive', function()
+    local src = source
+
+    -- Devolvemos al jugador al mundo normal (bucket 0)
+    SetPlayerRoutingBucket(src, 0)
+
+    -- Avisamos al cliente para que limpie el coche y restaure el showroom
+    TriggerClientEvent('DP-VehicleShop:client:finishTestDrive', src)
 end)
