@@ -254,6 +254,11 @@ h2 {
     box-shadow: 0 0 10px rgb(255 255 255 / 20%);
 }
 
+#tab-permissions .btn-icon,
+#tab-categories .btn-icon {
+    width: 100px;
+}
+
 /* Botón especial para copiar coordenadas */
 .btn-copy {
     height: 45px;
@@ -794,7 +799,6 @@ select option {
     pointer-events: auto;
 }
 
-/* Estilos base de las cajas (Igual que las cards de vehículos) */
 .toolbar-box {
     background: rgba(20, 20, 20, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -803,9 +807,16 @@ select option {
     align-items: center;
     justify-content: center;
     color: white;
-    height: 1.8vw;
-    /* MÁS PEQUEÑO: Antes era 2.5vw */
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 61.3vw;
     transition: all 0.2s ease;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.toolbar-box.toolbar-filters::-webkit-scrollbar {
+    height: 3px;
 }
 
 /* =================================================================
@@ -1614,7 +1625,7 @@ select option {
     left: calc(100% + 10px);
     width: 22vw;
     max-height: 31.2vw;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(20, 20, 20, 0.85);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 5px;
@@ -2330,36 +2341,38 @@ select option {
 .sales-footer {
     display: flex;
     justify-content: space-between;
+    /* Separa el buscador a la izquierda y la paginación a la derecha */
     align-items: center;
-    margin-top: 0.4vw;
-    /* Súper ajustado */
-    padding-top: 0.4vw;
-    border-top: 1px solid var(--border-color);
+    /* Centra ambos bloques verticalmente */
+    padding: 7.5px 10px 0 10px;
+    /* Fondo sutil para el pie */
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 0;
 }
 
 .sales-search {
     display: flex;
     align-items: center;
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 0.5vh 0.8vw;
     border-radius: 4px;
-    padding: 0.2vw 0.5vw;
-    /* Muy finito */
+    width: 12vw;
 }
 
 .sales-search i {
-    color: #888;
-    margin-right: 0.5vw;
     font-size: 0.7vw;
+    color: rgba(255, 255, 255, 0.2);
+    margin-right: 0.5vw;
 }
 
 .sales-search input {
     background: transparent;
     border: none;
     color: white;
+    font-size: 0.7vw;
+    width: 100%;
     outline: none;
-    width: 12vw;
-    font-size: 0.75vw;
 }
 
 .sales-search input[type="text"] {
@@ -2367,28 +2380,37 @@ select option {
 }
 
 .sales-pagination {
-    display: flex;
-    align-items: center;
-    gap: 0.5vw;
-    color: white;
-    font-weight: bold;
-    font-size: 0.8vw;
+    display: flex;                  /* FUERZA LA FILA HORIZONTAL */
+    align-items: center;            /* Centra los iconos y el texto en el eje vertical */
 }
 
 .sales-pagination .btn-icon {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: none;
-    padding: 0.2vw 0.6vw;
-    /* Botones muy finos */
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    width: 1.8vw;
+    height: 1.8vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 0.7vw;
+    transition: var(--transition);
 }
 
 .sales-pagination .btn-icon:hover {
-    background: var(--primary-color);
-    color: black;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sales-pagination span {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7vw;
+    color: rgba(255, 255, 255, 0.4);
+    min-width: 3.5vw;
+    text-align: center;
+    letter-spacing: 1px;
 }
 
 /* =================================================================
@@ -2982,7 +3004,7 @@ input:checked+.slider:before {
 /* Cajas principales (Estilo idéntico a info-panel-main) */
 .right-panel-main,
 .right-panel-secondary {
-    background: rgba(15, 15, 15, 0.95);
+    background: rgba(20, 20, 20, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 4px;
     padding: 10px;
@@ -3693,7 +3715,155 @@ input:checked+.slider:before {
     font-family: 'Orbitron', sans-serif;
 }
 
+/* --- ESTILOS PANEL DE CONFIRMACIÓN (TIPO TICKET/FACTURA) --- */
 
+/* Cuadrícula para los detalles (Método y Entrega) */
+.confirmation-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5vw;
+    margin-bottom: 1.5vh;
+}
+
+.conf-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8vw;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0.8vh;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.conf-detail-item i {
+    font-size: 1vw;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.detail-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-label {
+    font-size: 0.5vw;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.detail-value {
+    font-size: 0.75vw;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+}
+
+/* Contenedor Unificado de Precio */
+.conf-single-price-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 1.5vh;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 2vh;
+}
+
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5vh 0;
+}
+
+.price-label {
+    font-size: 0.65vw;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.price-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9vw;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Fila de recargo de matrícula */
+.extra-fee {
+    animation: fadeIn 0.3s ease;
+}
+
+.fee-right-side {
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+}
+
+.highlight-plus {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.8vw;
+}
+
+.reset-plate-trash-mini {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.4);
+    width: 1.5vw;
+    height: 1.5vw;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9vw;
+    transition: var(--transition);
+}
+
+.reset-plate-trash-mini:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 1);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+/* Divisor y Total */
+.price-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 1vh 0;
+}
+
+.total-row .price-label {
+    font-size: 0.8vw;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 700;
+}
+
+.final-total {
+    font-size: 1.4vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 1);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* Agrupación de etiquetas para la matrícula */
+.plate-label-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* El texto de la matrícula en el resumen (Gris y entre paréntesis) */
+.plate-text-preview {
+    font-size: 0.55vw;
+    color: rgba(255, 255, 255, 0.3);
+    /* Gris alpha */
+    font-family: 'Orbitron', sans-serif;
+    text-transform: uppercase;
+    margin-top: -2px;
+    /* Para pegarlo un poco al título superior */
+}
 
 
 

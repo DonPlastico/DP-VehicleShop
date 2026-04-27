@@ -4,15 +4,6 @@ Config = {}
 -- SECCIÓN 1: AJUSTES PRINCIPALES (CORE)
 -- =================================================================
 
--- Selección del Framework del servidor.
--- Opciones disponibles:
--- 'qbcore'   -> QBCore Framework (Oficial)
--- 'esx'      -> ESX 1.1 / 1.2 / 1.Final
--- 'new_esx'  -> ESX Legacy (v1.9.0 o superior)
--- 'ox'       -> Ox_Core
--- 'custom'   -> Framework propio (Requiere editar sv_main.lua)
-Config.Framework = 'qbcore'
-
 -- Nombre del trabajo (Job) requerido para abrir el menú.
 Config.JobName = 'police' -- ¡Ahora se gestiona en la Sección 2.5 por cada concesionario!
 

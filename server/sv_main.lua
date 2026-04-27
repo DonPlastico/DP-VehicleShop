@@ -18,20 +18,9 @@ function RefreshDealerCache()
 end
 
 -- =================================================================
--- MÓDULO 2: CARGA DINÁMICA DEL FRAMEWORK
+-- MÓDULO 2: CARGA DEL FRAMEWORK (SOLO QB-CORE)
 -- =================================================================
-
-if Config.Framework == 'qbcore' then
-    Framework.Core = exports['qb-core']:GetCoreObject()
-elseif Config.Framework == 'esx' then
-    TriggerEvent('esx:getSharedObject', function(obj)
-        Framework.Core = obj
-    end)
-elseif Config.Framework == 'new_esx' then
-    Framework.Core = exports.es_extended:getSharedObject()
-elseif Config.Framework == 'ox' then
-    Framework.Core = exports.ox_core:GetCoreObject()
-end
+Framework.Core = exports['qb-core']:GetCoreObject()
 
 -- =================================================================
 -- MÓDULO 3: INICIALIZACIÓN DE LA BASE DE DATOS
@@ -323,31 +312,12 @@ end)
 
 local function HasJob(source)
     local src = source
-    if not Framework.Core then
-        return false
-    end
     if type(src) ~= 'number' then
         return false
     end
 
-    local hasJob = false
-    if Config.Framework == 'qbcore' then
-        local Player = Framework.Core.Functions.GetPlayer(src)
-        if Player and Player.PlayerData.job.name == Config.JobName then
-            hasJob = true
-        end
-    elseif Config.Framework == 'esx' or Config.Framework == 'new_esx' then
-        local Player = Framework.Core.GetPlayerFromId(src)
-        if Player and Player.job and Player.job.name == Config.JobName then
-            hasJob = true
-        end
-    elseif Config.Framework == 'ox' then
-        local Player = Framework.Core.GetPlayer(src)
-        if Player and Player.job and Player.job == Config.JobName then
-            hasJob = true
-        end
-    end
-    return hasJob
+    local Player = Framework.Core.Functions.GetPlayer(src)
+    return Player and Player.PlayerData.job.name == Config.JobName
 end
 
 -- =================================================================
@@ -496,23 +466,22 @@ local function RefreshJobGradesForBoss(dealerId, src)
     end
 
     local jobGrades = {}
-    if Config.Framework == 'qbcore' then
-        local jobName = dealerConfig.job
-        local sharedJob = Framework.Core.Shared.Jobs[jobName]
-        if sharedJob and sharedJob.grades then
-            for gradeLevel, gradeData in pairs(sharedJob.grades) do
-                table.insert(jobGrades, {
-                    grade = tonumber(gradeLevel),
-                    name = gradeData.name,
-                    payment = gradeData.payment or 0,
-                    isboss = gradeData.isboss or false,
-                    permissions = gradeData.permissions or {}
-                })
-            end
-            table.sort(jobGrades, function(a, b)
-                return a.grade < b.grade
-            end)
+    local jobName = dealerConfig.job
+    local sharedJob = Framework.Core.Shared.Jobs[jobName]
+
+    if sharedJob and sharedJob.grades then
+        for gradeLevel, gradeData in pairs(sharedJob.grades) do
+            table.insert(jobGrades, {
+                grade = tonumber(gradeLevel),
+                name = gradeData.name,
+                payment = gradeData.payment or 0,
+                isboss = gradeData.isboss or false,
+                permissions = gradeData.permissions or {}
+            })
         end
+        table.sort(jobGrades, function(a, b)
+            return a.grade < b.grade
+        end)
     end
     -- Le enviamos las categorías nuevas de vuelta al cliente
     TriggerClientEvent('DP-VehicleShop:client:refreshJobGrades', src, jobGrades)
@@ -526,10 +495,6 @@ end
 -- GUARDADO DE JOBS.LUA (A TRAVÉS DE EXPORT A QB-CORE)
 -- =================================================================
 local function SaveJobsToFile()
-    if Config.Framework ~= 'qbcore' then
-        return
-    end
-
     local jobs = Framework.Core.Shared.Jobs
 
     -- Función recursiva para formatear la tabla a texto
@@ -607,10 +572,6 @@ end
 -- GUARDADO DE VEHICLES.LUA (A TRAVÉS DE EXPORT A QB-CORE)
 -- =================================================================
 local function SaveVehiclesToFile()
-    if Config.Framework ~= 'qbcore' then
-        return
-    end
-
     local vehicles = Framework.Core.Shared.Vehicles
 
     -- Función recursiva para formatear la tabla a texto Lua legible
@@ -706,10 +667,8 @@ RegisterCommand(Config.VehicleList, function(source, args, rawCommand)
     local src = source
     local vehicles = nil
 
-    -- Obtenemos los vehículos (Compatible con QBCore)
-    if Config.Framework == 'qbcore' then
-        vehicles = Framework.Core.Shared.Vehicles
-    end
+    -- Obtenemos los vehículos de QBCore
+    vehicles = Framework.Core.Shared.Vehicles
 
     if not vehicles then
         print('^1[DP-VehicleShop] Error: No se encontró la tabla de vehículos.^7')
@@ -887,17 +846,13 @@ AddEventHandler('DP-VehicleShop:server:requestBossMenu', function(dealerId)
         return
     end
 
-    if Config.Framework == 'qbcore' then
-        local Player = Framework.Core.Functions.GetPlayer(src)
-        if Player then
-            -- ¿Eres el Dueño?
-            if DealershipOwners[dealerId] and DealershipOwners[dealerId] == Player.PlayerData.citizenid then
-                isAuthorized = true
-            end
-            -- ¿Eres el Jefe del trabajo?
-            if Player.PlayerData.job.name == dealerConfig.job and Player.PlayerData.job.isboss then
-                isAuthorized = true
-            end
+    local Player = Framework.Core.Functions.GetPlayer(src)
+    if Player then
+        if DealershipOwners[dealerId] and DealershipOwners[dealerId] == Player.PlayerData.citizenid then
+            isAuthorized = true
+        end
+        if Player.PlayerData.job.name == dealerConfig.job and Player.PlayerData.job.isboss then
+            isAuthorized = true
         end
     end
 
@@ -932,23 +887,21 @@ AddEventHandler('DP-VehicleShop:server:requestBossMenu', function(dealerId)
 
                         -- 3. EXTRACCIÓN DE RANGOS DEL TRABAJO (QBCore)
                         local jobGrades = {}
-                        if Config.Framework == 'qbcore' then
-                            local jobName = dealerConfig.job
-                            local sharedJob = Framework.Core.Shared.Jobs[jobName]
-                            if sharedJob and sharedJob.grades then
-                                for gradeLevel, gradeData in pairs(sharedJob.grades) do
-                                    table.insert(jobGrades, {
-                                        grade = tonumber(gradeLevel),
-                                        name = gradeData.name,
-                                        payment = gradeData.payment or 0,
-                                        isboss = gradeData.isboss or false,
-                                        permissions = gradeData.permissions or {}
-                                    })
-                                end
-                                table.sort(jobGrades, function(a, b)
-                                    return a.grade < b.grade
-                                end)
+                        local jobName = dealerConfig.job
+                        local sharedJob = Framework.Core.Shared.Jobs[jobName]
+                        if sharedJob and sharedJob.grades then
+                            for gradeLevel, gradeData in pairs(sharedJob.grades) do
+                                table.insert(jobGrades, {
+                                    grade = tonumber(gradeLevel),
+                                    name = gradeData.name,
+                                    payment = gradeData.payment or 0,
+                                    isboss = gradeData.isboss or false,
+                                    permissions = gradeData.permissions or {}
+                                })
                             end
+                            table.sort(jobGrades, function(a, b)
+                                return a.grade < b.grade
+                            end)
                         end
 
                         -- 4. EXTRACCIÓN DE VEHÍCULOS REALES (Con Filtro de Categorías Prohibidas)
@@ -964,7 +917,7 @@ AddEventHandler('DP-VehicleShop:server:requestBossMenu', function(dealerId)
                             ['utility'] = true
                         }
 
-                        if Config.Framework == 'qbcore' and Framework.Core.Shared.Vehicles then
+                        if Framework.Core.Shared.Vehicles then
                             for model, v in pairs(Framework.Core.Shared.Vehicles) do
                                 local category = v.category and string.lower(v.category) or "sin_categoria"
 
@@ -1156,16 +1109,9 @@ AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
 
     -- 0. Identificamos al jugador para buscar sus reservas personales
     local citizenid = "unknown"
-    if Config.Framework == 'qbcore' then
-        local Player = Framework.Core.Functions.GetPlayer(src)
-        if Player then
-            citizenid = Player.PlayerData.citizenid
-        end
-    elseif Config.Framework == 'esx' or Config.Framework == 'new_esx' then
-        local Player = Framework.Core.GetPlayerFromId(src)
-        if Player then
-            citizenid = Player.identifier
-        end
+    local Player = Framework.Core.Functions.GetPlayer(src)
+    if Player then
+        citizenid = Player.PlayerData.citizenid
     end
 
     -- 1. Buscamos las categorías
@@ -1207,7 +1153,7 @@ AddEventHandler('DP-VehicleShop:server:requestShowroom', function(dealerId)
                         ['utility'] = true
                     }
 
-                    if Config.Framework == 'qbcore' and Framework.Core.Shared.Vehicles then
+                    if Framework.Core.Shared.Vehicles then
                         for model, v in pairs(Framework.Core.Shared.Vehicles) do
                             local category = v.category and string.lower(v.category) or "sin_categoria"
 
@@ -1383,10 +1329,6 @@ end)
 
 RegisterNetEvent('DP-VehicleShop:server:saveJobGrade', function(dealerId, data)
     local src = source
-    if Config.Framework ~= 'qbcore' then
-        return
-    end
-
     local dealerConfig = Config.Dealerships[dealerId]
     if not dealerConfig then
         return
@@ -1447,10 +1389,6 @@ end)
 
 RegisterNetEvent('DP-VehicleShop:server:deleteJobGrade', function(dealerId, grade)
     local src = source
-    if Config.Framework ~= 'qbcore' then
-        return
-    end
-
     local dealerConfig = Config.Dealerships[dealerId]
     if not dealerConfig then
         return
@@ -1733,7 +1671,26 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                 return
             end
 
-            -- 2. Calcular Pago Inicial
+            -- 2. Calcular Precio Final (Base + Matrícula Custom + Extras)
+            -- Obtenemos el precio base real del Shared para evitar que alteren el precio desde el JS
+            local basePrice = Framework.Core.Shared.Vehicles[model] and Framework.Core.Shared.Vehicles[model].price or price
+            local finalPrice = basePrice
+
+            -- A) Sumar recargo por Matrícula Custom ($25.000)
+            if vehicleData.plate and vehicleData.plate ~= "" then
+                finalPrice = finalPrice + 25000
+            end
+
+            -- B) Sumar recargo por cada Extra ($125 por unidad)
+            -- 'appliedExtras' es la variable que ya tienes en tu evento
+            if appliedExtras and #appliedExtras > 0 then
+                finalPrice = finalPrice + (#appliedExtras * 125)
+            end
+
+            -- Actualizamos la variable price para que el resto del script (logs, base de datos) use el total real
+            price = finalPrice
+
+            -- C) Calcular Pago Inicial (o cuota)
             local amountToPayNow = price
             if installments > 1 then
                 amountToPayNow = math.floor(price / installments)
@@ -1741,10 +1698,14 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
                 installments = 0
             end
 
-            -- 3. Intentar Cobrar al Jugador (Banco o Efectivo)
+            -- 3. Intentar Cobrar al Jugador (Usando el precio con recargos)
             if Player.Functions.RemoveMoney(payMethod, amountToPayNow, "Compra Vehículo: " .. model) then
 
-                local plate = string.upper(tostring(math.random(10, 99)) .. "DP" .. tostring(math.random(100, 999)))
+                -- Respetamos la matrícula custom si existe; si no, creamos una aleatoria
+                local plate = vehicleData.plate
+                if not plate or plate == "" then
+                    plate = string.upper(tostring(math.random(10, 99)) .. "DP" .. tostring(math.random(100, 999)))
+                end
 
                 -- Preparamos los extras en formato QBCore/DP-Garages
                 local formattedExtras = {}

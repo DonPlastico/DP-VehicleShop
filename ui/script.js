@@ -702,7 +702,7 @@ function applyShowroomFilter(categoryName) {
         carousel.innerHTML = `
             <div class="empty-state" style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; grid-column: 1 / -1;">
                 <iconify-icon icon="solar:car-broken-bold-duotone" class="empty-state-icon" style="font-size: 5vw;"></iconify-icon>
-                <span class="empty-state-text" style="color: #888; font-size: 1vw; margin-top: 1vw;">No se encontraron vehículos</span>
+                <span class="empty-state-text" style="color: #888; font-size: 1vw; margin-top: 1vw;">No se encontraron vehículos en esta categoría</span>
             </div>
         `;
     } else {
@@ -1107,15 +1107,48 @@ if (plateInput) {
 
         currentCustomPlate = filteredValue;
 
-        // 3. Validación de Longitud (Mínimo 1, Máximo 8)
-        if (currentCustomPlate.length < 1 || currentCustomPlate.length > 8) {
-            // Mostramos la alerta roja
-            if (plateWarning) plateWarning.style.display = 'flex';
-        } else {
-            // Ocultamos la alerta roja
-            if (plateWarning) plateWarning.style.display = 'none';
+        // ACTUALIZACIÓN EN VIVO DEL RESUMEN (FACTURA)
+        const confirmPanel = document.getElementById('purchase-confirmation-panel');
+        // Si el panel del resumen final está a la vista, lo actualizamos al instante
+        if (confirmPanel && confirmPanel.style.display !== 'none') {
+            const buyBtn = document.getElementById('buy-vehicle');
+            const basePrice = buyBtn ? (parseInt(buyBtn.dataset.price) || 0) : 0;
+            let tempFinalPrice = basePrice;
 
-            // Enviamos la matrícula validada a Lua para que la ponga en el coche 3D
+            const customPlateBlock = document.getElementById('conf-custom-plate-block');
+            const plateTextPreview = document.getElementById('conf-plate-text');
+
+            // Si hay algo escrito, sumamos 25k y mostramos el desglose
+            if (currentCustomPlate.trim() !== "") {
+                tempFinalPrice += 25000;
+                if (customPlateBlock) customPlateBlock.style.display = 'flex';
+                if (plateTextPreview) plateTextPreview.innerText = `(${currentCustomPlate})`;
+                isCustomPlateApplied = true;
+            } else {
+                // Si lo borra todo, ocultamos el desglose y volvemos al precio base
+                if (customPlateBlock) customPlateBlock.style.display = 'none';
+                isCustomPlateApplied = false;
+            }
+
+            finalPurchasePrice = tempFinalPrice;
+            document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
+        }
+
+        // 3. Validación de Longitud y Envío al Coche 3D
+        if (currentCustomPlate.length > 8) {
+            // Máximo superado: Mostramos alerta roja
+            if (plateWarning) plateWarning.style.display = 'flex';
+        } else if (currentCustomPlate.length === 0) {
+            // Vacío: Ocultamos alerta (quizá el jugador simplemente ya no quiere matrícula)
+            // Y mandamos a Lua que ponga la aleatoria en el coche
+            if (plateWarning) plateWarning.style.display = 'none';
+            fetch(`https://${GetParentResourceName()}/updateVehiclePlate`, {
+                method: 'POST',
+                body: JSON.stringify({ plate: "" })
+            });
+        } else {
+            // Normal (1 a 8 caracteres): Ocultamos alerta y actualizamos el coche
+            if (plateWarning) plateWarning.style.display = 'none';
             fetch(`https://${GetParentResourceName()}/updateVehiclePlate`, {
                 method: 'POST',
                 body: JSON.stringify({ plate: currentCustomPlate })
@@ -1349,27 +1382,157 @@ if (cancelPaymentBtn) {
     });
 }
 
-// 4. Botón CONFIRMAR COMPRA DEFINITIVA
+// =================================================================
+// MÓDULO: CONFIRMACIÓN DE COMPRA EN 2 PASOS (RESUMEN, MATRÍCULA Y EXTRAS)
+// =================================================================
+
+let isCustomPlateApplied = false;
+let finalPurchasePrice = 0;
+const EXTRA_PRICE_UNIT = 125; // Precio por cada extra
+
+// 1. Botón CONFIRMAR original (Prepara el ticket/factura)
 const confirmFinalBuyBtn = document.getElementById('confirm-final-buy');
 if (confirmFinalBuyBtn) {
     confirmFinalBuyBtn.addEventListener('click', () => {
+        const buyBtn = document.getElementById('buy-vehicle');
+        if (!buyBtn) return;
+
+        const basePrice = parseInt(buyBtn.dataset.price) || 0;
+        finalPurchasePrice = basePrice;
+
+        // --- LÓGICA DE MATRÍCULA ---
+        isCustomPlateApplied = (currentCustomPlate && currentCustomPlate.trim() !== "");
+        const customPlateBlock = document.getElementById('conf-custom-plate-block');
+        const plateTextPreview = document.getElementById('conf-plate-text');
+
+        if (isCustomPlateApplied) {
+            finalPurchasePrice += 25000;
+            if (customPlateBlock) customPlateBlock.style.display = 'flex';
+            if (plateTextPreview) plateTextPreview.innerText = `(${currentCustomPlate})`;
+        } else {
+            if (customPlateBlock) customPlateBlock.style.display = 'none';
+        }
+
+        // --- LÓGICA DE EXTRAS ($125 por cada una) ---
+        const extrasBlock = document.getElementById('conf-extras-block');
+        const extrasCountLabel = document.getElementById('conf-extras-count');
+        const extrasPriceLabel = document.getElementById('conf-extras-price');
+
+        // currentActiveExtras es tu array global con los IDs de las piezas activas
+        const activeExtrasCount = (currentActiveExtras && Array.isArray(currentActiveExtras)) ? currentActiveExtras.length : 0;
+
+        if (activeExtrasCount > 0) {
+            const totalExtrasCost = activeExtrasCount * EXTRA_PRICE_UNIT;
+            finalPurchasePrice += totalExtrasCost;
+
+            if (extrasBlock) extrasBlock.style.display = 'flex';
+            if (extrasCountLabel) extrasCountLabel.innerText = `(${activeExtrasCount} Activadas)`;
+            if (extrasPriceLabel) extrasPriceLabel.innerText = `+ $ ${new Intl.NumberFormat('es-ES').format(totalExtrasCost)}`;
+        } else {
+            if (extrasBlock) extrasBlock.style.display = 'none';
+        }
+
+        // --- ACTUALIZACIÓN DE TEXTOS FINALES ---
+        document.getElementById('conf-base-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(basePrice);
+        document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
+
+        const activeMethodBtn = document.querySelector('.payment-method-btn.active');
+        document.getElementById('conf-method-selected').innerText = activeMethodBtn && activeMethodBtn.dataset.method === 'bank' ? 'BANCO' : 'EFECTIVO';
+
+        const activeDeliveryBtn = document.querySelector('.delivery-method-btn.active');
+        document.getElementById('conf-delivery-selected').innerText = activeDeliveryBtn && activeDeliveryBtn.dataset.delivery === 'garage' ? 'GARAJE' : 'CONCES.';
+
+        // Cambio de paneles
+        document.getElementById('payment-selection-panel').style.display = 'none';
+        document.getElementById('purchase-confirmation-panel').style.display = 'flex';
+    });
+}
+
+// 2. Botón PAPELERA DE EXTRAS (Desactiva todo de golpe)
+const confirmResetExtrasBtn = document.getElementById('confirm-reset-extras');
+if (confirmResetExtrasBtn) {
+    confirmResetExtrasBtn.addEventListener('click', () => {
+        // 1. Vaciamos el array global de extras
+        currentActiveExtras = [];
+
+        // 2. Ocultamos el bloque de extras en el resumen
+        document.getElementById('conf-extras-block').style.display = 'none';
+
+        // 3. Recalculamos el precio total (Base + Matrícula si existe)
+        const buyBtn = document.getElementById('buy-vehicle');
+        const basePrice = buyBtn ? (parseInt(buyBtn.dataset.price) || 0) : 0;
+        finalPurchasePrice = basePrice + (isCustomPlateApplied ? 25000 : 0);
+
+        document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
+
+        // 4. Actualizamos visualmente el panel de selección de extras (quitando los 'active')
+        document.querySelectorAll('.extra-item').forEach(item => item.classList.remove('active'));
+
+        // 5. Le decimos a Lua que apague físicamente los extras en el coche 3D
+        // Una sola llamada para apagarlo todo
+            fetch(`https://${GetParentResourceName()}/resetAllVehicleExtras`, {
+                method: 'POST',
+                body: JSON.stringify({})
+            });
+    });
+}
+
+// 2. Botón CANCELAR RESUMEN (Vuelve al panel anterior)
+const cancelFinalPurchaseBtn = document.getElementById('cancel-final-purchase');
+if (cancelFinalPurchaseBtn) {
+    cancelFinalPurchaseBtn.addEventListener('click', () => {
+        document.getElementById('purchase-confirmation-panel').style.display = 'none';
+        document.getElementById('payment-selection-panel').style.display = 'flex';
+    });
+}
+
+// 3. Botón PAPELERA (Resetea la matrícula desde el resumen)
+const confirmResetPlateBtn = document.getElementById('confirm-reset-plate');
+if (confirmResetPlateBtn) {
+    confirmResetPlateBtn.addEventListener('click', () => {
+        // Vaciamos las variables globales de matrícula
+        currentCustomPlate = "";
+        isCustomPlateApplied = false;
+
+        // Recalculamos el precio (solo el base)
+        const buyBtn = document.getElementById('buy-vehicle');
+        finalPurchasePrice = parseInt(buyBtn.dataset.price) || 0;
+
+        // Ocultamos la fila de recargo visualmente y actualizamos el total
+        document.getElementById('conf-custom-plate-block').style.display = 'none';
+        document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
+
+        // ¡Vaciamos el INPUT físico de la derecha para que quede en blanco!
+        // (Busco los dos nombres de clase/id más comunes que sueles usar)
+        const plateInputDOM = document.getElementById('custom-plate-input') || document.querySelector('.plate-modifier-input');
+        if (plateInputDOM) {
+            plateInputDOM.value = "";
+        }
+
+        // Le pedimos al cliente Lua que restaure una matrícula aleatoria en la vista previa
+        fetch(`https://${GetParentResourceName()}/updateVehiclePlate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plate: "" }) // Mandamos vacío para que Lua genere una
+        });
+    });
+}
+
+// 4. Botón ACEPTAR COMPRA FINAL (Hace el fetch real a Lua)
+const acceptFinalPurchaseBtn = document.getElementById('accept-final-purchase');
+if (acceptFinalPurchaseBtn) {
+    acceptFinalPurchaseBtn.addEventListener('click', () => {
         const buyBtn = document.getElementById('buy-vehicle');
         const activeMethodBtn = document.querySelector('.payment-method-btn.active');
         const paymentMethod = activeMethodBtn ? activeMethodBtn.dataset.method : 'cash';
         const activeDeliveryBtn = document.querySelector('.delivery-method-btn.active');
         const deliveryMethod = activeDeliveryBtn ? activeDeliveryBtn.dataset.delivery : 'drive';
-        const installmentsVal = document.getElementById('payment-installments').value;
-        const installments = parseInt(installmentsVal) || 0;
-
-        // Escaneamos qué extras están encendidos en el panel
-        const activeExtrasList = [];
-        document.querySelectorAll('#extras-list-container .extra-item.active').forEach(extraItem => {
-            activeExtrasList.push(parseInt(extraItem.dataset.id));
-        });
+        const installmentsVal = document.getElementById('payment-installments');
+        const installments = installmentsVal ? (parseInt(installmentsVal.value) || 0) : 0;
 
         const finalVehicleData = {
             model: buyBtn.dataset.model,
-            price: parseInt(buyBtn.dataset.price),
+            price: finalPurchasePrice,     // PRECIO RECALCULADO (+25k o base)
             brand: buyBtn.dataset.brand,
             name: buyBtn.dataset.name,
             color: currentPreviewColor,
@@ -1377,7 +1540,7 @@ if (confirmFinalBuyBtn) {
             installments: installments,
             deliveryType: deliveryMethod,
             extras: currentActiveExtras,
-            plate: currentCustomPlate,
+            plate: currentCustomPlate      // Estará vacía si le dio a la papelera
         };
 
         // =========================================================
@@ -1385,16 +1548,16 @@ if (confirmFinalBuyBtn) {
         // =========================================================
         hideVehicleInfo();
 
-        const paymentPanel = document.getElementById('payment-selection-panel');
-        if (paymentPanel) paymentPanel.style.display = 'none';
+        const confirmPanel = document.getElementById('purchase-confirmation-panel');
+        if (confirmPanel) confirmPanel.style.display = 'none';
 
-        // Apagamos el carrusel de abajo
         document.getElementById('showroom-container').style.display = 'none';
         isShowroomOpen = false;
 
-        // Ahora SÍ, mandamos la orden final a Lua
+        // Mandamos la orden final a Lua
         fetch(`https://${GetParentResourceName()}/buyVehicle`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(finalVehicleData)
         });
     });
@@ -3537,4 +3700,18 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDiscTable();
     renderBossCatsTable();
     renderShowroomFilters();
+
+    // =================================================================
+    // NAVEGACIÓN HORIZONTAL PARA CATEGORÍAS (SCROLL CON RUEDA)
+    // =================================================================
+    const categoriesContainer = document.getElementById('categories-container');
+    if (categoriesContainer) {
+        categoriesContainer.addEventListener('wheel', (evt) => {
+            // Si el usuario mueve la rueda (deltaY), lo aplicamos al scroll horizontal (scrollLeft)
+            if (evt.deltaY !== 0) {
+                evt.preventDefault();
+                categoriesContainer.scrollLeft += evt.deltaY;
+            }
+        });
+    }
 });

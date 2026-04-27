@@ -31,20 +31,9 @@ local prePlateHeading = nil
 local testDriveReturnCoords = nil -- Coordenadas del NPC para volver al terminar
 
 -- =================================================================
--- MÓDULO 2: CARGA DINÁMICA DEL FRAMEWORK
+-- MÓDULO 2: CARGA DINÁMICA DEL FRAMEWORK (SOLO QB-CORE)
 -- =================================================================
-
-if Config.Framework == 'qbcore' then
-    Framework.Core = exports['qb-core']:GetCoreObject()
-elseif Config.Framework == 'esx' then
-    TriggerEvent('esx:getSharedObject', function(obj)
-        Framework.Core = obj
-    end)
-elseif Config.Framework == 'new_esx' then
-    Framework.Core = exports.es_extended:getSharedObject()
-elseif Config.Framework == 'ox' then
-    Framework.Core = exports.ox_core:GetCoreObject()
-end
+Framework.Core = exports['qb-core']:GetCoreObject()
 
 -- =================================================================
 -- MÓDULO 3: FUNCIONES AUXILIARES Y DATOS DEL JUGADOR (CACHÉ)
@@ -52,13 +41,8 @@ end
 
 -- Guardamos los datos del jugador una sola vez para evitar 0.99 ms de lag
 local function UpdateLocalPlayerData()
-    if Config.Framework == 'qbcore' and Framework.Core then
+    if Framework.Core then
         PlayerData = Framework.Core.Functions.GetPlayerData()
-        if PlayerData then
-            PlayerJob = PlayerData.job
-        end
-    elseif (Config.Framework == 'esx' or Config.Framework == 'new_esx') and Framework.Core then
-        PlayerData = Framework.Core.GetPlayerData()
         if PlayerData then
             PlayerJob = PlayerData.job
         end
@@ -81,21 +65,13 @@ local function IsPlayerAuthorized(dealerName, dealerConfig)
     local isOwner = false
     local isBoss = false
 
-    if Config.Framework == 'qbcore' then
-        if PlayerData and PlayerData.citizenid and DealerOwners[dealerName] == PlayerData.citizenid then
-            isOwner = true
-        end
-        if PlayerJob and PlayerJob.name == dealerConfig.job and PlayerJob.isboss then
-            isBoss = true
-        end
-    elseif Config.Framework == 'esx' or Config.Framework == 'new_esx' then
-        if PlayerData and PlayerData.identifier and DealerOwners[dealerName] == PlayerData.identifier then
-            isOwner = true
-        end
-        if PlayerJob and PlayerJob.name == dealerConfig.job and PlayerJob.grade_name == 'boss' then
-            isBoss = true
-        end
+    if PlayerData and PlayerData.citizenid and DealerOwners[dealerName] == PlayerData.citizenid then
+        isOwner = true
     end
+    if PlayerJob and PlayerJob.name == dealerConfig.job and PlayerJob.isboss then
+        isBoss = true
+    end
+
     return isOwner or isBoss
 end
 
@@ -338,10 +314,6 @@ RegisterNetEvent('QBCore:Player:SetPlayerData', function(val)
     PlayerData = val
 end)
 
-RegisterNetEvent('esx:setJob', function(job)
-    PlayerJob = job
-end)
-
 -- Cuando el script se reinicia en vivo
 AddEventHandler('onResourceStart', function(resourceName)
     if GetCurrentResourceName() == resourceName then
@@ -526,8 +498,11 @@ RegisterNetEvent('DP-VehicleShop:client:enterShowroomMode', function(dealerName)
     SendNUIMessage({
         action = 'openDealershipUI'
     })
-
     SetNuiFocus(true, true)
+
+    -- OCULTAR HUD Y VOZ (El chat ya se oculta arriba en la línea 335)
+    exports['DP-Hud']:ToggleVisibility(false)
+    TriggerEvent('bcs-voice-ui:client:showVoice', false)
 end)
 
 -- Dejamos preparada la función para cuando cierre el NUI
@@ -566,6 +541,10 @@ RegisterNetEvent('DP-VehicleShop:client:exitShowroomMode', function()
     -- 5. Mostrar el Chat y el Minimapa de vuelta
     TriggerEvent('chat:client:showChat', true)
     DisplayRadar(true)
+
+    -- MOSTRAR HUD Y VOZ DE NUEVO
+    exports['DP-Hud']:ToggleVisibility(true)
+    TriggerEvent('bcs-voice-ui:client:showVoice', true)
 end)
 
 -- 2. Apertura del Showroom
@@ -636,10 +615,8 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
 
     if not spawnPoint then
         spawnPoint = dealerConfig.ExitSpawnPoints[1]
-        if Config.Framework == 'qbcore' then
-            Framework.Core.Functions.Notify('La zona de entrega estaba ocupada. ¡Cuidado con las colisiones!',
-                'warning', 5000)
-        end
+        Framework.Core.Functions.Notify('La zona de entrega estaba ocupada. ¡Cuidado con las colisiones!', 'warning',
+            5000)
     end
 
     -- 2. CARGA DEL MODELO
@@ -688,11 +665,9 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
     -- 5. ENTREGA AL JUGADOR
     TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
 
-    if Config.Framework == 'qbcore' then
-        TriggerEvent("vehiclekeys:client:SetOwner", plate)
-        TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
-        Framework.Core.Functions.Notify('¡Disfruta de tu nuevo vehículo!', 'success', 5000)
-    end
+    TriggerEvent("vehiclekeys:client:SetOwner", plate)
+    TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
+    Framework.Core.Functions.Notify('¡Disfruta de tu nuevo vehículo!', 'success', 5000)
 
     SetModelAsNoLongerNeeded(modelHash)
 end)
@@ -726,6 +701,11 @@ RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealer
         dealerName = dealerLabel
     })
     SetNuiFocus(true, true)
+
+    -- OCULTAR HUD, CHAT Y VOZ
+    exports['DP-Hud']:ToggleVisibility(false)
+    TriggerEvent('chat:client:showChat', false)
+    TriggerEvent('bcs-voice-ui:client:showVoice', false)
 end)
 
 RegisterNetEvent('DP-VehicleShop:client:updateBossData', function(balance, logs, sales)
@@ -810,6 +790,11 @@ RegisterNUICallback('closeMenu', function(data, cb)
         status = false
     })
     SetNuiFocus(false, false) -- QUITAMOS EL CURSOR SÍ O SÍ
+
+    -- MOSTRAR HUD, CHAT Y VOZ
+    exports['DP-Hud']:ToggleVisibility(true)
+    TriggerEvent('chat:client:showChat', true)
+    TriggerEvent('bcs-voice-ui:client:showVoice', true)
     cb('ok')
 end)
 
@@ -820,6 +805,11 @@ RegisterNUICallback('confirmPurchase', function(data, cb)
         TriggerServerEvent('DP-VehicleShop:server:buyDealership', dealerId)
     end
     SetMenuState(false) -- Cerramos la UI y liberamos el ratón
+
+    -- MOSTRAR HUD, CHAT Y VOZ
+    exports['DP-Hud']:ToggleVisibility(true)
+    TriggerEvent('chat:client:showChat', true)
+    TriggerEvent('bcs-voice-ui:client:showVoice', true)
     cb('ok')
 end)
 
@@ -860,6 +850,11 @@ end)
 RegisterNUICallback('closeBossMenu', function(data, cb)
     SetNuiFocus(false, false)
     currentBossDealerId = nil
+
+    -- MOSTRAR HUD, CHAT Y VOZ
+    exports['DP-Hud']:ToggleVisibility(true)
+    TriggerEvent('chat:client:showChat', true)
+    TriggerEvent('bcs-voice-ui:client:showVoice', true)
     cb('ok')
 end)
 
@@ -1108,14 +1103,31 @@ RegisterNUICallback('toggleVehicleExtra', function(data, cb)
     cb('ok')
 end)
 
-RegisterNUICallback('updateVehiclePlate', function(data, cb)
-    -- Verificamos que el coche de la vista previa exista físicamente
+-- Resetear todos los extras de golpe
+RegisterNUICallback('resetAllVehicleExtras', function(_, cb)
     if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
-        -- Convertimos a string por seguridad y aplicamos el texto
-        local newPlate = tostring(data.plate or "")
-        SetVehicleNumberPlateText(previewVehicleEntity, newPlate)
+        -- Los vehículos de GTA suelen tener hasta 20 slots de extras
+        for i = 1, 20 do
+            if IsVehicleExtraIdValid(previewVehicleEntity, i) then
+                SetVehicleExtra(previewVehicleEntity, i, 1) -- 1 = Desactivado/Oculto
+            end
+        end
     end
+    cb('ok')
+end)
 
+RegisterNUICallback('updateVehiclePlate', function(data, cb)
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        local plateText = data.plate
+
+        -- Si la matrícula viene vacía (porque le dio a la papelera o la borró a mano)
+        -- Generamos una aleatoria puramente visual
+        if not plateText or plateText == "" then
+            plateText = string.upper(tostring(math.random(10, 99)) .. "DP" .. tostring(math.random(100, 999)))
+        end
+
+        SetVehicleNumberPlateText(previewVehicleEntity, plateText)
+    end
     cb('ok')
 end)
 
@@ -1701,11 +1713,14 @@ AddEventHandler('DP-VehicleShop:client:beginTestDrive', function(dealerId, vehic
     SendNUIMessage({
         action = 'hideTestDriveHUD'
     })
+    SetNuiFocus(false, false)
+
+    -- MOSTRAR HUD Y VOZ PARA CONDUCIR LA PRUEBA
+    exports['DP-Hud']:ToggleVisibility(true)
+    TriggerEvent('bcs-voice-ui:client:showVoice', true)
 
     -- 2. Destruir cámara y restaurar jugador (igual que exitShowroomMode)
     local ped = PlayerPedId()
-
-    SetNuiFocus(false, false)
 
     if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
         DeleteEntity(previewVehicleEntity)

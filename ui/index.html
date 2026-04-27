@@ -104,6 +104,73 @@
                 </div>
             </div>
 
+            <div class="info-panel-payment confirmation-step" id="purchase-confirmation-panel" style="display: none;">
+                <h2 class="panel-category-title">RESUMEN DE COMPRA</h2>
+
+                <div class="confirmation-details-grid">
+                    <div class="conf-detail-item">
+                        <i class="fa-solid fa-credit-card"></i>
+                        <div class="detail-text">
+                            <span class="detail-label">MÉTODO</span>
+                            <span class="detail-value" id="conf-method-selected">BANCO</span>
+                        </div>
+                    </div>
+                    <div class="conf-detail-item">
+                        <i class="fa-solid fa-truck-ramp-box"></i>
+                        <div class="detail-text">
+                            <span class="detail-label">ENTREGA</span>
+                            <span class="detail-value" id="conf-delivery-selected">GARAJE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="conf-single-price-box">
+                    <div class="price-row">
+                        <span class="price-label">PRECIO BASE</span>
+                        <span class="price-value" id="conf-base-price">$0</span>
+                    </div>
+
+                    <div class="price-row extra-fee" id="conf-custom-plate-block" style="display: none;">
+                        <div class="plate-label-group">
+                            <span class="price-label">MATRÍCULA CUSTOM</span>
+                            <span class="plate-text-preview" id="conf-plate-text">(MATRICULA)</span>
+                        </div>
+                        <div class="fee-right-side">
+                            <span class="price-value highlight-plus">+ $25.000</span>
+                            <button class="reset-plate-trash-mini" id="confirm-reset-plate" title="Eliminar matrícula">
+                                <iconify-icon icon="solar:trash-bin-trash-bold-duotone"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="price-row extra-fee" id="conf-extras-block" style="display: none;">
+                        <div class="plate-label-group">
+                            <span class="price-label">EXTRAS APLICADAS</span>
+                            <span class="plate-text-preview" id="conf-extras-count">(0 Activadas)</span>
+                        </div>
+                        <div class="fee-right-side">
+                            <span class="price-value highlight-plus" id="conf-extras-price">+ $0</span>
+                            <button class="reset-plate-trash-mini" id="confirm-reset-extras"
+                                title="Desactivar todos los extras">
+                                <iconify-icon icon="solar:trash-bin-trash-bold-duotone"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="price-divider"></div>
+
+                    <div class="price-row total-row">
+                        <span class="price-label">TOTAL A PAGAR</span>
+                        <span class="price-value final-total" id="conf-total-price">$0</span>
+                    </div>
+                </div>
+
+                <div class="payment-footer">
+                    <button class="action-btn cancel-btn" id="cancel-final-purchase">CANCELAR</button>
+                    <button class="action-btn confirm-btn" id="accept-final-purchase">CONFIRMAR COMPRA</button>
+                </div>
+            </div>
+
             <div class="info-panel-payment" id="extras-selection-panel" style="display: none;">
                 <div class="payment-section">
                     <h2 class="panel-category-title">EXTRAS DEL VEHÍCULO</h2>
@@ -255,7 +322,7 @@
                     <i class="fa-solid fa-xmark close-icon" id="showroom-search-close" title="Cancelar búsqueda"></i>
                 </div>
 
-                <div class="toolbar-box toolbar-filters">
+                <div class="toolbar-box toolbar-filters" id="categories-container">
                 </div>
 
                 <div class="toolbar-box toolbar-btn" id="showroom-compare-btn" title="Comparar">
@@ -1203,7 +1270,6 @@
 
         <div id="pagination-controls" class="pagination-container">
         </div>
-
     </div>
 
     <!-- MODAL: Crear Spawn -->
