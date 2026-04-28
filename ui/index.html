@@ -201,103 +201,205 @@
         </div>
 
         <div id="right-custom-panel" class="right-panel-container" style="display: none;">
-            <div class="right-panel-main">
-                <div class="main-info-header" style="margin-bottom: 10px;">
-                    <h2 class="panel-category-title">RENDIMIENTO</h2>
+
+            <div id="stats-comparison-wrapper"
+                style="display: flex; gap: 5px; justify-content: flex-end; align-items: flex-start;">
+
+                <div class="right-panel-main" id="base-stats-panel">
+
+                    <div class="main-info-header" style="margin-bottom: 10px;">
+                        <h2 class="panel-category-title">RENDIMIENTO</h2>
+                    </div>
+
+                    <div class="stats-bars-container">
+                        <div class="stat-bar-item">
+                            <div class="stat-bar-header">
+                                <div class="stat-bar-title">
+                                    <iconify-icon icon="mdi:speedometer"></iconify-icon>
+                                    <span>Velocidad</span>
+                                </div>
+                                <div class="stat-bar-value" id="stat-speed-val">0 / 10</div>
+                            </div>
+                            <div class="stat-progress-bg">
+                                <div class="stat-progress-fill" id="stat-speed-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-bar-item">
+                            <div class="stat-bar-header">
+                                <div class="stat-bar-title">
+                                    <iconify-icon icon="mdi:rocket-launch"></iconify-icon>
+                                    <span>Aceleración</span>
+                                </div>
+                                <div class="stat-bar-value" id="stat-accel-val">0 / 10</div>
+                            </div>
+                            <div class="stat-progress-bg">
+                                <div class="stat-progress-fill" id="stat-accel-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-bar-item">
+                            <div class="stat-bar-header">
+                                <div class="stat-bar-title">
+                                    <iconify-icon icon="qlementine-icons:pedal-16"></iconify-icon>
+                                    <span>Frenado</span>
+                                </div>
+                                <div class="stat-bar-value" id="stat-brakes-val">0 / 10</div>
+                            </div>
+                            <div class="stat-progress-bg">
+                                <div class="stat-progress-fill" id="stat-brakes-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-bar-item">
+                            <div class="stat-bar-header">
+                                <div class="stat-bar-title">
+                                    <iconify-icon icon="fluent:drive-train-20-regular"></iconify-icon>
+                                    <span>Conducción</span>
+                                </div>
+                                <div class="stat-bar-value" id="stat-handling-val">0 / 10</div>
+                            </div>
+                            <div class="stat-progress-bg">
+                                <div class="stat-progress-fill" id="stat-handling-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="stats-divider">
+
+                    <div class="vehicle-extra-details-grid">
+                        <div class="detail-box">
+                            <iconify-icon icon="mdi:car-speed-limiter"></iconify-icon>
+                            <div class="detail-info">
+                                <span class="detail-label">VELOCIDAD MÁXIMA</span>
+                                <span class="detail-value" id="detail-max-speed">-- KM/H</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <iconify-icon icon="mdi:car-seat"></iconify-icon>
+                            <div class="detail-info">
+                                <span class="detail-label">ASIENTOS</span>
+                                <span class="detail-value" id="detail-seats">--</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <iconify-icon icon="mdi:timer-outline"></iconify-icon>
+                            <div class="detail-info">
+                                <span class="detail-label" id="detail-accel-label">0-100 KM/H</span>
+                                <span class="detail-value" id="detail-acceleration-time">-- s</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-box" id="detail-tuning-box">
+                            <iconify-icon icon="mdi:wrench"></iconify-icon>
+                            <div class="detail-info">
+                                <span class="detail-label">TUNING ESTÉTICO</span>
+                                <span class="detail-value" id="detail-tuning-text">NO</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="stats-bars-container">
-                    <div class="stat-bar-item">
-                        <div class="stat-bar-header">
-                            <div class="stat-bar-title">
-                                <iconify-icon icon="mdi:speedometer"></iconify-icon>
-                                <span>Velocidad</span>
+                <div class="right-panel-main" id="compare-stats-panel" style="display: none; position: relative;">
+                    <div class="main-info-header" style="margin-bottom: 10px;">
+                        <h2 class="panel-category-title">RENDIMIENTO</h2>
+                    </div>
+
+                    <div class="stats-bars-container">
+                        <div class="stat-bar-item">
+                            <div class="stat-bar-header">
+                                <div class="stat-bar-title">
+                                    <iconify-icon icon="mdi:speedometer"></iconify-icon>
+                                    <span>Velocidad</span>
+                                </div>
+                                <div class="stat-bar-value" id="compare-stat-speed-val">0 / 10</div>
                             </div>
-                            <div class="stat-bar-value" id="stat-speed-val">0 / 10</div>
-                        </div>
-                        <div class="stat-progress-bg">
-                            <div class="stat-progress-fill" id="stat-speed-fill" style="width: 0%;"></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-bar-item">
-                        <div class="stat-bar-header">
-                            <div class="stat-bar-title">
-                                <iconify-icon icon="mdi:rocket-launch"></iconify-icon>
-                                <span>Aceleración</span>
+                            <div class="stat-progress-bg">
+                                <div class="stat-progress-fill" id="compare-stat-speed-fill" style="width: 0%;"></div>
                             </div>
-                            <div class="stat-bar-value" id="stat-accel-val">0 / 10</div>
                         </div>
-                        <div class="stat-progress-bg">
-                            <div class="stat-progress-fill" id="stat-accel-fill" style="width: 0%;"></div>
-                        </div>
-                    </div>
 
-                    <div class="stat-bar-item">
-                        <div class="stat-bar-header">
-                            <div class="stat-bar-title">
-                                <iconify-icon icon="qlementine-icons:pedal-16"></iconify-icon>
-                                <span>Frenado</span>
+                        <div class="stat-bar-item">
+                            <div class="stat-bar-header">
+                                <div class="stat-bar-title">
+                                    <iconify-icon icon="mdi:rocket-launch"></iconify-icon>
+                                    <span>Aceleración</span>
+                                </div>
+                                <div class="stat-bar-value" id="compare-stat-accel-val">0 / 10</div>
                             </div>
-                            <div class="stat-bar-value" id="stat-brakes-val">0 / 10</div>
-                        </div>
-                        <div class="stat-progress-bg">
-                            <div class="stat-progress-fill" id="stat-brakes-fill" style="width: 0%;"></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-bar-item">
-                        <div class="stat-bar-header">
-                            <div class="stat-bar-title">
-                                <iconify-icon icon="fluent:drive-train-20-regular"></iconify-icon>
-                                <span>Conducción</span>
+                            <div class="stat-progress-bg">
+                                <div class="stat-progress-fill" id="compare-stat-accel-fill" style="width: 0%;"></div>
                             </div>
-                            <div class="stat-bar-value" id="stat-handling-val">0 / 10</div>
                         </div>
-                        <div class="stat-progress-bg">
-                            <div class="stat-progress-fill" id="stat-handling-fill" style="width: 0%;"></div>
+
+                        <div class="stat-bar-item">
+                            <div class="stat-bar-header">
+                                <div class="stat-bar-title">
+                                    <iconify-icon icon="qlementine-icons:pedal-16"></iconify-icon>
+                                    <span>Frenado</span>
+                                </div>
+                                <div class="stat-bar-value" id="compare-stat-brakes-val">0 / 10</div>
+                            </div>
+                            <div class="stat-progress-bg">
+                                <div class="stat-progress-fill" id="compare-stat-brakes-fill" style="width: 0%;"></div>
+                            </div>
                         </div>
-                    </div>
-                </div>
 
-                <hr class="stats-divider">
-
-                <div class="vehicle-extra-details-grid">
-                    <div class="detail-box">
-                        <iconify-icon icon="mdi:car-speed-limiter"></iconify-icon>
-                        <div class="detail-info">
-                            <span class="detail-label">VELOCIDAD MÁXIMA</span>
-                            <span class="detail-value" id="detail-max-speed">-- KM/H</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-box">
-                        <iconify-icon icon="mdi:car-seat"></iconify-icon>
-                        <div class="detail-info">
-                            <span class="detail-label">ASIENTOS</span>
-                            <span class="detail-value" id="detail-seats">--</span>
-                        </div>
-                    </div>
-
-                    <div class="detail-box">
-                        <iconify-icon icon="mdi:timer-outline"></iconify-icon>
-                        <div class="detail-info">
-                            <span class="detail-label" id="detail-accel-label">0-100 KM/H</span>
-                            <span class="detail-value" id="detail-acceleration-time">-- s</span>
+                        <div class="stat-bar-item">
+                            <div class="stat-bar-header">
+                                <div class="stat-bar-title">
+                                    <iconify-icon icon="fluent:drive-train-20-regular"></iconify-icon>
+                                    <span>Conducción</span>
+                                </div>
+                                <div class="stat-bar-value" id="compare-stat-handling-val">0 / 10</div>
+                            </div>
+                            <div class="stat-progress-bg">
+                                <div class="stat-progress-fill" id="compare-stat-handling-fill" style="width: 0%;">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="detail-box" id="detail-tuning-box">
-                        <iconify-icon icon="mdi:wrench"></iconify-icon>
-                        <div class="detail-info">
-                            <span class="detail-label">TUNING ESTÉTICO</span>
-                            <span class="detail-value" id="detail-tuning-text">NO</span>
+                    <hr class="stats-divider">
+
+                    <div class="vehicle-extra-details-grid">
+                        <div class="detail-box">
+                            <iconify-icon icon="mdi:car-speed-limiter"></iconify-icon>
+                            <div class="detail-info">
+                                <span class="detail-label">VELOCIDAD MÁXIMA</span>
+                                <span class="detail-value" id="compare-detail-max-speed">-- KM/H</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <iconify-icon icon="mdi:car-seat"></iconify-icon>
+                            <div class="detail-info">
+                                <span class="detail-label">ASIENTOS</span>
+                                <span class="detail-value" id="compare-detail-seats">--</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <iconify-icon icon="mdi:timer-outline"></iconify-icon>
+                            <div class="detail-info">
+                                <span class="detail-label" id="compare-detail-accel-label">0-100 KM/H</span>
+                                <span class="detail-value" id="compare-detail-acceleration-time">-- s</span>
+                            </div>
+                        </div>
+
+                        <div class="detail-box" id="compare-detail-tuning-box">
+                            <iconify-icon icon="mdi:wrench"></iconify-icon>
+                            <div class="detail-info">
+                                <span class="detail-label">TUNING ESTÉTICO</span>
+                                <span class="detail-value" id="compare-detail-tuning-text">NO</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <div id="plate-modifier-panel" class="right-panel-secondary" style="display: none;">
+            <div id="plate-modifier-panel" class="right-panel-secondary" style="display: none; margin-top: 10px;">
                 <div class="main-info-header" style="margin-bottom: 10px;">
                     <h2 class="panel-category-title">MODIFICA LA MATRÍCULA CUSTOM</h2>
                 </div>
@@ -887,7 +989,7 @@
                 <div id="tab-categories" class="boss-page">
                     <div class="boss-widgets-row" style="height: 100%;">
 
-                        <div class="boss-widget" style="flex: 1; display: flex; flex-direction: column;">
+                        <div class="boss-widget" style="flex: 0.5; display: flex; flex-direction: column;">
                             <div
                                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vw; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5vw;">
                                 <h3 class="widget-title" style="margin-bottom: 0; border: none; padding: 0;">
@@ -895,7 +997,7 @@
                                     Categorías Activas
                                 </h3>
                                 <button class="btn-icon"
-                                    style="background: #fff; color: black; border-radius: 4px; padding: 0.3vw 0.6vw; font-weight: bold; font-size: 0.7vw;"
+                                    style="width: 100px; background: #fff; color: black; border-radius: 4px; padding: 0.3vw 0.6vw; font-weight: bold; font-size: 0.7vw;"
                                     onclick="openNewCategoryModal()">
                                     <i class="fa-solid fa-plus"></i> NUEVA
                                 </button>
@@ -916,7 +1018,15 @@
                         </div>
 
                         <div class="boss-widget" style="flex: 1.5; display: flex; flex-direction: column;">
-                            <h3 class="widget-title"><i class="fa-solid fa-car-side"></i> Vehículos en la Categoría</h3>
+                            <h3 class="widget-title"
+                                style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fa-solid fa-car-side"></i> Vehículos en la Categoría</span>
+
+                                <button class="btn-primary" id="btn-open-mass-add"
+                                    style="font-size: 0.6vw; padding: 0.5vh 0.8vw; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff;">
+                                    <i class="fa-solid fa-plus"></i> AÑADIR VEHÍCULO
+                                </button>
+                            </h3>
 
                             <div class="category-vehicles-grid">
                                 <div class="empty-state" style="grid-column: 1 / -1;">
@@ -963,7 +1073,7 @@
                                     <i class="fa-solid fa-users-gear"></i> Rangos del Trabajo
                                 </h3>
                                 <button class="btn-icon"
-                                    style="background: #fff; color: black; border-radius: 4px; padding: 0.3vw 0.6vw; font-weight: bold; font-size: 0.7vw;"
+                                    style="width: 100px; background: #fff; color: black; border-radius: 4px; padding: 0.3vw 0.6vw; font-weight: bold; font-size: 0.7vw;"
                                     onclick="openNewGradeForm()">
                                     <i class="fa-solid fa-plus"></i> NUEVO
                                 </button>
@@ -1452,7 +1562,7 @@
             </p>
 
             <div
-                style="background: rgba(44, 119, 168, 0.1); border: 1px solid rgba(44, 119, 168, 0.3); padding: 0.8vw; border-radius: 4px; margin-bottom: 1.5vw;">
+                style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 0.8vw; border-radius: 4px; margin-bottom: 1.5vw;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vw;">
                     <span style="color: #aaa; font-size: 0.65vw; text-transform: uppercase;">
                         Precio de Mercado (Retail)
@@ -1461,17 +1571,17 @@
                         style="color: #aaa; font-size: 0.75vw; text-decoration: line-through;">$ 0</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5vw;">
-                    <span style="color: #2ecc71; font-size: 0.65vw; font-weight: bold; text-transform: uppercase;">
+                    <span style="color: #ffffff; font-size: 0.65vw; font-weight: bold; text-transform: uppercase;">
                         Descuento Aplicado
                     </span>
                     <span id="order-stock-discount-badge"
-                        style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; padding: 0.2vw 0.5vw; border-radius: 4px; font-size: 0.65vw; font-weight: bold;">
+                        style="background: rgba(255, 255, 255, 0.15); color: #ffffff; padding: 0.2vw 0.5vw; border-radius: 4px; font-size: 0.65vw; font-weight: bold;">
                         25% Base + 0% Mayor
                     </span>
                 </div>
                 <div
-                    style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(44, 119, 168, 0.3); padding-top: 0.5vw;">
-                    <span style="color: #2c77a8; font-size: 0.65vw; font-weight: bold; text-transform: uppercase;"><i
+                    style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 0.5vw;">
+                    <span style="color: #cccccc; font-size: 0.65vw; font-weight: bold; text-transform: uppercase;"><i
                             class="fa-solid fa-industry"></i> Tu Costo (Unidad)</span>
                     <span id="order-stock-unit-cost"
                         style="color: #fff; font-size: 0.9vw; font-weight: 900; font-family: 'Orbitron', sans-serif;">
@@ -1508,12 +1618,86 @@
         <div class="modal-content">
             <h3><i class="fa-solid fa-triangle-exclamation" style="color: #e74c3c;"></i> ¡ADVERTENCIA!</h3>
             <p id="delete-cat-modal-text">Esta categoría contiene vehículos.</p>
+
             <input type="hidden" id="cat-to-delete-id">
             <input type="hidden" id="cat-to-delete-name">
+
             <div class="modal-actions">
                 <button class="btn-secondary modal-close-btn" data-modal="delete-category-modal">Cancelar</button>
+
                 <button class="btn-primary" id="confirm-delete-cat-btn" style="background:#e74c3c; color:#fff;">
-                    Sí, Eliminar Todo
+                    Sí, Eliminar Categoría
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="change-category-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-right-left"></i> MOVER VEHÍCULO</h3>
+            </div>
+
+            <div class="modal-body" style="padding-top: 1vh;">
+                <p id="change-cat-vehicle-name"
+                    style="margin-bottom: 1.5vh; color: rgba(255,255,255,0.7); font-size: 0.8vw;">
+                    Mover <strong style="color: white;" id="change-cat-target-name">VEHICULO</strong> a otra categoría:
+                </p>
+
+                <input type="hidden" id="change-cat-vehicle-model">
+                <input type="hidden" id="change-cat-old-category">
+
+                <div class="form-group">
+                    <label style="font-size: 0.6vw; color: rgba(255,255,255,0.4); text-transform: uppercase;">
+                        NUEVA CATEGORÍA</label>
+                    <div class="custom-select-wrapper">
+                        <select id="new-category-select" class="dp-custom-select">
+                            <option value="" disabled selected>Cargando categorías...</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down select-arrow"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 2vh;">
+                <button class="btn-secondary modal-close-btn" data-modal="change-category-modal">CANCELAR</button>
+                <button class="btn-primary" id="confirm-change-cat-btn"
+                    style="background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff;">ACEPTAR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mass-add-vehicles-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content" style="width: 45vw; max-height: 85vh;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-car-on"></i> ASIGNAR VEHÍCULOS</h3>
+            </div>
+
+            <div class="modal-body" style="padding-top: 1vh;">
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.7vw; margin-bottom: 1.5vh;">
+                    Selecciona los vehículos sin categoría para moverlos a: <strong id="mass-add-target-cat-label"
+                        style="color: #ffffff;">---</strong>
+                </p>
+
+                <div class="form-group" style="margin-bottom: 2vh;">
+                    <div class="search-box-container"
+                        style="background: rgba(0,0,0,0.2); border-radius: 5px; padding: 0.6vh 0.8vw; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center;">
+                        <i class="fa-solid fa-magnifying-glass" style="opacity: 0.3; font-size: 0.8vw;"></i>
+                        <input type="text" id="mass-add-search" placeholder="Filtrar por nombre o modelo..."
+                            style="background: transparent; border: none; color: white; width: 100%; padding-left: 0.5vw; outline: none; font-size: 0.75vw;">
+                    </div>
+                </div>
+
+                <div id="mass-add-grid" class="boss-vehicles-grid"
+                    style="max-height: 45vh; overflow-y: auto; padding-right: 0.5vw; gap: 0.8vw;">
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 2vh;">
+                <button class="btn-secondary modal-close-btn" data-modal="mass-add-vehicles-modal">CANCELAR</button>
+                <button class="btn-primary" id="confirm-mass-add-btn"
+                    style="background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff;">
+                    AÑADIR SELECCIONADOS (<span id="mass-add-count">0</span>)
                 </button>
             </div>
         </div>

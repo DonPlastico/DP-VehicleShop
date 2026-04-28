@@ -86,6 +86,11 @@ let discWorkingList = [...dummyDisc];
 let discCurrentPage = 1;
 const discItemsPerPage = 15;
 
+// Controla si estamos comparando vehículos
+let isCompareModeActive = false;
+let currentCompareVehicle = null;
+let currentPreviewVehicleData = null;
+
 // Paleta de Colores de GTA V (Solo Metálicos) - Ordenada por flujo cromático
 const GTA_COLORS = [
     // 1. MONOCROMÁTICOS (De Negro a Blanco)
@@ -476,6 +481,29 @@ function populateVehicleTableRows(vehicleList) {
     attachRowActionListeners();
 }
 
+function toggleComparisonInteraction(isLocked) {
+    const elementsToLock = [
+        'buy-vehicle',
+        'change-plate',
+        'test-drive',
+        'vehicle-extras',
+        'preview-view',
+        'gta-colors-list',
+        'custom-rgb-btn'
+    ];
+
+    elementsToLock.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (isLocked) {
+                el.classList.add('interaction-locked');
+            } else {
+                el.classList.remove('interaction-locked');
+            }
+        }
+    });
+}
+
 /**
  * Asigna eventos Click a los botones de Editar y Eliminar de cada fila.
  */
@@ -793,10 +821,68 @@ function updateCarouselMask() {
 
 // Función para seleccionar un vehículo y mostrar su info
 function selectShowroomVehicle(vehicle) {
+
+    if (isCompareModeActive && currentPreviewVehicle) {
+        if (currentPreviewVehicle === vehicle.model) return;
+
+        currentCompareVehicle = vehicle.model;
+
+        // 1. Seleccionamos ambos elementos h2
+        const baseTitle = document.querySelector('#base-stats-panel .panel-category-title');
+        const compareTitle = document.querySelector('#compare-stats-panel .panel-category-title');
+
+        // 2. Aplicamos el mismo formato de título a AMBOS
+        const brand1 = currentPreviewVehicleData.brand ? currentPreviewVehicleData.brand + ' ' : '';
+        const name1 = (currentPreviewVehicleData.name || currentPreviewVehicleData.model).toUpperCase();
+
+        const brand2 = vehicle.brand ? vehicle.brand + ' ' : '';
+        const name2 = (vehicle.name || vehicle.model).toUpperCase();
+
+        if (baseTitle) {
+            baseTitle.innerHTML = `RENDIMIENTO | <span style="color: #aaa; font-size: 0.7vw; margin-left: 5px;">${brand1 + name1}</span>`;
+        }
+        if (compareTitle) {
+            compareTitle.innerHTML = `RENDIMIENTO | <span style="color: #aaa; font-size: 0.7vw; margin-left: 5px;">${brand2 + name2}</span>`;
+        }
+
+        // Mostrar el panel y pedir stats
+        document.getElementById('compare-stats-panel').style.display = 'flex';
+        updateCardSelectionVisuals();
+
+        fetch(`https://${GetParentResourceName()}/requestCompareStats`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: vehicle.model })
+        });
+
+        return;
+    }
+
+    // ==========================================
+    // FLUJO NORMAL (Coche Base)
+    // ==========================================
     currentPreviewVehicle = vehicle.model;
+    currentPreviewVehicleData = vehicle;
+    const baseTitle = document.querySelector('#base-stats-panel .panel-category-title');
+    if (baseTitle) baseTitle.innerText = "RENDIMIENTO";
     currentActiveExtras = null;
+    currentCompareVehicle = null; // Si cambiamos el coche base, borramos el coche a comparar
+
     const panel = document.getElementById('vehicle-info-panel');
     if (!panel) return;
+
+    // Si estábamos comparando y seleccionamos uno nuevo como base, APAGAMOS LA COMPARATIVA POR COMPLETO
+    if (isCompareModeActive) {
+        isCompareModeActive = false;
+        const btnCompare = document.getElementById('showroom-compare-btn');
+        if (btnCompare) btnCompare.classList.remove('active');
+
+        const comparePanel = document.getElementById('compare-stats-panel');
+        if (comparePanel) comparePanel.style.display = 'none';
+    }
+
+    // Pintar la tarjeta verde (Base) y limpiar la azul
+    updateCardSelectionVisuals();
 
     // OCULTAR PANELES LATERALES AL CAMBIAR DE VEHÍCULO
     const paymentPanel = document.getElementById('payment-selection-panel');
@@ -814,7 +900,6 @@ function selectShowroomVehicle(vehicle) {
             btnPlate.innerText = 'CAMBIAR MATRÍCULA';
             btnPlate.style.background = '';
         }
-        // Avisamos a Lua para que devuelva la cámara a su sitio frontal/lateral
         fetch(`https://${GetParentResourceName()}/focusPlateCamera`, {
             method: 'POST',
             body: JSON.stringify({ focus: false })
@@ -839,8 +924,7 @@ function selectShowroomVehicle(vehicle) {
     const rightCustomPanel = document.getElementById('right-custom-panel');
     if (rightCustomPanel) rightCustomPanel.style.display = 'flex';
 
-    // Las ponemos a 0 visualmente. Cuando el cliente termine de spawnear
-    // el coche, nos mandará los datos reales y se animarán hacia arriba.
+    // Las ponemos a 0 visualmente. Cuando el cliente termine de spawnear...
     const statFills = ['speed', 'accel', 'brakes', 'handling'];
     statFills.forEach(stat => {
         const fill = document.getElementById(`stat-${stat}-fill`);
@@ -853,11 +937,10 @@ function selectShowroomVehicle(vehicle) {
     const maxSpeedEl = document.getElementById('detail-max-speed');
     if (maxSpeedEl) maxSpeedEl.innerText = '--';
 
-    // Resetear Medalla de Clase
     const classBadgeEl = document.getElementById('info-vehicle-class');
     if (classBadgeEl) {
         classBadgeEl.innerText = '--';
-        classBadgeEl.className = 'vehicle-class-badge class-e'; // Estado apagado temporal
+        classBadgeEl.className = 'vehicle-class-badge class-e';
     }
 
     const seatsEl = document.getElementById('detail-seats');
@@ -869,7 +952,6 @@ function selectShowroomVehicle(vehicle) {
     const tuningBox = document.getElementById('detail-tuning-box');
     const tuningText = document.getElementById('detail-tuning-text');
     if (tuningBox) {
-        // Por defecto lo ponemos en estado "apagado/calculando"
         tuningBox.classList.remove('tuning-available');
         tuningBox.classList.add('tuning-unavailable');
     }
@@ -883,32 +965,25 @@ function selectShowroomVehicle(vehicle) {
     document.getElementById('info-vehicle-price').innerText = `$ ${formattedPrice}`;
     document.getElementById('info-vehicle-stock').innerText = vehicle.stock || 0;
 
-    // =================================================================
     // 2.5 LÓGICA DE STOCK Y RESERVAS
-    // =================================================================
     const buyBtn = document.getElementById('buy-vehicle');
     const extrasPlateRow = document.getElementById('row-extras-plate');
 
-    // Guardamos los datos completos del vehículo DENTRO del botón
     buyBtn.dataset.model = vehicle.model;
     buyBtn.dataset.price = vehicle.price || 0;
     buyBtn.dataset.brand = vehicle.brand || 'CUSTOM';
     buyBtn.dataset.name = vehicle.name || vehicle.model;
 
-    // Reseteamos estilos por defecto del botón
     buyBtn.disabled = false;
     buyBtn.style.background = '';
     buyBtn.style.color = '';
 
     if ((vehicle.stock || 0) <= 0) {
-        // NO HAY STOCK: Modo Reserva
         if (extrasPlateRow) extrasPlateRow.style.display = 'none';
-
-        // Verificamos si YA lo tiene reservado
         if (myPendingReservations.includes(vehicle.model)) {
             buyBtn.innerText = 'YA RESERVADO';
             buyBtn.dataset.action = 'none';
-            buyBtn.disabled = true; // Bloqueamos el botón
+            buyBtn.disabled = true;
             buyBtn.style.background = 'rgba(255, 255, 255, 0.05)';
             buyBtn.style.color = 'rgba(255, 255, 255, 0.3)';
             buyBtn.style.cursor = 'not-allowed';
@@ -918,7 +993,6 @@ function selectShowroomVehicle(vehicle) {
             buyBtn.style.cursor = 'pointer';
         }
     } else {
-        // SÍ HAY STOCK: Modo Compra normal
         buyBtn.innerText = 'COMPRAR';
         buyBtn.dataset.action = 'buy';
         buyBtn.style.cursor = 'pointer';
@@ -935,20 +1009,14 @@ function selectShowroomVehicle(vehicle) {
         colorDiv.style.backgroundColor = colorData.hex;
         colorDiv.title = colorData.name;
 
-        // Si este es el color que tenemos seleccionado actualmente, le ponemos la clase
         if (currentPreviewColor === colorData.id) {
             colorDiv.classList.add('selected');
         }
 
         colorDiv.addEventListener('click', () => {
-            // Quitamos la clase 'selected' a todos y se la ponemos al que hemos clickeado
             document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
             colorDiv.classList.add('selected');
-
-            // Guardamos el color en memoria para el próximo coche
             currentPreviewColor = colorData.id;
-
-            // Enviamos el aviso al cliente para pintar el coche en vivo (Sin respawnearlo)
             fetch(`https://${GetParentResourceName()}/updateVehicleColor`, {
                 method: 'POST',
                 body: JSON.stringify({ color: currentPreviewColor })
@@ -958,7 +1026,7 @@ function selectShowroomVehicle(vehicle) {
         colorGrid.appendChild(colorDiv);
     });
 
-    // 4. Llamamos a la previsualización del vehículo pasándole también el color actual
+    // 4. Llamamos a la previsualización del vehículo
     fetch(`https://${GetParentResourceName()}/previewVehicle`, {
         method: 'POST',
         body: JSON.stringify({
@@ -966,6 +1034,36 @@ function selectShowroomVehicle(vehicle) {
             color: currentPreviewColor
         })
     });
+}
+
+// Función para actualizar los bordes de color de las tarjetas seleccionadas
+function updateCardSelectionVisuals() {
+    // 1. Limpiamos todas las tarjetas primero
+    document.querySelectorAll('.vehicle-card').forEach(card => {
+        card.classList.remove('selected', 'selected-base', 'selected-compare');
+    });
+
+    // 2. Pintamos el Coche Base
+    if (currentPreviewVehicle) {
+        const baseCard = document.querySelector(`.vehicle-card[data-model="${currentPreviewVehicle}"]`);
+        if (baseCard) {
+            if (isCompareModeActive) {
+                // Si estamos comparando, lo ponemos verde y con el "1"
+                baseCard.classList.add('selected-base');
+            } else {
+                // Si NO estamos comparando, lo ponemos blanco normal
+                baseCard.classList.add('selected');
+            }
+        }
+    }
+
+    // 3. Pintamos el Coche a Comparar (Azul y número "2")
+    if (currentCompareVehicle && isCompareModeActive) {
+        const compareCard = document.querySelector(`.vehicle-card[data-model="${currentCompareVehicle}"]`);
+        if (compareCard) {
+            compareCard.classList.add('selected-compare');
+        }
+    }
 }
 
 // Función para resetear el panel
@@ -1470,10 +1568,10 @@ if (confirmResetExtrasBtn) {
 
         // 5. Le decimos a Lua que apague físicamente los extras en el coche 3D
         // Una sola llamada para apagarlo todo
-            fetch(`https://${GetParentResourceName()}/resetAllVehicleExtras`, {
-                method: 'POST',
-                body: JSON.stringify({})
-            });
+        fetch(`https://${GetParentResourceName()}/resetAllVehicleExtras`, {
+            method: 'POST',
+            body: JSON.stringify({})
+        });
     });
 }
 
@@ -1532,7 +1630,7 @@ if (acceptFinalPurchaseBtn) {
 
         const finalVehicleData = {
             model: buyBtn.dataset.model,
-            price: finalPurchasePrice,     // PRECIO RECALCULADO (+25k o base)
+            price: finalPurchasePrice,
             brand: buyBtn.dataset.brand,
             name: buyBtn.dataset.name,
             color: currentPreviewColor,
@@ -1540,7 +1638,7 @@ if (acceptFinalPurchaseBtn) {
             installments: installments,
             deliveryType: deliveryMethod,
             extras: currentActiveExtras,
-            plate: currentCustomPlate      // Estará vacía si le dio a la papelera
+            plate: currentCustomPlate
         };
 
         // =========================================================
@@ -1958,9 +2056,9 @@ function loadMoreVehicles() {
 
         const formattedPrice = new Intl.NumberFormat('es-ES').format(v.price || 0);
         const stockNum = v.stock || 0;
-        const badgeBg = stockNum > 0 ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.05)';
-        const badgeColor = stockNum > 0 ? '#2ecc71' : '#888';
-        const badgeBorder = stockNum > 0 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
+        const badgeBg = stockNum > 0 ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)';
+        const badgeColor = stockNum > 0 ? '#ffffff' : '#888888';
+        const badgeBorder = stockNum > 0 ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.1)';
 
         card.innerHTML = `
             <div class="card-header-info">
@@ -2438,7 +2536,6 @@ if (salesSearchInput) {
     });
 }
 
-
 // =================================================================
 // MÓDULO 13: BOSS MENU - TABLAS SECUNDARIAS (PERSONAL Y DESCUENTOS)
 // =================================================================
@@ -2802,7 +2899,7 @@ document.getElementById('btn-save-cat')?.addEventListener('click', () => {
     toggleModal('category-modal', false);
 });
 
-// Eliminar Categoría (Con chequeo inteligente de Stock)
+// Eliminar Categoría (Lógica Actualizada para coches 'none')
 function deleteCategory(id) {
     const cat = activeCategories.find(c => c.id === id);
     if (!cat) return;
@@ -2811,8 +2908,8 @@ function deleteCategory(id) {
     const vehiclesInCat = globalStock.filter(v => v.category === cat.name);
 
     if (vehiclesInCat.length > 0) {
-        // TIENE COCHES: Mostramos la advertencia de peligro
-        document.getElementById('delete-cat-modal-text').innerHTML = `La categoría <b>${cat.label.toUpperCase()}</b> contiene <b>${vehiclesInCat.length} modelos</b> en stock.<br><br>Si la eliminas, <b>SE BORRARÁN TODOS</b> y la empresa perderá el dinero invertido. ¿Continuar?`;
+        // TIENE COCHES: Mostramos la advertencia avisando de que pasarán a "Sin Asignar"
+        document.getElementById('delete-cat-modal-text').innerHTML = `La categoría <b>${cat.label.toUpperCase()}</b> contiene <b>${vehiclesInCat.length} modelos</b> en stock.<br><br>Si la eliminas, estos vehículos pasarán al estado <b>"SIN ASIGNAR"</b> y no serán visibles para los clientes hasta que los muevas a otra categoría. ¿Continuar?`;
         document.getElementById('cat-to-delete-id').value = cat.id;
         document.getElementById('cat-to-delete-name').value = cat.name;
         toggleModal('delete-category-modal', true);
@@ -2854,7 +2951,17 @@ function viewCategory(id) {
     const rightWidget = grid.parentElement;
     const titleEl = rightWidget.querySelector('.widget-title');
 
-    titleEl.innerHTML = `<i class="fa-solid fa-car-side"></i> Vehículos en: <span style="color: #2ecc71;">${cat.label.toUpperCase()}</span>`;
+    // Le aplicamos flexbox al título para separar el texto del botón
+    titleEl.style.display = 'flex';
+    titleEl.style.justifyContent = 'space-between';
+    titleEl.style.alignItems = 'center';
+
+    titleEl.innerHTML = `
+        <span><i class="fa-solid fa-car-side"></i> Vehículos en: <span style="color: #ffffff;">${cat.label.toUpperCase()}</span></span>
+        <button class="btn-primary" onclick="openMassAddModal('${cat.name}', '${cat.label}')" style="font-size: 0.6vw; padding: 0.5vh 0.8vw; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); cursor: pointer; border-radius: 4px; color: white;">
+            <i class="fa-solid fa-plus"></i> AÑADIR VEHÍCULOS
+        </button>
+    `;
 
     grid.className = 'category-vehicles-grid boss-vehicles-grid';
     grid.innerHTML = '';
@@ -2879,9 +2986,9 @@ function viewCategory(id) {
 
         const formattedPrice = new Intl.NumberFormat('es-ES').format(v.price || 0);
         const stockNum = v.stock || 0;
-        const badgeBg = stockNum > 0 ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.05)';
-        const badgeColor = stockNum > 0 ? '#2ecc71' : '#888';
-        const badgeBorder = stockNum > 0 ? 'rgba(46, 204, 113, 0.4)' : 'rgba(255, 255, 255, 0.1)';
+        const badgeBg = stockNum > 0 ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)';
+        const badgeColor = stockNum > 0 ? '#ffffff' : '#888888';
+        const badgeBorder = stockNum > 0 ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.1)';
 
         card.innerHTML = `
             <div class="card-header-info">
@@ -2906,6 +3013,12 @@ function viewCategory(id) {
                 </span>
             </div>
         `;
+
+        // Evento para abrir el modal al hacer clic en la tarjeta del vehículo
+        card.addEventListener('click', () => {
+            openChangeCategoryModal(v);
+        });
+
         grid.appendChild(card);
     });
 }
@@ -3033,11 +3146,287 @@ function selectJobGrade(gradeLevel) {
 }
 
 // =================================================================
+// LÓGICA PARA CAMBIAR VEHÍCULO DE CATEGORÍA (BOSS MENU)
+// =================================================================
+
+// 1. Función para abrir el modal y poblar el select en vivo
+function openChangeCategoryModal(vehicle) {
+    const modal = document.getElementById('change-category-modal');
+    if (!modal) return;
+
+    // Rellenar textos descriptivos
+    document.getElementById('change-cat-target-name').innerText = vehicle.name || vehicle.model;
+
+    // Guardar datos ocultos para usarlos al hacer el Fetch
+    document.getElementById('change-cat-vehicle-model').value = vehicle.model;
+    document.getElementById('change-cat-old-category').value = vehicle.category;
+
+    // Poblar el select con las categorías actualizadas
+    const select = document.getElementById('new-category-select');
+    select.innerHTML = '<option value="" disabled selected>Selecciona una categoría...</option>';
+
+    if (activeCategories && activeCategories.length > 0) {
+        let optionsAdded = false;
+        activeCategories.forEach(cat => {
+            // Lógica inteligente: No mostramos la categoría en la que YA ESTÁ el coche
+            if (cat.name !== vehicle.category) {
+                const opt = document.createElement('option');
+                opt.value = cat.name;
+                opt.innerText = cat.label.toUpperCase();
+                select.appendChild(opt);
+                optionsAdded = true;
+            }
+        });
+
+        if (!optionsAdded) {
+            select.innerHTML = '<option value="" disabled selected>No hay más categorías disponibles</option>';
+        }
+    } else {
+        select.innerHTML = '<option value="" disabled selected>No hay otras categorías</option>';
+    }
+
+    // Mostrar el modal
+    toggleModal('change-category-modal', true);
+}
+
+// 2. Evento del botón ACEPTAR del modal
+document.addEventListener('DOMContentLoaded', () => {
+    const confirmChangeCatBtn = document.getElementById('confirm-change-cat-btn');
+    if (confirmChangeCatBtn) {
+        confirmChangeCatBtn.addEventListener('click', () => {
+            const model = document.getElementById('change-cat-vehicle-model').value;
+            const oldCategory = document.getElementById('change-cat-old-category').value;
+            const newCategory = document.getElementById('new-category-select').value;
+
+            // Validación de seguridad
+            if (!newCategory || newCategory === "") {
+                return; // Podemos añadir una notificación roja si quieres, pero con esto no hace nada si no elige
+            }
+
+            // A. Cambiamos la categoría visualmente en la variable global (Actualización Instantánea UX)
+            const vehicleInGlobal = globalStock.find(v => v.model === model);
+            if (vehicleInGlobal) {
+                vehicleInGlobal.category = newCategory;
+            }
+
+            // B. Refrescamos la vista de la categoría antigua (el coche desaparecerá de la cuadrícula al instante)
+            const oldCatObj = activeCategories.find(c => c.name === oldCategory);
+            if (oldCatObj) {
+                viewCategory(oldCatObj.id);
+            }
+
+            // C. Mandamos la orden al cliente/servidor Lua
+            fetch(`https://${GetParentResourceName()}/changeVehicleCategory`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: model,
+                    oldCategory: oldCategory,
+                    newCategory: newCategory
+                })
+            });
+
+            // D. Cerramos el modal
+            toggleModal('change-category-modal', false);
+        });
+    }
+});
+
+// =================================================================
+// LÓGICA DE AÑADIDO MASIVO DE VEHÍCULOS A CATEGORÍAS (VERSIÓN BLINDADA)
+// =================================================================
+
+let selectedVehiclesForMassAdd = [];
+let targetMassAddCategory = "";
+let currentUnassignedStock = [];
+
+// 1. Abrir el Modal (Hecho Global explícitamente con window.)
+window.openMassAddModal = function (catName, catLabel) {
+    targetMassAddCategory = catName;
+    selectedVehiclesForMassAdd = []; // Reseteamos la selección
+    document.getElementById('mass-add-count').innerText = "0";
+    document.getElementById('mass-add-search').value = ""; // Limpiamos buscador
+
+    // Actualizamos el texto visual
+    document.getElementById('mass-add-target-cat-label').innerText = catLabel.toUpperCase();
+
+    // Filtramos los coches que NO tienen una categoría válida asignada
+    const validCatNames = activeCategories.map(c => c.name);
+
+    currentUnassignedStock = globalStock.filter(v => {
+        return !v.category || v.category === "" || v.category === "none" || !validCatNames.includes(v.category);
+    });
+
+    window.renderMassAddGrid(currentUnassignedStock);
+    toggleModal('mass-add-vehicles-modal', true);
+};
+
+// 2. Dibujar la cuadrícula de coches sin categoría (Hecho Global)
+window.renderMassAddGrid = function (vehicles) {
+    const grid = document.getElementById('mass-add-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    if (vehicles.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1; margin-top: 5vh;">
+                <iconify-icon icon="solar:check-circle-bold-duotone" class="empty-state-icon" style="color: #cccccc;"></iconify-icon>
+                <span class="empty-state-text" style="color: #aaaaaa;">¡Todo el stock está organizado en categorías!</span>
+            </div>
+        `;
+        return;
+    }
+
+    vehicles.forEach(v => {
+        const card = document.createElement('div');
+        const isSelected = selectedVehiclesForMassAdd.includes(v.model);
+        card.className = `vehicle-card selectable ${isSelected ? 'selected' : ''}`;
+
+        card.innerHTML = `
+            <span class="no-cat-badge">SIN ASIGNAR</span>
+            <div class="card-header-info">
+                <div class="card-brand-logo"><i class="fa-solid fa-car"></i></div>
+                <div class="card-text-info">
+                    <span class="card-brand-name">${v.brand || 'Custom'}</span>
+                    <span class="card-model-name">${v.name || v.model}</span>
+                </div>
+            </div>
+            
+            <div class="card-vehicle-image" style="position: relative; display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; overflow: hidden; padding: 0.5vw; background: rgba(0,0,0,0.2);">
+                <span style="position: absolute; top: 0.4vw; left: 0.4vw; font-size: 0.55vw; color: #666; background: rgba(0,0,0,0.5); padding: 0.2vw 0.4vw; border-radius: 3px; z-index: 2;">ID: ${v.model}</span>
+                ${getSmartVehicleImage(v.model, v.shop)}
+            </div>
+        `;
+
+        // Evento de clic para seleccionar/deseleccionar
+        card.addEventListener('click', function () {
+            const index = selectedVehiclesForMassAdd.indexOf(v.model);
+
+            if (index === -1) {
+                // Seleccionar
+                selectedVehiclesForMassAdd.push(v.model);
+                this.classList.add('selected');
+            } else {
+                // Deseleccionar
+                selectedVehiclesForMassAdd.splice(index, 1);
+                this.classList.remove('selected');
+            }
+
+            // Actualizar contador del botón
+            document.getElementById('mass-add-count').innerText = selectedVehiclesForMassAdd.length;
+        });
+
+        grid.appendChild(card);
+    });
+};
+
+// =================================================================
+// EVENTOS (Asegurados dentro del DOMContentLoaded para que existan los botones)
+// =================================================================
+document.addEventListener('DOMContentLoaded', () => {
+
+    // 3. Buscador en vivo dentro del Modal
+    document.getElementById('mass-add-search')?.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase().trim();
+
+        if (term === '') {
+            window.renderMassAddGrid(currentUnassignedStock);
+        } else {
+            const filtered = currentUnassignedStock.filter(v =>
+                (v.name && v.name.toLowerCase().includes(term)) ||
+                (v.model && v.model.toLowerCase().includes(term))
+            );
+            window.renderMassAddGrid(filtered);
+        }
+    });
+
+    // 4. Confirmar el envío masivo
+    document.getElementById('confirm-mass-add-btn')?.addEventListener('click', () => {
+        if (selectedVehiclesForMassAdd.length === 0) return;
+
+        // 1. Actualizamos nuestra memoria global instantáneamente
+        selectedVehiclesForMassAdd.forEach(model => {
+            const vehicleInGlobal = globalStock.find(v => v.model === model);
+            if (vehicleInGlobal) {
+                vehicleInGlobal.category = targetMassAddCategory;
+            }
+        });
+
+        // 2. Refrescamos la vista de la categoría actual para que aparezcan de golpe
+        const catObj = activeCategories.find(c => c.name === targetMassAddCategory);
+        if (catObj) {
+            // viewCategory ya era global en tu código, funcionará bien
+            viewCategory(catObj.id);
+        }
+
+        // 3. Enviamos un Fetch MASIVO a Lua
+        fetch(`https://${GetParentResourceName()}/massChangeVehicleCategory`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                models: selectedVehiclesForMassAdd,
+                newCategory: targetMassAddCategory
+            })
+        });
+
+        // 4. Cerramos
+        toggleModal('mass-add-vehicles-modal', false);
+    });
+});
+
+// =================================================================
 // MÓDULO 16: INICIALIZACIÓN - DOMContentLoaded
 // =================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('container');
+
+    // =================================================================
+    // BOTONES DE COMPARATIVA DE VEHÍCULOS
+    // =================================================================
+    const compareBtn = document.getElementById('showroom-compare-btn');
+    if (compareBtn) {
+        compareBtn.addEventListener('click', function () {
+            if (!currentPreviewVehicle) return;
+
+            isCompareModeActive = !isCompareModeActive;
+            this.classList.toggle('active', isCompareModeActive);
+
+            // ACTIVAR O DESACTIVAR BLOQUEO DE BOTONES
+            toggleComparisonInteraction(isCompareModeActive);
+
+            if (isCompareModeActive) {
+                updateCardSelectionVisuals();
+            } else {
+                currentCompareVehicle = null;
+                document.getElementById('compare-stats-panel').style.display = 'none';
+
+                // Reset del título
+                const baseTitle = document.querySelector('#base-stats-panel .panel-category-title');
+                if (baseTitle) baseTitle.innerText = "RENDIMIENTO";
+
+                updateCardSelectionVisuals();
+            }
+        });
+    }
+
+    const closeCompareBtn = document.getElementById('btn-close-compare');
+    if (closeCompareBtn) {
+        closeCompareBtn.addEventListener('click', function () {
+            isCompareModeActive = false;
+
+            // DESBLOQUEAR BOTONES AL CERRAR
+            toggleComparisonInteraction(false);
+
+            document.getElementById('showroom-compare-btn').classList.remove('active');
+            document.getElementById('compare-stats-panel').style.display = 'none';
+
+            const baseTitle = document.querySelector('#base-stats-panel .panel-category-title');
+            if (baseTitle) baseTitle.innerText = "RENDIMIENTO";
+
+            updateCardSelectionVisuals();
+        });
+    }
 
     // --- LISTENERS DE BOTONES PRINCIPALES (MENÚ DE GESTIÓN) ---
     document.querySelector('[data-i18n="btn_set_spawn"]').addEventListener('click', () => toggleModal('set-spawn-modal', true));
@@ -3431,6 +3820,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (rightPanelR) rightPanelR.style.display = 'flex';
                 if (carouselR) carouselR.style.display = 'flex';
                 break;
+            // Recibe los stats del SEGUNDO coche para la comparativa
+            case 'updateCompareStats':
+                const compStats = data.stats;
+
+                // 1. BARRAS
+                document.getElementById('compare-stat-speed-val').innerText = `${compStats.speed.toFixed(1)} / 10`;
+                document.getElementById('compare-stat-speed-fill').style.width = `${(compStats.speed / 10) * 100}%`;
+
+                document.getElementById('compare-stat-accel-val').innerText = `${compStats.acceleration.toFixed(1)} / 10`;
+                document.getElementById('compare-stat-accel-fill').style.width = `${(compStats.acceleration / 10) * 100}%`;
+
+                document.getElementById('compare-stat-brakes-val').innerText = `${compStats.braking.toFixed(1)} / 10`;
+                document.getElementById('compare-stat-brakes-fill').style.width = `${(compStats.braking / 10) * 100}%`;
+
+                document.getElementById('compare-stat-handling-val').innerText = `${compStats.handling.toFixed(1)} / 10`;
+                document.getElementById('compare-stat-handling-fill').style.width = `${(compStats.handling / 10) * 100}%`;
+
+                // 2. DETALLES EXTRA
+                document.getElementById('compare-detail-max-speed').innerText = compStats.maxSpeedText || '-- KM/H';
+                document.getElementById('compare-detail-seats').innerText = compStats.seats || '--';
+                document.getElementById('compare-detail-acceleration-time').innerText = compStats.accelTimeText || '-- s';
+
+                const compLabelEl = document.getElementById('compare-detail-accel-label');
+                if (compLabelEl && compStats.measurementUnit) {
+                    compLabelEl.innerText = compStats.measurementUnit === 'mph' ? '0-60 MP/H' : '0-100 KM/H';
+                }
+
+                const compTuningBox = document.getElementById('compare-detail-tuning-box');
+                const compTuningText = document.getElementById('compare-detail-tuning-text');
+                if (compTuningBox && compTuningText) {
+                    compTuningBox.classList.remove('tuning-available', 'tuning-unavailable');
+                    if (compStats.hasTuning) {
+                        compTuningBox.classList.add('tuning-available');
+                        compTuningText.innerText = 'SÍ';
+                    } else {
+                        compTuningBox.classList.add('tuning-unavailable');
+                        compTuningText.innerText = 'NO';
+                    }
+                }
+                break;
         }
     });
 
@@ -3532,26 +3961,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- LÓGICA DE SELECCIÓN DE TARJETA ---
     carousel.addEventListener('click', (e) => {
-        // Si detectamos que ha sido un arrastre, anulamos el clic
         if (isDraggingFlag) return;
 
-        // Buscamos si hemos hecho clic en una card
         const card = e.target.closest('.vehicle-card');
         if (!card) return;
 
-        // 1. Quitar la clase 'selected' de todas las cards
-        document.querySelectorAll('.vehicle-card').forEach(c => c.classList.remove('selected'));
-
-        // 2. Añadir la clase 'selected' a la clickeada
-        card.classList.add('selected');
-
-        // 3. Obtener el modelo y mandarlo a Lua para que lo spawnee
         const vehicleModel = card.getAttribute('data-model');
-        fetch(`https://${GetParentResourceName()}/previewVehicle`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: vehicleModel })
-        });
+
+        // Encontramos los datos completos del vehículo
+        const fullVehicleData = currentWorkingList.find(v => v.model === vehicleModel) || originalFullList.find(v => v.model === vehicleModel);
+
+        if (fullVehicleData) {
+            // Llamamos a nuestra función inteligente (que gestiona base vs comparativa y pinta los colores)
+            selectShowroomVehicle(fullVehicleData);
+        }
     });
 
     // --- NAVEGACIÓN 2: BOTONES LATERALES ---

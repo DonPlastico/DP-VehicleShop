@@ -25,7 +25,7 @@
     --box-shadow: 0 0 0.8vh black;
     --transition: all 0.2s ease;
     /* Suavizado de animaciones */
-    --focus-color: #2c77a8;
+    --focus-color: rgba(180, 180, 180, 0.8);
 }
 
 /* Reset básico para consistencia */
@@ -256,7 +256,7 @@ h2 {
 
 #tab-permissions .btn-icon,
 #tab-categories .btn-icon {
-    width: 100px;
+    width: 60px;
 }
 
 /* Botón especial para copiar coordenadas */
@@ -939,7 +939,7 @@ select option {
 }
 
 .toolbar-search .close-icon:hover {
-    color: #e74c3c;
+    color: rgba(160, 160, 160, 0.9);
     /* Se pone rojo al pasar el ratón */
 }
 
@@ -959,7 +959,7 @@ select option {
 .carousel-row {
     display: flex;
     width: 100%;
-    height: 70%;
+    height: 74%;
     /* Ocupa el espacio restante inferior */
     align-items: center;
     justify-content: center;
@@ -1001,7 +1001,7 @@ select option {
     scroll-behavior: smooth;
     flex-grow: 1;
     height: 100%;
-    padding: 0.5vw 0;
+    padding: 20px 20px 10px 20px;
     margin: 0 0.5vw;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -1091,8 +1091,6 @@ select option {
 
 /* Asegura que el contenedor de imagen sea siempre un bloque rígido */
 .card-vehicle-image {
-    height: 120px !important;
-    min-height: 120px !important;
     position: relative;
     background: rgba(0, 0, 0, 0.4);
     border-radius: 4px;
@@ -1136,17 +1134,6 @@ select option {
 .mask-none {
     -webkit-mask-image: none;
     mask-image: none;
-}
-
-/* Estado seleccionado de la card */
-.vehicle-card.selected {
-    border-color: #ffffff;
-    /* Borde blanco brillante */
-    background: rgba(40, 40, 40, 0.95);
-    transform: translateY(-5px);
-    /* Se queda levantada */
-    box-shadow: 0 5px 20px rgba(255, 255, 255, 0.2);
-    /* Resplandor */
 }
 
 /* Anulamos el efecto hover si ya está seleccionada para evitar parpadeos */
@@ -1280,7 +1267,7 @@ select option {
 }
 
 #close-help:hover {
-    color: #e74c3c;
+    color: rgba(160, 160, 160, 0.9);
 }
 
 .help-divider {
@@ -2068,21 +2055,6 @@ select option {
     color: white;
 }
 
-.stat-icon.alert {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-}
-
-.stat-icon.success {
-    background: rgba(255, 255, 255, 0.05);
-    color: #ccc;
-}
-
-.stat-icon.star {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-}
-
 .stat-info {
     display: flex;
     flex-direction: column;
@@ -2225,7 +2197,7 @@ select option {
 .res-price {
     font-family: 'Orbitron', sans-serif;
     font-size: 0.85vw;
-    color: #2ecc71;
+    color: rgba(200, 200, 200, 1);
     font-weight: 700;
 }
 
@@ -2251,26 +2223,26 @@ select option {
 }
 
 .btn-res-accept {
-    background: rgba(46, 204, 113, 0.1);
-    border: 1px solid rgba(46, 204, 113, 0.3);
-    color: #2ecc71;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(200, 200, 200, 0.3);
+    color: rgba(200, 200, 200, 1);
 }
 
 .btn-res-accept:hover {
-    background: rgba(46, 204, 113, 0.8);
-    border-color: #2ecc71;
+    background: rgba(200, 200, 200, 0.8);
+    border-color: rgba(200, 200, 200, 1);
     color: #fff;
 }
 
 .btn-res-cancel {
-    background: rgba(231, 76, 60, 0.1);
-    border: 1px solid rgba(231, 76, 60, 0.3);
-    color: #e74c3c;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(200, 200, 200, 0.2);
+    color: rgba(160, 160, 160, 0.9);
 }
 
 .btn-res-cancel:hover {
-    background: rgba(231, 76, 60, 0.8);
-    border-color: #e74c3c;
+    background: rgba(180, 180, 180, 0.8);
+    border-color: rgba(160, 160, 160, 0.9);
     color: #fff;
 }
 
@@ -2380,8 +2352,10 @@ select option {
 }
 
 .sales-pagination {
-    display: flex;                  /* FUERZA LA FILA HORIZONTAL */
-    align-items: center;            /* Centra los iconos y el texto en el eje vertical */
+    display: flex;
+    /* FUERZA LA FILA HORIZONTAL */
+    align-items: center;
+    /* Centra los iconos y el texto en el eje vertical */
 }
 
 .sales-pagination .btn-icon {
@@ -2587,7 +2561,7 @@ select option {
 }
 
 .btn-copy-sm:hover {
-    background: #2ecc71;
+    background: rgba(200, 200, 200, 1);
     color: black;
 }
 
@@ -2705,12 +2679,9 @@ select option {
     justify-content: center;
     align-items: center;
     width: 100%;
-    height: 100%;
     min-height: 10vw;
-    /* Asegura un tamaño mínimo si está en un div */
     text-align: center;
     gap: 0.8vw;
-    padding: 2vw 0;
 }
 
 .empty-state-icon {
@@ -2993,9 +2964,12 @@ input:checked+.slider:before {
     position: absolute;
     top: 1vw;
     right: 1vw;
-    width: 22vw;
+    width: auto;
+    /* CAMBIO CLAVE: Permite que crezca hacia la izquierda al añadir paneles */
     display: flex;
     flex-direction: column;
+    align-items: flex-end;
+    /* Mantiene la matrícula siempre pegada a la derecha */
     z-index: 9999;
     pointer-events: auto;
     gap: 10px;
@@ -3011,6 +2985,77 @@ input:checked+.slider:before {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     display: flex;
     flex-direction: column;
+    width: 22vw;
+    /* EL ANCHO FIJO ESTÁ AHORA AQUÍ: Cada panel medirá exactamente esto */
+    flex-shrink: 0;
+    /* Evita que los paneles se aplasten cuando estén juntos */
+}
+
+#compare-stats-panel {
+    animation: slideInRight 0.3s ease-out forwards;
+}
+
+/* Efecto activo para el botón "Comparar" de la Toolbar */
+#showroom-compare-btn.active {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 5px 15px rgb(0 0 0 / 60%);
+}
+
+/* Hover para el botón de cerrar la comparativa */
+#btn-close-compare:hover {
+    color: #ffffff !important;
+}
+
+/* Estado seleccionado de la card */
+.vehicle-card.selected {
+    background: rgba(40, 40, 40, 0.95);
+    border-color: #ffffff !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-5px);
+}
+
+/* Coche Base (El primero que seleccionas) */
+.vehicle-card.selected-base {
+    box-shadow: rgba(255, 255, 255, 0.3) 0px 0px 15px !important;
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgb(255, 255, 255) !important;
+    transform: translateY(-5px);
+}
+
+/*  Coche a Comparar (Modo comparar ON): Borde Azul y Etiqueta '2' */
+.vehicle-card.selected-compare {
+    box-shadow: rgba(255, 255, 255, 0.3) 0px 0px 15px !important;
+    background: rgba(40, 40, 40, 0.95);
+    border-color: rgb(255, 255, 255) !important;
+    transform: translateY(-5px);
+}
+
+.vehicle-card.selected-base::after,
+.vehicle-card.selected-compare::after {
+    content: '1';
+    position: absolute;
+    top: 8px;
+    right: -5%;
+    width: 2vw;
+    height: 1.2vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    transform: translateX(-50%);
+    color: white;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.8vw;
+    font-weight: 900;
+    border-radius: 4px;
+    z-index: 10;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.vehicle-card.selected-compare::after {
+    content: '2';
 }
 
 .plate-image-container {
@@ -3080,12 +3125,12 @@ input:checked+.slider:before {
 
 /* Caja de alerta roja debajo de la matrícula */
 .plate-warning-msg {
-    color: #e74c3c;
+    color: rgba(160, 160, 160, 0.9);
     font-size: 0.65vw;
     font-weight: bold;
     text-align: center;
-    background: rgba(231, 76, 60, 0.1);
-    border: 1px solid rgba(231, 76, 60, 0.3);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(200, 200, 200, 0.2);
     padding: 6px 10px;
     border-radius: 4px;
     display: flex;
@@ -3865,10 +3910,135 @@ input:checked+.slider:before {
     /* Para pegarlo un poco al título superior */
 }
 
+.custom-select-wrapper {
+    position: relative;
+    width: 100%;
+    margin-top: 0.5vh;
+}
 
+.dp-custom-select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    padding: 1vh 0.8vw;
+    font-size: 0.8vw;
+    border-radius: 4px;
+    appearance: none;
+    /* Oculta la flecha por defecto del navegador */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: var(--transition);
+}
 
+.dp-custom-select:hover,
+.dp-custom-select:focus {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.3);
+}
 
+/* Opciones desplegables (El navegador limita un poco su estilo, pero lo forzamos a oscuro) */
+.dp-custom-select option {
+    background: #111;
+    /* Fondo oscuro estricto para las opciones */
+    color: white;
+    padding: 1vh;
+}
 
+/* Flecha personalizada superpuesta */
+.select-arrow {
+    position: absolute;
+    right: 1vw;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.3);
+    pointer-events: none;
+    /* Para que el clic traspase al select */
+    font-size: 0.8vw;
+    transition: var(--transition);
+}
+
+.dp-custom-select:hover+.select-arrow,
+.dp-custom-select:focus+.select-arrow {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.vehicle-card.selectable {
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.vehicle-card.selectable:hover {
+    background: rgba(255, 255, 255, 0.03);
+    transform: translateY(-2px);
+}
+
+/* Estado Seleccionado */
+.vehicle-card.selectable.selected {
+    border-color: rgba(200, 200, 200, 1) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.06);
+}
+
+/* Icono de Check en la esquina */
+.vehicle-card.selectable.selected::before {
+    content: '\f00c';
+    /* Check de FontAwesome */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    top: 0.4vw;
+    right: 0.4vw;
+    background: rgba(200, 200, 200, 1);
+    color: white;
+    width: 1.1vw;
+    height: 1.1vw;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6vw;
+    z-index: 10;
+    animation: scaleIn 0.2s ease-out;
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0);
+    }
+
+    to {
+        transform: scale(1);
+    }
+}
+
+/* Indicador visual de que no tiene categoría */
+.no-cat-badge {
+    position: absolute;
+    bottom: 0.4vw;
+    right: 0.4vw;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(160, 160, 160, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.1vw 0.3vw;
+    border-radius: 3px;
+    font-size: 0.5vw;
+    font-weight: bold;
+    z-index: 5;
+}
+
+/* Bloqueo de interacción durante la comparativa */
+.interaction-locked {
+    pointer-events: none !important; /* Impide clics físicos */
+    opacity: 0.4 !important;         /* Efecto visual de deshabilitado */
+    filter: grayscale(1);            /* Lo pone en blanco y negro para que se vea inactivo */
+    cursor: not-allowed !important;
+}
 
 
 
@@ -3976,5 +4146,17 @@ input:checked+.slider:before {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
     }
 }

@@ -81,7 +81,6 @@ local function InitializeDatabaseSchema()
             FOREIGN KEY (`dealership_id`) REFERENCES `dp_vehicleshop_dealerships`(`dealership_id`) ON DELETE CASCADE
         );
     ]]
-    -- exports['oxmysql']:execute(createStockTableQuery) -- (Esta línea la puedes quitar de aquí, ya que se ejecuta abajo en el bloque secuencial)
 
     -- Parche de seguridad UNIVERSAL (Compatible con versiones antiguas de MySQL/MariaDB)
     exports['oxmysql']:scalar([[
@@ -491,9 +490,6 @@ end
 -- MÓDULO 7: GUARDADO DE ARCHIVOS (JOBS.LUA Y VEHICLES.LUA)
 -- =================================================================
 
--- =================================================================
--- GUARDADO DE JOBS.LUA (A TRAVÉS DE EXPORT A QB-CORE)
--- =================================================================
 local function SaveJobsToFile()
     local jobs = Framework.Core.Shared.Jobs
 
@@ -555,7 +551,7 @@ local function SaveJobsToFile()
         return
     end
 
-    -- ¡LA MAGIA! Le pasamos los datos formateados a qb-core para que él mismo guarde
+    -- Le pasamos los datos formateados a qb-core para que él mismo guarde
     local saved = exports['qb-core']:SaveJobsFile(serializedData)
 
     if saved then
@@ -1309,17 +1305,35 @@ end)
 RegisterNetEvent('DP-VehicleShop:server:deleteCategory', function(dealerId, catId, catName)
     local src = source
 
-    -- 1. Primero borramos DE RAÍZ todos los coches en stock que tuvieran esta categoría
-    if catName then
-        exports['oxmysql']:execute('DELETE FROM dp_vehicleshop_stock WHERE dealership_id = ? AND category_name = ?',
-            {dealerId, catName})
-    end
+    if not dealerId or not catId or not catName then return end
 
-    -- 2. Borramos la categoría
+    -- 1. MÁGIA AQUÍ: En lugar de hacer DELETE, hacemos UPDATE para pasar los coches a "none"
+    exports['oxmysql']:execute('UPDATE dp_vehicleshop_stock SET category_name = ? WHERE dealership_id = ? AND category_name = ?',
+        {"none", dealerId, catName})
+
+    -- 2. Borramos la categoría de la base de datos
     exports['oxmysql']:execute('DELETE FROM dp_vehicleshop_categories WHERE id = ?', {catId}, function()
+        
+        -- 3. Actualizamos la memoria RAM (Shared) para que el servidor lo sepa al instante
+        local changesMade = false
+        for model, vehicleData in pairs(Framework.Core.Shared.Vehicles) do
+            if vehicleData.category == catName then
+                Framework.Core.Shared.Vehicles[model].category = "none"
+                changesMade = true
+            end
+        end
+
+        -- 4. Guardamos el archivo físico si algún coche fue modificado
+        if changesMade then
+            SaveVehiclesToFile()
+        end
+
+        -- 5. Refrescamos el menú del Jefe (Tus funciones originales)
         RefreshCategoriesForBoss(dealerId, src)
-        RefreshBossData(dealerId, src) -- Recargamos el menú de Jefe para que desaparezca el stock borrado
-        TriggerClientEvent('QBCore:Notify', src, 'Categoría (y sus vehículos) eliminada', 'error')
+        RefreshBossData(dealerId, src) 
+        
+        -- 6. Notificamos
+        TriggerClientEvent('QBCore:Notify', src, 'Categoría eliminada. Los vehículos ahora están SIN ASIGNAR.', 'success')
     end)
 end)
 
@@ -1673,7 +1687,8 @@ RegisterNetEvent('DP-VehicleShop:server:buyShowroomVehicle', function(dealerId, 
 
             -- 2. Calcular Precio Final (Base + Matrícula Custom + Extras)
             -- Obtenemos el precio base real del Shared para evitar que alteren el precio desde el JS
-            local basePrice = Framework.Core.Shared.Vehicles[model] and Framework.Core.Shared.Vehicles[model].price or price
+            local basePrice = Framework.Core.Shared.Vehicles[model] and Framework.Core.Shared.Vehicles[model].price or
+                                  price
             local finalPrice = basePrice
 
             -- A) Sumar recargo por Matrícula Custom ($25.000)
@@ -1806,6 +1821,88 @@ AddEventHandler('DP-VehicleShop:server:updateCategoryOrder', function(orderData)
             exports['oxmysql']:execute('UPDATE dp_vehicleshop_categories SET sort_order = ? WHERE id = ?',
                 {cat.order, cat.id})
         end
+    end
+end)
+
+-- =================================================================
+-- MOVER VEHÍCULO DE CATEGORÍA
+-- =================================================================
+RegisterNetEvent('DP-VehicleShop:server:changeVehicleCategory')
+AddEventHandler('DP-VehicleShop:server:changeVehicleCategory', function(dealerId, model, oldCategory, newCategory)
+    local src = source
+
+    -- Verificamos que no falten datos críticos
+    if not dealerId or not model or not newCategory then
+        return
+    end
+
+    -- 1. MAGIA AQUÍ: Insertamos el coche si no existe, o lo actualizamos si ya existe
+    exports['oxmysql']:execute(
+        'INSERT INTO dp_vehicleshop_stock (dealership_id, vehicle_model, stock_count, category_name) VALUES (?, ?, 0, ?) ON DUPLICATE KEY UPDATE category_name = VALUES(category_name)',
+        {dealerId, model, newCategory}, function(result)
+
+            -- 2. Actualizamos la memoria RAM (Shared) para que el cambio sea instantáneo
+            if Framework.Core.Shared.Vehicles[model] then
+                Framework.Core.Shared.Vehicles[model].category = newCategory
+            end
+
+            -- 3. EXPORT A TU SHARED (Archivo Físico)
+            -- Guardamos permanentemente en el qb-core/shared/vehicles.lua
+            SaveVehiclesToFile()
+
+            -- 4. Notificamos al jefe de la empresa
+            TriggerClientEvent('QBCore:Notify', src, "Vehículo movido a: " .. string.upper(newCategory), "success")
+        end)
+end)
+
+-- =================================================================
+-- NUEVO: AÑADIDO MASIVO DE VEHÍCULOS A CATEGORÍA (BOSS MENU)
+-- =================================================================
+RegisterNetEvent('DP-VehicleShop:server:massChangeVehicleCategory')
+AddEventHandler('DP-VehicleShop:server:massChangeVehicleCategory', function(dealerId, models, newCategory)
+    local src = source
+
+    -- Verificamos que no falten datos críticos y que models sea una tabla válida
+    if not dealerId or not models or type(models) ~= "table" or #models == 0 or not newCategory then
+        return
+    end
+
+    local successCount = 0
+    local queries = {} -- Usaremos una tabla para la transacción masiva
+
+    -- Recorremos cada coche que nos ha mandado el JavaScript
+    for _, model in ipairs(models) do
+
+        -- 1. Verificamos que el vehículo exista en el Shared de QBCore
+        if Framework.Core.Shared.Vehicles[model] then
+
+            -- 2. Actualizamos la categoría en la memoria RAM en vivo
+            Framework.Core.Shared.Vehicles[model].category = newCategory
+
+            -- 3. Preparamos la consulta blindada para la Base de Datos
+            table.insert(queries, {
+                query = 'INSERT INTO dp_vehicleshop_stock (dealership_id, vehicle_model, stock_count, category_name) VALUES (?, ?, 0, ?) ON DUPLICATE KEY UPDATE category_name = VALUES(category_name)',
+                values = {dealerId, model, newCategory}
+            })
+
+            successCount = successCount + 1
+        end
+    end
+
+    -- Si hemos logrado actualizar al menos 1 vehículo, guardamos el archivo y avisamos
+    if successCount > 0 then
+        -- Ejecutamos todas las consultas de golpe con oxmysql:transaction
+        exports['oxmysql']:transaction(queries, function(result)
+            
+            -- 4. EXPORT A TU SHARED (Archivo Físico)
+            -- Lo llamamos AQUÍ, fuera del bucle, para que guarde el archivo 1 sola vez de golpe
+            SaveVehiclesToFile()
+
+            -- 5. Notificamos al jefe con el número de coches que ha movido
+            TriggerClientEvent('QBCore:Notify', src, "Has asignado " .. successCount .. " vehículos a la categoría: " .. string.upper(newCategory), "success")
+        end)
+    else
+        TriggerClientEvent('QBCore:Notify', src, "Error: No se pudo asignar ningún vehículo.", "error")
     end
 end)
 

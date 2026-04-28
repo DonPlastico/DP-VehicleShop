@@ -283,14 +283,27 @@ CreateThread(function()
     end
 end)
 
--- SISTEMA DE LIMPIEZA: Al reiniciar el script, borra los blips fantasma
+-- =================================================================
+-- SISTEMA DE LIMPIEZA: AL REINICIAR/APAGAR EL SCRIPT
+-- =================================================================
 AddEventHandler('onResourceStop', function(resourceName)
     if GetCurrentResourceName() == resourceName then
+
+        -- 1. Borrar los blips fantasma del mapa
         for _, blip in ipairs(dealerBlips) do
             if DoesBlipExist(blip) then
                 RemoveBlip(blip)
             end
         end
+
+        -- 2. Restaurar HUD, Chat y Voz a la normalidad
+        exports['DP-Hud']:ToggleVisibility(true)
+        TriggerEvent('chat:client:showChat', true)
+        TriggerEvent('bcs-voice-ui:client:showVoice', true)
+
+        -- 3. Liberar el ratón y el teclado del jugador por si estaba en un menú
+        SetNuiFocus(false, false)
+
     end
 end)
 
@@ -1427,6 +1440,138 @@ RegisterNUICallback('startTestDrive', function(data, cb)
 
     -- Mandamos al servidor para que nos asigne el bucket y nos devuelva el evento
     TriggerServerEvent('DP-VehicleShop:server:startTestDrive', currentShowroomDealerId, data)
+    cb('ok')
+end)
+
+RegisterNUICallback('changeVehicleCategory', function(data, cb)
+    local model = data.model
+    local oldCategory = data.oldCategory
+    local newCategory = data.newCategory
+
+    -- Verificamos que tengamos los datos mínimos y estemos en una empresa válida
+    if currentBossDealerId and model and newCategory then
+        -- Enviamos la orden al servidor con el ID del concesionario actual
+        TriggerServerEvent('DP-VehicleShop:server:changeVehicleCategory', currentBossDealerId, model, oldCategory,
+            newCategory)
+    end
+
+    cb('ok')
+end)
+
+RegisterNUICallback('massChangeVehicleCategory', function(data, cb)
+    local models = data.models
+    local newCategory = data.newCategory
+
+    -- Verificamos que tengamos los datos mínimos, que models sea una tabla (array) válida y que tengamos el dealerId
+    if currentBossDealerId and models and type(models) == "table" and #models > 0 and newCategory then
+
+        -- Enviamos la orden masiva al servidor
+        TriggerServerEvent('DP-VehicleShop:server:massChangeVehicleCategory', currentBossDealerId, models, newCategory)
+
+    end
+
+    cb('ok')
+end)
+
+RegisterNUICallback('requestCompareStats', function(data, cb)
+    local model = data.model
+    if not model then
+        return cb('ok')
+    end
+
+    local modelHash = GetHashKey(model)
+    if not IsModelInCdimage(modelHash) then
+        return cb('ok')
+    end
+
+    -- 1. NATIVAS DE GTA PARA EXTRAER DATOS BASE (No necesitan spawnear el coche)
+    local maxSpeed = GetVehicleModelEstimatedMaxSpeed(modelHash)
+    local maxAccel = GetVehicleModelAcceleration(modelHash)
+    local maxBraking = GetVehicleModelMaxBraking(modelHash)
+    local maxTraction = GetVehicleModelMaxTraction(modelHash)
+
+    -- 2. MATEMÁTICAS DE LAS BARRAS (Exactamente las mismas que usas en tu previewVehicle)
+    local speedScore = math.ceil((maxSpeed / 65.0) * 100) / 10
+    local accelScore = math.ceil((maxAccel / 0.45) * 100) / 10
+    local brakingScore = math.ceil((maxBraking / 1.15) * 100) / 10
+    local handlingScore = math.ceil((maxTraction / 2.85) * 100) / 10
+
+    if speedScore > 10.0 then
+        speedScore = 10.0
+    end
+    if accelScore > 10.0 then
+        accelScore = 10.0
+    end
+    if brakingScore > 10.0 then
+        brakingScore = 10.0
+    end
+    if handlingScore > 10.0 then
+        handlingScore = 10.0
+    end
+
+    -- 3. CÁLCULOS PARA LA CUADRÍCULA INFERIOR
+    local seats = GetVehicleModelNumberOfSeats(modelHash)
+
+    local velocityConfig = Config.Velocity or 'kmh'
+    local maxSpeedText = "--"
+
+    if velocityConfig == 'kmh' then
+        local speedKmh = math.ceil(maxSpeed * 3.6)
+        maxSpeedText = tostring(speedKmh) .. " KM/H"
+    else
+        local speedMph = math.ceil(maxSpeed * 2.236936)
+        maxSpeedText = tostring(speedMph) .. " MP/H"
+    end
+
+    local accelTime = (1.0 / maxAccel) * 1.2
+    if accelTime < 1.5 then
+        accelTime = 1.5
+    end
+    local accelTimeText = string.format("%.1f s", accelTime)
+
+    -- 4. DETECCIÓN DE TUNING ESTÉTICO 
+    -- (Para leer los mods, GTA exige que el coche exista físicamente y TENGA EL MODKIT INICIADO)
+    local hasTuning = false
+    RequestModel(modelHash)
+    local timeout = 0
+    while not HasModelLoaded(modelHash) and timeout < 1500 do
+        Wait(10)
+        timeout = timeout + 10
+    end
+
+    if HasModelLoaded(modelHash) then
+        local ped = PlayerPedId()
+        local pos = GetEntityCoords(ped)
+        local tempVeh = CreateVehicle(modelHash, pos.x, pos.y, pos.z - 50.0, 0.0, false, false)
+
+        -- ¡EL FIX ESTÁ AQUÍ! Iniciamos el ModKit para que GTA pueda contar las piezas
+        SetVehicleModKit(tempVeh, 0)
+
+        if GetNumVehicleMods(tempVeh, 0) > 0 or GetNumVehicleMods(tempVeh, 1) > 0 or GetNumVehicleMods(tempVeh, 2) > 0 or
+            GetNumVehicleMods(tempVeh, 3) > 0 or GetNumVehicleMods(tempVeh, 4) > 0 then
+            hasTuning = true
+        end
+
+        DeleteEntity(tempVeh)
+        SetModelAsNoLongerNeeded(modelHash)
+    end
+
+    -- 5. ENVIAMOS TODO LISTO AL JAVASCRIPT
+    SendNUIMessage({
+        action = 'updateCompareStats',
+        stats = {
+            speed = speedScore,
+            acceleration = accelScore,
+            braking = brakingScore,
+            handling = handlingScore,
+            maxSpeedText = maxSpeedText,
+            seats = seats,
+            accelTimeText = accelTimeText,
+            measurementUnit = velocityConfig,
+            hasTuning = hasTuning
+        }
+    })
+
     cb('ok')
 end)
 
