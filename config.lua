@@ -17,8 +17,8 @@ Config.VehicleList = 'generarprimerstock'
 -- SECCIÓN 1.5: PRUEBA DE MANEJO
 -- =================================================================
 Config.TestDrive = {
-    Duration = 60,          -- Segundos de prueba
-    BucketBase = 1000,      -- Bucket base (cada jugador usará BucketBase + playerId)
+    Duration = 60, -- Segundos de prueba
+    BucketBase = 1000 -- Bucket base (cada jugador usará BucketBase + playerId)
 }
 
 -- =================================================================

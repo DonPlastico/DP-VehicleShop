@@ -10,6 +10,8 @@
     <script src="https://kit.fontawesome.com/610ae1a27e.js" crossorigin="anonymous"></script>
     <script src="https://code.iconify.design/iconify-icon/1.0.8/iconify-icon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -69,8 +71,8 @@
                             <span>EFECTIVO</span>
                         </button>
                         <button class="selection-btn payment-method-btn" data-method="bank">
-                            <i class="fa-solid fa-building-columns"></i>
-                            <span>BANCO</span>
+                            <i class="fa-solid fa-credit-card"></i>
+                            <span>TARJETA</span>
                         </button>
                     </div>
                 </div>
@@ -112,7 +114,7 @@
                         <i class="fa-solid fa-credit-card"></i>
                         <div class="detail-text">
                             <span class="detail-label">MÉTODO</span>
-                            <span class="detail-value" id="conf-method-selected">BANCO</span>
+                            <span class="detail-value" id="conf-method-selected">TARJETA</span>
                         </div>
                     </div>
                     <div class="conf-detail-item">
@@ -159,10 +161,40 @@
 
                     <div class="price-divider"></div>
 
+                    <div id="conf-discount-block" class="price-row addon-row" style="display: none;">
+                        <span class="price-label"><i class="fa-solid fa-tags"></i> Descuento <span
+                                id="conf-discount-perc-text"></span></span>
+                        <div style="display: flex; align-items: center; gap: 0.5vw;">
+                            <span class="price-value" id="conf-discount-amount" style="color: #fff;">- $ 0</span>
+                            <button id="confirm-reset-discount" class="reset-plate-trash-mini"><i
+                                    class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    </div>
+
                     <div class="price-row total-row">
                         <span class="price-label">TOTAL A PAGAR</span>
                         <span class="price-value final-total" id="conf-total-price">$0</span>
                     </div>
+                </div>
+
+                <div class="discount-code-section"
+                    style="margin-top: 0.8vw; padding-top: 0.8vw; border-top: 1px solid rgba(255,255,255,0.05);">
+                    <label
+                        style="font-size: 0.6vw; color: #aaa; font-weight: bold; margin-bottom: 0.4vw; display: block;">
+                        CÓDIGO PROMO / DESCUENTO
+                    </label>
+                    <div style="display: flex; gap: 0.4vw; position: relative;">
+                        <i class="fa-solid fa-ticket"
+                            style="position: absolute; left: 0.6vw; top: 50%; transform: translateY(-50%); color: #666; font-size: 0.7vw;"></i>
+                        <input type="text" id="input-purchase-discount" placeholder="INTRODUCE UN CÓDIGO DISPONIBLE..."
+                            style="flex: 1 1 0%;background: rgba(0, 0, 0, 0.3);border: 1px solid rgba(255, 255, 255, 0.1);border-radius: 4px;color: white;padding: 0.4vw 0.5vw 0.4vw 1.8vw;font-family: Orbitron, sans-serif;font-size: 0.65vw;text-transform: uppercase;opacity: 1;margin: 0;">
+                        <button id="btn-apply-discount"
+                            style="padding: 0 0.8vw; font-size: 0.65vw; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;">
+                            <i class="fa-solid fa-check"></i>
+                        </button>
+                    </div>
+                    <span id="discount-status-msg"
+                        style="display: none; font-size: 0.55vw; margin-top: 0.4vw; font-style: italic; color: #aaa;"></span>
                 </div>
 
                 <div class="payment-footer">
@@ -185,6 +217,71 @@
 
                 <div class="payment-footer">
                     <button class="action-btn confirm-btn" id="close-extras">CERRAR EXTRAS</button>
+                </div>
+            </div>
+
+            <div class="info-panel-payment" id="rgb-selection-panel" style="display: none;">
+                <div class="payment-section" style="display: flex; flex-direction: column; align-items: center;">
+                    <h2 class="panel-category-title" style="width: 100%; text-align: left;">COLOR CUSTOM</h2>
+
+                    <div
+                        style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px; margin-top: 5px;">
+                        <div id="iro-color-picker"></div>
+                    </div>
+
+                    <div class="dp-presets-box">
+                        <div class="dp-presets-title">
+                            <i class="fa-solid fa-palette"></i> PREDEFINIDOS
+                        </div>
+                        <div class="dp-presets-grid">
+                            <div class="dp-swatch" style="background: #00FA9A;" data-hex="#00FA9A"
+                                title="Azul Brillante"></div>
+                            <div class="dp-swatch" style="background: #029939;" data-hex="#029939" title="Verde Joker">
+                            </div>
+                            <div class="dp-swatch" style="background: #ddff03;" data-hex="#ddff03"
+                                title="Amarillo Tóxico"></div>
+                            <div class="dp-swatch" style="background: #ff69b4;" data-hex="#ff69b4" title="Rosa Neón">
+                            </div>
+                            <div class="dp-swatch" style="background: #603e94;" data-hex="#603e94"
+                                title="Morado Brillante"></div>
+                            <div class="dp-swatch" style="background: #e3be46;" data-hex="#e3be46"
+                                title="Dorado Brillante"></div>
+                            <div class="dp-swatch" style="background: #ffffff;" data-hex="#ffffff" title="Blanco Puro">
+                            </div>
+                            <div class="dp-swatch" style="background: #000000;" data-hex="#000000" title="Negro Puro">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="picker-tabs">
+                        <button class="tab-btn-color active" onclick="switchColorMode('rgb')">RGB</button>
+                        <button class="tab-btn-color" onclick="switchColorMode('hex')">HEX</button>
+                    </div>
+
+                    <div class="picker-panels" style="width: 100%; margin-top: 5px;">
+                        <div id="panel-rgb" class="color-panel active">
+                            <div class="rgb-horizontal-group">
+                                <div class="rgb-row"><label>R</label><input type="number" id="in-r" min="0" max="255">
+                                </div>
+                                <div class="rgb-row"><label>G</label><input type="number" id="in-g" min="0" max="255">
+                                </div>
+                                <div class="rgb-row"><label>B</label><input type="number" id="in-b" min="0" max="255">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="panel-hex" class="color-panel" style="display: none;">
+                            <div class="hex-wrapper">
+                                <span class="hex-hash">#</span>
+                                <input type="text" id="in-hex" maxlength="6" placeholder="FFFFFF">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="payment-footer">
+                    <button class="action-btn cancel-btn" id="close-rgb-panel">CERRAR</button>
+                    <button class="action-btn confirm-btn" id="apply-rgb-color">APLICAR COLOR</button>
                 </div>
             </div>
 
@@ -417,6 +514,113 @@
         </div>
 
         <div class="bottom-carousel-container">
+            <div class="carousel-toolbar" id="filters-toolbar"
+                style="margin-bottom: 0.4vw; gap: 0.5vw; justify-content: flex-start;">
+
+                <div class="help-btn-wrapper">
+                    <div class="toolbar-box toolbar-btn filter-trigger-btn" id="filter-btn-price"
+                        title="Filtrar por Precio">
+                        <i class="fa-solid fa-dollar-sign help-main-icon"></i>
+
+                        <div class="help-expanded-content">
+                            <div class="help-header">
+                                <div class="header-left">
+                                    <i class="fa-solid fa-dollar-sign"></i>
+                                    <span>RANGO DE PRECIOS</span>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end;">
+                                    <span class="filter-slider-badge" id="filter-price-badge"
+                                        style="color: #fff; font-family: 'Orbitron', sans-serif; font-size: 0.55vw; font-weight: 900; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.2vw 0.5vw; border-radius: 4px;">$0
+                                        — $10M</span>
+                                </div>
+                            </div>
+                            <hr class="help-divider">
+                            <div class="help-body"
+                                style="display: flex;flex-direction: column;justify-content: center;overflow: hidden;padding: 5px;">
+                                <div class="double-slider-wrapper">
+                                    <div class="slider-track"></div>
+                                    <div class="slider-fill" id="filter-price-fill"></div>
+                                    <input type="range" id="filter-price-min" class="slider-input" min="0"
+                                        max="10000000" step="10000" value="0">
+                                    <input type="range" id="filter-price-max" class="slider-input" min="0"
+                                        max="10000000" step="10000" value="10000000">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-btn-wrapper">
+                    <div class="toolbar-box toolbar-btn filter-trigger-btn" id="filter-btn-speed"
+                        title="Filtrar por Velocidad">
+                        <i class="fa-solid fa-gauge-high help-main-icon"></i>
+
+                        <div class="help-expanded-content">
+                            <div class="help-header">
+                                <div class="header-left">
+                                    <i class="fa-solid fa-gauge-high"></i>
+                                    <span>VELOCIDAD MÁXIMA</span>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end;">
+                                    <span class="filter-slider-badge" id="filter-speed-badge"
+                                        style="color: #fff; font-family: 'Orbitron', sans-serif; font-size: 0.55vw; font-weight: 900; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.2vw 0.5vw; border-radius: 4px;">0
+                                        — 400 KM/H</span>
+                                </div>
+                            </div>
+                            <hr class="help-divider">
+                            <div class="help-body"
+                                style="display: flex;flex-direction: column;justify-content: center;overflow: hidden;padding: 5px;">
+                                <div class="double-slider-wrapper">
+                                    <div class="slider-track"></div>
+                                    <div class="slider-fill" id="filter-speed-fill"></div>
+                                    <input type="range" id="filter-speed-min" class="slider-input" min="0" max="250"
+                                        step="5" value="0">
+                                    <input type="range" id="filter-speed-max" class="slider-input" min="0" max="250"
+                                        step="5" value="400">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-btn-wrapper">
+                    <div class="toolbar-box toolbar-btn filter-trigger-btn" id="filter-btn-seats"
+                        title="Filtrar por Asientos">
+                        <i class="fa-solid fa-users help-main-icon"></i>
+
+                        <div class="help-expanded-content">
+                            <div class="help-header">
+                                <div class="header-left">
+                                    <i class="fa-solid fa-users"></i>
+                                    <span>CANTIDAD DE ASIENTOS</span>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end;">
+                                    <span class="filter-slider-badge" id="filter-seats-badge"
+                                        style="color: #fff; font-family: 'Orbitron', sans-serif; font-size: 0.55vw; font-weight: 900; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.2vw 0.5vw; border-radius: 4px;">1
+                                        — 16</span>
+                                </div>
+                            </div>
+                            <hr class="help-divider">
+                            <div class="help-body"
+                                style="display: flex;flex-direction: column;justify-content: center;overflow: hidden;padding: 5px;">
+                                <div class="double-slider-wrapper">
+                                    <div class="slider-track"></div>
+                                    <div class="slider-fill" id="filter-seats-fill"></div>
+                                    <input type="range" id="filter-seats-min" class="slider-input" min="1" max="16"
+                                        step="1" value="1">
+                                    <input type="range" id="filter-seats-max" class="slider-input" min="1" max="16"
+                                        step="1" value="16">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar-box toolbar-btn" id="filter-reset-btn" title="Restaurar filtros">
+                    <i class="fa-solid fa-filter-circle-xmark"></i>
+                </div>
+            </div>
+
             <div class="carousel-toolbar">
                 <div class="toolbar-box toolbar-search" id="showroom-search-box">
                     <i class="fa-solid fa-magnifying-glass search-icon"></i>
@@ -452,7 +656,6 @@
                                         filtrar los vehículos.
                                     </div>
                                 </div>
-
                                 <div class="help-section">
                                     <i class="fa-solid fa-magnifying-glass help-icon"></i>
                                     <div class="help-text">
@@ -460,7 +663,6 @@
                                         lupa para buscar por <b>Marca o Modelo</b>.
                                     </div>
                                 </div>
-
                                 <div class="help-section">
                                     <i class="fa-solid fa-right-left help-icon"></i>
                                     <div class="help-text">
@@ -468,7 +670,6 @@
                                         comparación y elige un segundo vehículo para ver sus estadísticas enfrentadas.
                                     </div>
                                 </div>
-
                                 <div class="help-section controls-section">
                                     <div class="section-title">Controles de Navegación:</div>
                                     <div class="control-row">
@@ -489,7 +690,6 @@
                                         <span class="control-desc">Desplazamiento intuitivo</span>
                                     </div>
                                 </div>
-
                                 <div class="help-footer">Próximamente más novedades...</div>
                             </div>
                         </div>
@@ -667,55 +867,74 @@
 
                 <div id="tab-company" class="boss-page">
                     <div class="boss-widgets-row">
+                        <div
+                            style="display: flex; flex-direction: column; gap: 7.5px; flex: 0.75; justify-content: space-between;">
 
-                        <div class="boss-widget company-balance-widget">
-                            <h3 class="widget-title">
-                                <i class="fa-solid fa-vault"></i>
-                                Balance de la Empresa
-                            </h3>
-                            <p class="widget-desc">El saldo actual solo puede gestionarse mediante tu cuenta bancaria.
-                            </p>
+                            <div class="boss-widget company-balance-widget">
+                                <h3 class="widget-title">
+                                    <i class="fa-solid fa-vault"></i>
+                                    Balance de la Empresa
+                                </h3>
+                                <p class="widget-desc">El saldo actual solo puede gestionarse mediante tu cuenta
+                                    bancaria.</p>
 
-                            <div class="balance-display" style="padding: 1vw; margin: 0.5vw 0;">
-                                <span class="balance-label">Fondos Disponibles</span>
-                                <div style="width: 100%; overflow: hidden;">
-                                    <span class="balance-amount" id="company-balance-display"
-                                        style="transition: font-size 0.2s ease;">0 $</span>
+                                <div class="balance-display" style="padding: 0.5vw;margin: 0;">
+                                    <span class="balance-label">Fondos Disponibles</span>
+                                    <div style="width: 100%; overflow: hidden;">
+                                        <span class="balance-amount" id="company-balance-display"
+                                            style="transition: font-size 0.2s ease; font-size: 2.2vw;">0 $</span>
+                                    </div>
+                                </div>
+
+                                <div class="balance-actions" style="margin-top: 0.5vw;">
+                                    <button class="btn-deposit" onclick="toggleModal('deposit-modal', true)"><i
+                                            class="fa-solid fa-arrow-down"></i><br>DEPOSITAR</button>
+                                    <button class="btn-withdraw" onclick="toggleModal('withdraw-modal', true)"><i
+                                            class="fa-solid fa-arrow-up"></i><br>RETIRAR</button>
                                 </div>
                             </div>
 
-                            <div class="balance-actions">
-                                <button class="btn-deposit" onclick="toggleModal('deposit-modal', true)"><i
-                                        class="fa-solid fa-arrow-down"></i><br>DEPOSITAR</button>
-                                <button class="btn-withdraw" onclick="toggleModal('withdraw-modal', true)"><i
-                                        class="fa-solid fa-arrow-up"></i><br>RETIRAR</button>
+                            <div class="boss-widget company-chart-widget"
+                                style="flex: 1; display: flex; flex-direction: column; min-height: 15vh;">
+                                <h3 class="widget-title" style="margin-bottom: 0.5vw;">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                    Rendimiento Semanal
+                                </h3>
+                                <div style="position: relative; flex-grow: 1; width: 100%;">
+                                    <canvas id="company-balance-chart"></canvas>
+                                </div>
                             </div>
 
-                            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 1vw 0;">
-
-                            <div class="balance-nav-actions" style="display: flex; flex-direction: column; gap: 0.5vw;">
-                                <button class="btn-secondary" onclick="openSubTab('tab-company-staff')"
-                                    style="display: flex; align-items: center; justify-content: center;">
-                                    <iconify-icon icon="material-symbols:finance-chip"
-                                        style="font-size: 1.2vw; margin-right: 0.4vw;"></iconify-icon>
-                                    Gestión del Personal
-                                </button>
-                                <button class="btn-secondary" onclick="openSubTab('tab-company-settings')"
-                                    style="display: flex; align-items: center; justify-content: center;">
-                                    <iconify-icon icon="material-symbols:business-chip"
-                                        style="font-size: 1.2vw; margin-right: 0.4vw;"></iconify-icon>
-                                    Ajustes de Empresa
-                                </button>
+                            <div class="boss-widget" style="flex: 0 1 auto;">
+                                <h3 class="widget-title">
+                                    <i class="fa-solid fa-bars-staggered"></i>
+                                    Menús
+                                </h3>
+                                <div class="balance-nav-actions"
+                                    style="display: flex; flex-direction: column; gap: 0.5vw;">
+                                    <button class="btn-secondary" onclick="openSubTab('tab-company-staff')"
+                                        style="display: flex; align-items: center; justify-content: center; padding: 0.6vw; font-size: 0.75vw;">
+                                        <iconify-icon icon="material-symbols:finance-chip"
+                                            style="font-size: 1.1vw; margin-right: 0.4vw;"></iconify-icon>
+                                        Gestión del Personal
+                                    </button>
+                                    <button class="btn-secondary" onclick="openSubTab('tab-company-settings')"
+                                        style="display: flex; align-items: center; justify-content: center; padding: 0.6vw; font-size: 0.75vw;">
+                                        <iconify-icon icon="material-symbols:business-chip"
+                                            style="font-size: 1.1vw; margin-right: 0.4vw;"></iconify-icon>
+                                        Ajustes de Empresa
+                                    </button>
+                                </div>
                             </div>
+
                         </div>
 
-                        <div class="boss-widget company-transactions-widget">
+                        <div class="boss-widget company-transactions-widget" style="flex: 1.7;">
                             <h3 class="widget-title">
                                 <i class="fa-solid fa-money-bill-transfer"></i>
                                 Transacciones
                             </h3>
                             <p class="widget-desc">Historial de depósitos y retiros de la empresa.</p>
-
                             <div class="sales-table-container">
                                 <table class="custom-table table-centered">
                                     <thead>
@@ -750,7 +969,7 @@
                 </div>
 
                 <div id="tab-company-staff" class="boss-page">
-                    <div class="boss-widgets-row" style="height: 10%; margin-bottom: 10px;">
+                    <div class="boss-widgets-row" style="height: 10%; margin-bottom: 7.5px;">
                         <div class="boss-widget" style="flex: 1.5;">
                             <h3 class="widget-title">
                                 <i class="fa-solid fa-user-plus"></i>
@@ -877,7 +1096,7 @@
                 <div id="tab-company-settings" class="boss-page">
                     <div class="boss-widgets-row" style="height: 100%;">
                         <div
-                            style="flex: 0 0 35%; display: flex; flex-direction: column; gap: 1vw; padding-right: 0.5vw; height: 100%;">
+                            style="display: flex; flex-direction: column; gap: 7.5px; flex: 0.75; justify-content: space-between;">
 
                             <div class="boss-widget" style="height: auto;">
                                 <h3 class="widget-title">
@@ -902,8 +1121,8 @@
                                     <i class="fa-solid fa-sack-dollar"></i>
                                     Distribuir Bonificación
                                 </h3>
-                                <p class="widget-desc" style="margin-bottom: 0.5vw;">
-                                    Otorga un extra a TODOS los empleados (Min: 1$ | Max: 10.000$)
+                                <p class="widget-desc">
+                                    Otorga un extra a TODOS los empleados<br>(Min: 1$ | Max: 10.000$)
                                 </p>
                                 <div class="form-row">
                                     <input type="number" placeholder="Cantidad ($)" style="flex: 1; margin-bottom: 0;">
@@ -916,7 +1135,7 @@
                                     <i class="fa-solid fa-arrow-trend-up"></i>
                                     Aumentar Precio Base
                                 </h3>
-                                <p class="widget-desc" style="margin-bottom: 0.5vw;">
+                                <p class="widget-desc">
                                     Aumenta el precio de TODOS los vehículos a la vez.
                                 </p>
                                 <div class="form-row">
@@ -931,11 +1150,12 @@
 
                             <div class="boss-widget"
                                 style="height: auto; border-color: rgba(255,255,255,0.2); margin-bottom: 0;">
-                                <h3 class="widget-title" style="color: #fff;">
+                                <h3 class="widget-title" style="color: #fff; text-align: center;">
                                     <i class="fa-solid fa-skull"></i>
                                     Eliminar Registros
+                                    <i class="fa-solid fa-skull"></i>
                                 </h3>
-                                <p class="widget-desc" style="color: #aaa; margin-bottom: 0.5vw;">
+                                <p class="widget-desc" style="color: #aaa; margin-bottom: 0.5vw; text-align: center;">
                                     ESTA ACCIÓN BORRARÁ TODOS LOS MENSAJES Y REGISTROS DE ESTA EMPRESA.
                                     NO ES REVERSIBLE.
                                 </p>
@@ -946,11 +1166,16 @@
                             </div>
                         </div>
 
-                        <div class="boss-widget" style="flex: 1;">
-                            <h3 class="widget-title">
-                                <i class="fa-solid fa-tags"></i>
-                                Descuentos Activos
+                        <div class="boss-widget" style="flex: 1.7;">
+                            <h3 class="widget-title"
+                                style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fa-solid fa-tags"></i> Descuentos Activos</span>
+                                <button class="btn-primary" onclick="openCreateDiscountModal()"
+                                    style="font-size: 0.6vw; padding: 0.5vh 0.8vw; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); cursor: pointer; border-radius: 4px; color: white; transition: all 0.2s ease;">
+                                    <i class="fa-solid fa-plus"></i> NUEVO DESCUENTO
+                                </button>
                             </h3>
+                            <p class="widget-desc">Gestiona los códigos promocionales para tus clientes.</p>
                             <div class="sales-table-container">
                                 <table class="custom-table table-centered">
                                     <thead>
@@ -1002,6 +1227,9 @@
                                     <i class="fa-solid fa-plus"></i> NUEVA
                                 </button>
                             </div>
+                            <p class="widget-desc">
+                                Lista completa de TODAS las categorías que tiene tu empresa.
+                            </p>
 
                             <div class="sales-table-container" style="overflow-y: auto;">
                                 <div class="categories-custom-list">
@@ -1078,7 +1306,8 @@
                                     <i class="fa-solid fa-plus"></i> NUEVO
                                 </button>
                             </div>
-                            <p class="widget-desc" style="margin-bottom: 1vw;">Selecciona un rango para editarlo.</p>
+                            <p class="widget-desc" style="margin-bottom: 1vw;">Selecciona un rango para editarlo.
+                            </p>
 
                             <div id="boss-ranks-list" style="overflow-y: auto; flex-grow: 1; padding-right: 0.5vw;">
                                 <div class="empty-state">
@@ -1614,6 +1843,244 @@
         </div>
     </div>
 
+    <div id="create-discount-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content" style="width: 59vw; max-height: 79vh;">
+
+            <!-- ═══ CABECERA ═══ -->
+            <div class="disc-modal-header">
+                <div class="disc-modal-header-icon">
+                    <i class="fa-solid fa-ticket-simple"></i>
+                </div>
+                <div class="disc-modal-header-text">
+                    <h2>CREAR CUPÓN DE DESCUENTO</h2>
+                    <p>Genera un código promocional para tus clientes con reglas personalizadas de uso y expiración.</p>
+                </div>
+            </div>
+
+            <!-- ═══ CUERPO EN 2 COLUMNAS ═══ -->
+            <div class="disc-modal-body">
+
+                <!-- ── COLUMNA IZQUIERDA ── -->
+                <div class="disc-col">
+
+                    <!-- BLOQUE 1: Tipo de Código -->
+                    <div class="disc-block">
+                        <div class="disc-block-label">
+                            <i class="fa-solid fa-code"></i>
+                            TIPO DE CÓDIGO
+                            <span class="disc-block-hint">¿Generar automáticamente o escribir uno propio?</span>
+                        </div>
+                        <div class="selection-grid" style="margin-top:0.5vw;">
+                            <button id="btn-disc-random" class="selection-btn active">
+                                <i class="fa-solid fa-shuffle"></i>
+                                <span>ALEATORIO</span>
+                            </button>
+                            <button id="btn-disc-custom" class="selection-btn">
+                                <i class="fa-solid fa-keyboard"></i>
+                                <span>PERSONALIZADO</span>
+                            </button>
+                        </div>
+                        <div id="disc-custom-box" style="display:none; margin-top:0.6vw;">
+                            <input type="text" id="input-disc-custom-code" class="modal-input disc-input"
+                                placeholder="Ej: VERANO2025 (5-25 caracteres)" maxlength="25">
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE 2: Porcentaje -->
+                    <div class="disc-block">
+                        <div class="disc-block-label">
+                            <i class="fa-solid fa-percent"></i>
+                            DESCUENTO
+                            <span class="disc-block-hint">Valor entre 5% y 90% sobre el precio final.</span>
+                        </div>
+                        <div class="disc-perc-wrapper">
+                            <input type="number" id="input-disc-perc" class="modal-input disc-input disc-perc-input"
+                                placeholder="15" min="5" max="90">
+                            <span class="disc-perc-symbol">%</span>
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE 3: Objetivo (Vehículos / Categorías) -->
+                    <div class="disc-block disc-block-grow" style="display: flex; flex-direction: column; gap: 0.8vw;">
+                        <div class="disc-block-label">
+                            <i class="fa-solid fa-bullseye"></i>
+                            APLICAR A
+                            <span class="disc-block-hint">Filtra por categoría y busca vehículos específicos.</span>
+                        </div>
+
+                        <div class="disc-sub-wrapper">
+                            <div
+                                style="font-size: 0.45vw; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.05vw; margin-bottom: 0.3vw; font-weight: 800;">
+                                <i class="fa-solid fa-car-side" style="margin-right: 0.2vw;"></i> Vehículos Específicos
+                            </div>
+                            <div class="disc-search-row">
+                                <div class="disc-search-wrapper" style="position:relative; flex:1;">
+                                    <i class="fa-solid fa-magnifying-glass disc-search-icon"></i>
+                                    <input type="text" id="input-disc-search" class="modal-input disc-input"
+                                        placeholder="Buscar vehículo..." style="padding-left:2.2vw;">
+                                    <div id="disc-search-results" style="display:none;"></div>
+                                </div>
+                                <select id="disc-cat-filter" class="disc-cat-select">
+                                    <option value="ALL">TODOS LOS VEHÍCULOS</option>
+                                </select>
+                            </div>
+                            <div id="disc-tags-container" class="disc-tags-area"></div>
+                        </div>
+
+                        <div class="disc-sub-wrapper" style="margin-top: 0.2vw;">
+                            <div
+                                style="font-size: 0.45vw; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.05vw; margin-bottom: 0.3vw; font-weight: 800;">
+                                <i class="fa-solid fa-layer-group" style="margin-right: 0.2vw;"></i>
+                                Categorías Completas
+                            </div>
+
+                            <div class="disc-search-row">
+                                <div class="disc-search-wrapper" style="position:relative; flex:1;">
+                                    <i class="fa-solid fa-magnifying-glass disc-search-icon"></i>
+                                    <input type="text" id="input-disc-category" class="modal-input disc-input"
+                                        placeholder="Buscar y añadir categoría..." style="padding-left:2.2vw;">
+                                    <div id="disc-cat-search-results"
+                                        style="display:none; position:absolute; width:100%; max-height:20vh; overflow-y:auto; background:rgba(15,15,15,0.95); border:1px solid rgba(255,255,255,0.1); border-radius:4px; margin-top:0.3vw; z-index:100; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="disc-cat-tags-container" class="disc-tags-area"></div>
+                        </div>
+
+                        <div
+                            style="margin-top: auto; padding-top: 0.6vw; border-top: 1px solid rgba(255,255,255,0.05);">
+                            <div style="display: flex; align-items: center; gap: 0.4vw; opacity: 0.4;">
+                                <i class="fa-solid fa-circle-info" style="font-size: 0.6vw;"></i>
+                                <span
+                                    style="font-size: 0.52vw; font-style: italic; font-weight: 500; text-transform: uppercase;">
+                                    SI NO SELECCIONAS NADA, ESTE DESCUENTO SE APLICARÁ A TODOS LOS VEHÍCULOS DEL
+                                    CONCESIONARIO.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ── COLUMNA DERECHA ── -->
+                <div class="disc-col">
+
+                    <!-- BLOQUE 4: Límite de Usos -->
+                    <div class="disc-block">
+                        <div class="disc-block-label">
+                            <i class="fa-solid fa-layer-group"></i>
+                            LÍMITE DE USOS
+                            <span class="disc-block-hint">Cuántas veces puede canjearse este cupón en total.</span>
+                        </div>
+                        <div class="disc-row-input" style="margin-top:0.5vw;">
+                            <input type="number" id="input-disc-uses" class="modal-input disc-input"
+                                placeholder="Cantidad" style="flex:1;">
+                            <label class="switch-container" id="disc-toggle-uses-container">
+                                <div class="switch">
+                                    <input type="checkbox" id="check-disc-unlimited-uses">
+                                    <span class="slider"></span>
+                                </div>
+                                <div>
+                                    <span class="switch-text">ILIMITADO</span>
+                                    <span class="switch-subtext" id="disc-toggle-uses-desc">Límite de usos activo</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="disc-block-label" style="margin-top:0.9vw;">
+                            <i class="fa-solid fa-users"></i>
+                            ALCANCE DEL LÍMITE
+                            <span class="disc-block-hint">¿El límite es por persona o total global?</span>
+                        </div>
+                        <div class="selection-grid" style="margin-top:0.5vw;">
+                            <button id="btn-disc-person" class="selection-btn">
+                                <i class="fa-solid fa-user"></i>
+                                <span>POR PERSONA</span>
+                            </button>
+                            <button id="btn-disc-global" class="selection-btn active">
+                                <i class="fa-solid fa-globe"></i>
+                                <span>GLOBAL</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE 5: Fecha de Expiración -->
+                    <div class="disc-block">
+                        <div class="disc-block-label">
+                            <i class="fa-solid fa-calendar-xmark"></i>
+                            FECHA DE EXPIRACIÓN
+                            <span class="disc-block-hint">Fecha límite en que el código dejará de ser válido.</span>
+                        </div>
+                        <div class="disc-row-input" style="margin-top:0.5vw;">
+                            <input type="date" id="input-disc-expiration" class="modal-input disc-input"
+                                style="flex:1; color-scheme:dark;">
+                            <label class="switch-container" id="disc-toggle-time-container">
+                                <div class="switch">
+                                    <input type="checkbox" id="check-disc-unlimited-time">
+                                    <span class="slider"></span>
+                                </div>
+                                <div>
+                                    <span class="switch-text">SIN LÍMITE</span>
+                                    <span class="switch-subtext" id="disc-toggle-time-desc">Fecha de expiración
+                                        activa</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- BLOQUE 6: Preview del cupón -->
+                    <div class="disc-block disc-preview-block">
+                        <div class="disc-preview-label"><i class="fa-solid fa-eye"></i> VISTA PREVIA</div>
+                        <div class="disc-preview-card">
+                            <div class="disc-preview-badge">CUPÓN</div>
+                            <div class="disc-preview-code" id="disc-preview-code-text">— — — — — — — —</div>
+                            <div class="disc-preview-perc" id="disc-preview-perc-text">?%</div>
+                            <div class="disc-preview-sub" id="disc-preview-sub-text">Completa los campos para generar
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ═══ FOOTER ═══ -->
+            <div class="disc-modal-footer">
+                <button class="action-btn cancel-btn modal-close-btn" data-modal="create-discount-modal">
+                    CANCELAR
+                </button>
+                <button id="btn-save-discount" class="action-btn confirm-btn">
+                    <i class="fa-solid fa-floppy-disk"></i> CREAR DESCUENTO
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL: Detalle de Vehículos de un Descuento -->
+    <div id="disc-vehicles-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content" style="width: 32vw;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-car-side"></i> VEHÍCULOS DEL DESCUENTO</h3>
+            </div>
+            <div class="modal-body" style="padding-top: 1vh;">
+                <p id="disc-veh-modal-subtitle"
+                    style="font-size:0.7vw; color:rgba(255,255,255,0.4); margin-bottom:1.2vh;"></p>
+                <div id="disc-veh-modal-list" style="
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5vw;
+                max-height: 40vh;
+                overflow-y: auto;
+                padding-right: 0.3vw;
+            "></div>
+            </div>
+            <div class="modal-actions" style="margin-top: 1.5vh;">
+                <button class="btn-secondary modal-close-btn" data-modal="disc-vehicles-modal">CERRAR</button>
+            </div>
+        </div>
+    </div>
+
     <div id="delete-category-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
             <h3><i class="fa-solid fa-triangle-exclamation" style="color: #e74c3c;"></i> ¡ADVERTENCIA!</h3>
@@ -1668,7 +2135,7 @@
     </div>
 
     <div id="mass-add-vehicles-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="width: 45vw; max-height: 85vh;">
+        <div class="modal-content" style="width: 58vw; max-height: 85vh;">
             <div class="modal-header">
                 <h3><i class="fa-solid fa-car-on"></i> ASIGNAR VEHÍCULOS</h3>
             </div>

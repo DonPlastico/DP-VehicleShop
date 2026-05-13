@@ -493,13 +493,12 @@ select option {
     transform: translate(-50%, -50%);
     width: 59.7%;
     height: 79.7%;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.95);
     /* Fondo más oscuro para centrar la atención */
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 10000;
-    backdrop-filter: blur(4px);
     /* Desenfoque de fondo profesional */
 }
 
@@ -508,10 +507,12 @@ select option {
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     width: 25vw;
-    padding: 1.5vw;
+    padding: 10px;
     text-align: center;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     animation: modalAppear 0.3s ease-out;
+    /* FIX: evita texto borroso post-animación en CEF/Chromium */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 .modal-content h3 {
@@ -532,14 +533,13 @@ select option {
 }
 
 .modal-content input {
-    background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #fff;
     padding: 0.8vw;
     width: 100%;
+    margin: 0;
     border-radius: 4px;
     font-size: 0.9vw;
-    margin-bottom: 1vw;
     text-align: center;
     transition: all 0.2s ease;
 }
@@ -596,7 +596,7 @@ select option {
 }
 
 /* =================================================================
-   9. COMPONENTE: PAGINACIÓN
+   9. COMPONENTE: PAGINACIÓN<
    ================================================================= */
 .pagination-container {
     display: flex;
@@ -945,14 +945,17 @@ select option {
 
 /* ================== HR SEPARADOR ================== */
 .carousel-divider {
+    display: block;
     width: 90%;
-    border: none;
     height: 1px;
     background-color: rgba(200, 200, 200, 0.5);
+    border: none;
     /* Gris tirando a blanco semitransparente */
     margin: 0 0 5px 0;
     /* 10px exactamente por encima de la fila del carrusel */
     box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+    z-index: 50;
 }
 
 /* ================== FILA DEL CARRUSEL ================== */
@@ -992,7 +995,6 @@ select option {
     border-color: white;
 }
 
-/* Envoltorio donde van las cards (El que hace scroll) */
 .carousel-wrapper {
     display: flex;
     gap: 0.5vw;
@@ -1001,7 +1003,7 @@ select option {
     scroll-behavior: smooth;
     flex-grow: 1;
     height: 100%;
-    padding: 20px 20px 10px 20px;
+    padding: 20px 15px 10px 15px;
     margin: 0 0.5vw;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -1010,7 +1012,6 @@ select option {
 
 .carousel-wrapper::-webkit-scrollbar {
     display: none;
-    /* Chrome/Safari */
 }
 
 /* Estilo individual de cada Card de vehículo */
@@ -1199,8 +1200,8 @@ select option {
 
 /* 3. Cuando se expande, crece el ancho y el alto */
 #showroom-help-btn.expanded {
-    width: 15vw;
-    height: 25vw;
+    width: 15.8vw;
+    height: 24vw;
     background: rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 4px;
@@ -1212,8 +1213,8 @@ select option {
 
 /* 4. Comportamiento del icono de la interrogación */
 .help-main-icon {
-    width: 1.8vw;
-    height: 1.8vw;
+    width: 1.65vw;
+    height: 1.65vw;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1639,8 +1640,7 @@ select option {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.4vw;
-    padding: 0.8vw 0.2vw;
+    padding: 0.5vw 0;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 4px;
@@ -2392,13 +2392,9 @@ select option {
    ================================================================= */
 
 .company-balance-widget {
-    flex: 0 0 30%;
-    max-width: 30%;
-    /* NO DEJA QUE CREZCA MÁS DEL 35% */
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Evita que el contenido desborde hacia afuera */
 }
 
 .company-transactions-widget {
@@ -2411,8 +2407,8 @@ select option {
 .widget-desc {
     color: #aaa;
     font-size: 0.75vw;
-    margin-bottom: 0.8vw;
     font-style: italic;
+    margin: 0 5px 10px 5px !important;
 }
 
 /* Caja oscura grande para el dinero */
@@ -2460,17 +2456,15 @@ select option {
 /* Contenedor de botones de acción */
 .balance-actions {
     display: flex;
-    gap: 1vw;
+    gap: 10px;
     width: 100%;
-    margin-top: auto;
-    /* Empuja los botones al fondo */
 }
 
 /* Botones específicos de dinero */
 .btn-deposit,
 .btn-withdraw {
     flex: 1;
-    padding: 1vw;
+    padding: 10px;
     border: none;
     border-radius: 4px;
     font-family: 'Orbitron', sans-serif;
@@ -2513,6 +2507,23 @@ select option {
 .text-withdraw {
     color: #aaa;
     font-weight: bold;
+}
+
+/* =================================================================
+   WIDGET DE GRÁFICA (RENDIMIENTO SEMANAL)
+   ================================================================= */
+.company-chart-widget {
+    position: relative;
+    overflow: hidden;
+    /* Evita que la gráfica sobresalga por los bordes */
+}
+
+/* Forzamos al canvas de Chart.js a respetar el tamaño de su padre */
+.company-chart-widget canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100%;
+    object-fit: contain;
 }
 
 /* =================================================================
@@ -2571,17 +2582,13 @@ select option {
     text-align: center !important;
 }
 
-/* --- ESTILOS DE SEGURIDAD PARA CÓDIGOS DE DESCUENTO --- */
 .discount-code-pill {
     background: rgba(128, 128, 128, 0.15);
-    /* Background grisáceo */
     color: white;
-    padding: 0.15vw 0.4vw;
-    /* Más pequeño y ajustado */
+    padding: 2px 3px;
     border-radius: 3px;
     font-family: 'Orbitron', sans-serif;
-    font-size: 0.65vw;
-    /* Letra más pequeña */
+    font-size: 0.5vw;
     letter-spacing: 1px;
     cursor: pointer;
     filter: blur(3.5px);
@@ -2589,7 +2596,6 @@ select option {
     transition: filter 0.3s ease, background 0.3s ease, color 0.3s ease;
     display: inline-block;
     border: 1px solid rgba(128, 128, 128, 0.5);
-    /* Bordes grises */
 }
 
 /* Al hacer 1 clic (Revelado) - Gris más claro para que se lea bien */
@@ -2629,19 +2635,10 @@ select option {
 .toolbar-filters {
     display: flex;
     gap: 0.8vw;
-    /* Espacio entre categorías */
     overflow-x: auto;
     align-items: center;
-    /* Centrado vertical absoluto */
     justify-content: flex-start;
-    padding: 0 1vw;
-    /* Espaciado interior (izq/der) para que respiren las letras */
-    margin: 0 0 0 0.5 !important;
-    /* Quitamos márgenes fantasma */
-    height: 1.8vw;
-    /* MISMA ALTURA EXACTA QUE LA LUPA */
-    flex: 0 1 auto;
-    /* HACE QUE SE AJUSTE A SU CONTENIDO SIN ESTIRARSE AL MÁXIMO */
+    padding: 0 10px;
 }
 
 /* El texto de la categoría */
@@ -2649,7 +2646,7 @@ select option {
     color: #666;
     font-family: 'Exo 2', sans-serif;
     font-size: 0.65vw;
-    font-weight: 400;
+    font-weight: 600;
     cursor: pointer;
     transition: color 0.2s ease, text-shadow 0.2s ease, font-weight 0.2s ease;
     white-space: nowrap;
@@ -2666,7 +2663,6 @@ select option {
 
 .filter-text.active {
     color: white;
-    font-weight: 800;
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
 }
 
@@ -4034,37 +4030,1040 @@ input:checked+.slider:before {
 
 /* Bloqueo de interacción durante la comparativa */
 .interaction-locked {
-    pointer-events: none !important; /* Impide clics físicos */
-    opacity: 0.4 !important;         /* Efecto visual de deshabilitado */
-    filter: grayscale(1);            /* Lo pone en blanco y negro para que se vea inactivo */
+    pointer-events: none !important;
+    /* Impide clics físicos */
+    opacity: 0.4 !important;
+    /* Efecto visual de deshabilitado */
+    filter: grayscale(1);
+    /* Lo pone en blanco y negro para que se vea inactivo */
     cursor: not-allowed !important;
 }
 
+/* =================================================================
+   SELECTOR COLOR PICKER (IRO.JS INTEGRADO)
+   ================================================================= */
+.picker-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 5px;
+    border-radius: 4px;
+    width: 100%;
+}
 
+.tab-btn-color {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #888;
+    padding: 6px 0;
+    font-size: 0.65vw;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: 0.3s;
+}
 
+.tab-btn-color:hover {
+    color: white;
+}
 
+.tab-btn-color.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
 
+.color-panel {
+    width: 100%;
+}
 
+.color-panel.active {
+    display: block !important;
+}
 
+.rgb-horizontal-group {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
 
+.rgb-row {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
+.rgb-row label {
+    color: #666;
+    font-weight: 900;
+    user-select: none;
+    margin-right: 5px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7vw;
+}
 
+.rgb-row input {
+    background: transparent;
+    border: none;
+    color: white;
+    text-align: right;
+    width: 100%;
+    font-family: monospace;
+    font-size: 0.8vw;
+    font-weight: bold;
+    outline: none;
+    padding: 0;
+    margin: 0;
+}
 
+.hex-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
+.hex-hash {
+    color: #fff;
+    font-weight: 900;
+    user-select: none;
+    margin-right: 5px;
+    font-size: 1vw;
+}
 
+.hex-wrapper input {
+    background: transparent;
+    border: none;
+    color: white;
+    outline: none;
+    font-family: monospace;
+    font-size: 1.2vw;
+    text-transform: uppercase;
+    text-align: center;
+    width: 110px;
+    letter-spacing: 2px;
+    font-weight: bold;
+    padding: 0;
+    margin: 0;
+}
 
+.dp-presets-box {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 10px;
+}
 
+.dp-presets-title {
+    font-size: 0.55vw;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    text-align: center;
+    font-family: 'Orbitron', sans-serif;
+}
 
+.dp-presets-grid {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
 
+.dp-swatch {
+    width: 1.5vw;
+    height: 1.5vw;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
 
+.dp-swatch:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    border-color: white;
+    z-index: 10;
+}
 
+/* =================================================================
+   MODAL DE DESCUENTOS — ESTILOS EXCLUSIVOS (no duplicar base)
+   ================================================================= */
 
+/* Input con fecha en Orbitron */
+#input-disc-expiration {
+    text-transform: uppercase;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7vw;
+}
 
+/* Símbolo % flotante — scope estricto para no afectar otros modals */
+#input-disc-perc-wrapper span {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8vw;
+    opacity: 0.4;
+}
 
+/* Secciones del modal de descuento */
+.modal-section {
+    margin-bottom: 1.2vw;
+}
 
+.modal-label {
+    display: block;
+    font-size: 0.6vw;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.4vw;
+    font-family: 'Orbitron', sans-serif;
+}
 
+.modal-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+    padding: 0.7vw 0.9vw;
+    border-radius: 4px;
+    font-size: 0.75vw;
+    font-family: inherit;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    margin-bottom: 0;
+}
 
+.modal-input:focus {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.3);
+}
 
+/* =================================================================
+   MODAL DE DESCUENTOS — REDISEÑO COMPLETO
+   ================================================================= */
+
+/* ── CABECERA ── */
+.disc-modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.disc-modal-header-icon {
+    width: 2.8vw;
+    height: 2.8vw;
+    min-width: 2.8vw;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2vw;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.disc-modal-header-text h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.95vw;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 1px;
+    margin-bottom: 0.3vw;
+    text-align: left;
+}
+
+.disc-modal-header-text p {
+    font-size: 0.65vw;
+    color: rgba(255, 255, 255, 0.35);
+    line-height: 1.5;
+    margin: 0;
+    text-align: left;
+}
+
+/* ── CUERPO 2 COLUMNAS ── */
+.disc-modal-body {
+    display: flex;
+    gap: 10px;
+    min-height: 0;
+}
+
+.disc-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.disc-col .switch-container {
+    padding: 5px;
+    gap: 5px;
+}
+
+.disc-col .switch-text {
+    font-size: 0.6vw;
+}
+
+.disc-col .switch-subtext {
+    font-size: 0.45vw;
+}
+
+/* ── BLOQUES ── */
+.disc-block {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 0.8vw;
+    transition: border-color 0.2s ease;
+}
+
+.disc-block:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.disc-block-grow {
+    flex: 1;
+    overflow: visible;
+    /* ← añadir esto */
+}
+
+#disc-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 10vw;
+    overflow-y: auto;
+    background: #0d0d0d;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0 0 5px 5px;
+    padding: 10px;
+    z-index: 99999;
+    /* por encima de TODO el modal */
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.95);
+}
+
+/* ── LABEL DE BLOQUE ── */
+.disc-block-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    flex-wrap: wrap;
+}
+
+.disc-block-label i {
+    font-size: 0.65vw;
+    color: rgba(255, 255, 255, 0.3);
+    width: 0.8vw;
+    text-align: center;
+}
+
+.disc-block-hint {
+    display: block;
+    width: 100%;
+    font-family: 'Arial', sans-serif;
+    font-size: 0.58vw;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.2);
+    letter-spacing: 0;
+    text-transform: none;
+    margin-top: 0.15vw;
+}
+
+/* ── INPUT BASE ESPECÍFICO DEL MODAL ── */
+.disc-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    color: #fff;
+    padding: 0.38vw 0.8vw;
+    /* ← era 0.65vw, ahora más estrecho */
+    border-radius: 4px;
+    font-size: 0.72vw;
+    font-family: 'Orbitron', sans-serif;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    margin-bottom: 0;
+    box-sizing: border-box;
+    height: 1.8vw;
+    /* ← altura fija para alinear con el toggle */
+}
+
+.disc-input:focus {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.25);
+    outline: none;
+}
+
+.disc-input::placeholder {
+    color: rgba(255, 255, 255, 0.18);
+    font-family: 'Arial', sans-serif;
+    font-size: 0.68vw;
+}
+
+/* ── PORCENTAJE ── */
+.disc-perc-wrapper {
+    position: relative;
+    margin-top: 0.5vw;
+}
+
+.disc-perc-input {
+    text-align: center;
+    font-size: 1.1vw !important;
+    font-weight: 900 !important;
+    letter-spacing: 2px;
+    padding-right: 2vw !important;
+}
+
+.disc-perc-symbol {
+    position: absolute;
+    right: 0.8vw;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.25);
+    pointer-events: none;
+}
+
+/* ── BUSCADOR ── */
+.disc-search-wrapper {
+    position: relative;
+    overflow: visible;
+    /* ← garantiza que el dropdown flote fuera */
+}
+
+.disc-search-icon {
+    position: absolute;
+    left: 0.7vw;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 0.7vw;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* ── TAGS AREA ── */
+.disc-tags-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-height: 3vh;
+    margin-top: 0.4vw;
+    max-height: 6vh;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    overflow: auto !important;
+}
+
+/* ── FILA INPUTS + TOGGLE ── */
+.disc-row-input {
+    display: flex;
+    align-items: center;
+    /* ya estaba */
+    gap: 0.6vw;
+    height: 1.8vw;
+    /* ← mismo que el input, fuerza alineación */
+}
+
+/* ── PILL TOGGLE ── */
+.disc-toggle-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.disc-toggle-pill input[type="checkbox"] {
+    display: none;
+}
+
+.disc-pill-track {
+    width: 2.2vw;
+    height: 1.1vw;
+    /* mantener */
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    position: relative;
+    transition: background 0.25s ease, border-color 0.25s ease;
+    flex-shrink: 0;
+}
+
+.disc-pill-thumb {
+    position: absolute;
+    top: 50%;
+    left: 0.12vw;
+    transform: translateY(-50%);
+    width: 0.75vw;
+    height: 0.75vw;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transition: left 0.25s ease, background 0.25s ease;
+}
+
+.disc-toggle-pill input:checked~.disc-pill-track {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.disc-toggle-pill input:checked~.disc-pill-track .disc-pill-thumb {
+    left: calc(100% - 0.87vw);
+    background: #ffffff;
+}
+
+.disc-pill-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.55vw;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.2s ease;
+}
+
+.disc-toggle-pill input:checked~.disc-pill-track+.disc-pill-label,
+.disc-toggle-pill:has(input:checked) .disc-pill-label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ── PREVIEW CARD ── */
+.disc-preview-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.disc-preview-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 0.6vw;
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+}
+
+.disc-preview-card {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1vw 0.8vw;
+    gap: 0.3vw;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Efecto decorativo de fondo */
+.disc-preview-card::before {
+    content: '';
+    position: absolute;
+    top: -1vw;
+    right: -1vw;
+    width: 5vw;
+    height: 5vw;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.04) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.disc-preview-badge {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.5vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.25);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.15vw 0.5vw;
+    border-radius: 999px;
+    margin-bottom: 0.2vw;
+}
+
+.disc-preview-code {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+.disc-preview-perc {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1;
+    transition: all 0.3s ease;
+}
+
+.disc-preview-sub {
+    font-size: 0.55vw;
+    color: rgba(255, 255, 255, 0.2);
+    text-align: center;
+    font-style: italic;
+    margin-top: 0.2vw;
+    transition: all 0.3s ease;
+}
+
+/* ── FOOTER ── */
+.disc-modal-footer {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    gap: 10px;
+}
+
+/* Aislar el modal-content del blur del overlay padre */
+#create-discount-modal .modal-content {
+    text-align: left;
+}
+
+/* Fecha en Orbitron */
+#input-disc-expiration {
+    text-transform: uppercase;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65vw;
+}
+
+/* ── FILA BUSCADOR + SELECT ── */
+.disc-search-row {
+    display: flex;
+    gap: 0.5vw;
+    align-items: center;
+}
+
+/* ── SELECT FILTRO CATEGORÍA ── */
+.disc-cat-select {
+    height: 1.8vw;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.55vw;
+    font-weight: 700;
+    padding: 0 0.6vw;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: border-color 0.2s ease, color 0.2s ease;
+    margin-bottom: 0;
+    width: auto;
+    min-width: 5vw;
+    max-width: 7vw;
+}
+
+.disc-cat-select:hover,
+.disc-cat-select:focus {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.disc-cat-select option {
+    background: #111;
+    color: #fff;
+    font-size: 0.6vw;
+}
+
+/* ── DROPDOWN RESULTADOS ── */
+#disc-search-results {
+    position: absolute;
+    top: calc(100% + 3px);
+    left: 0;
+    width: 100%;
+    max-height: 11vw;
+    overflow-y: auto;
+    background: rgb(14, 14, 14);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    z-index: 99999;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.95);
+    padding: 0.3vw;
+}
+
+.disc-result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.45vw 0.7vw;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.disc-result-row:last-child {
+    border-bottom: none;
+}
+
+.disc-result-row:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.disc-result-cat {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.disc-result-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62vw;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 70%;
+}
+
+.disc-result-meta {
+    font-size: 0.55vw;
+    color: rgba(255, 255, 255, 0.25);
+    font-style: italic;
+    white-space: nowrap;
+}
+
+.disc-result-empty {
+    padding: 0.8vw;
+    font-size: 0.62vw;
+    color: rgba(255, 255, 255, 0.25);
+    text-align: center;
+    font-style: italic;
+}
+
+.disc-tags-empty {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 0.6vw;
+    font-style: italic;
+    align-self: center;
+}
+
+.disc-tag-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4vw;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    padding: 2.7px;
+    animation: tagAppear 0.15s ease-out;
+}
+
+.disc-tag-card.is-cat {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.9);
+}
+
+.disc-tag-card.is-cat .disc-tag-type {
+    background: rgba(0, 0, 0, 0.15);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: black;
+}
+
+.disc-tag-card.is-cat .disc-tag-name {
+    color: rgba(0, 0, 0, 0.85);
+}
+
+.disc-tag-card.is-cat .disc-tag-remove {
+    color: black;
+}
+
+.disc-tag-card.is-cat .disc-tag-remove:hover {
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.disc-tag-type {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.45vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    padding: 0.1vw 0.3vw;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.disc-tag-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6vw;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.8);
+    max-width: 8vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.disc-tag-remove {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.disc-tag-remove:hover {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.disc-veh-pill {
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.7vw;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+    transition: color 0.15s ease, border-color 0.15s ease;
+    padding-bottom: 1px;
+}
+
+.disc-veh-pill:hover {
+    color: #fff;
+    border-bottom-color: rgba(255, 255, 255, 0.6);
+}
+
+/* =================================================================
+   SISTEMA DE DESCUENTOS EN COMPRA (SHOWROOM)
+   ================================================================= */
+
+/* --- Input del código de descuento --- */
+#input-purchase-discount {
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#input-purchase-discount:focus {
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+/* --- Botón de aplicar --- */
+#btn-apply-discount:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+#btn-apply-discount:active {
+    transform: scale(0.95);
+}
+
+/* --- Mensajes de validación (ESTRICTO BLANCO Y NEGRO) --- */
+.disc-msg-success {
+    color: #ffffff !important;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+
+.disc-msg-error {
+    color: #888888 !important;
+}
+
+#conf-discount-block {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* --- Botón de quitar descuento (Papelera) --- */
+#confirm-reset-discount {
+    transition: all 0.2s ease;
+}
+
+#confirm-reset-discount:hover {
+    color: #ffffff !important;
+    transform: scale(1.1);
+}
+
+/* --- Animación de la fila del descuento al aplicarse --- */
+/* Reutilizamos tu @keyframes fadeIn que ya existe en tu código */
+#row-applied-discount {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* --- Botón de quitar descuento (Papelera) --- */
+#btn-remove-discount:hover {
+    color: #ffffff !important;
+    transform: scale(1.1);
+}
+
+/* =================================================================
+   FILTROS AVANZADOS — DOUBLE RANGE SLIDERS (ESTILO HELP)
+   ================================================================= */
+
+/* A. Forzamos que la barra alinee los botones por la base inferior */
+#filters-toolbar {
+    align-items: flex-end !important;
+}
+
+/* B. Liberamos la "camisa de fuerza" de los contenedores para que el botón mande en el tamaño */
+#filters-toolbar .help-btn-wrapper {
+    position: relative;
+    width: auto;
+    height: auto;
+}
+
+/* 1. Base de los botones de filtro */
+.filter-trigger-btn {
+    position: relative;
+    /* ¡CRÍTICO! Al ser 'relative', el botón es sólido y empujará a la derecha */
+    width: 1.8vw;
+    height: 1.8vw;
+    margin: 0;
+    margin-top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    z-index: 100;
+    /* Animamos también el margen para que el crecimiento hacia arriba sea suave */
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        margin-top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        background 0.3s ease;
+}
+
+/* 2. Cuando se expanden: Empujan a lo ancho y crecen "flotando" hacia arriba */
+.filter-trigger-btn.expanded {
+    width: 350px;
+    height: 4.5vw;
+    /* EL TRUCO DE MAGIA: 4.5vw - 1.8vw = 2.7vw. 
+       Al restarle la diferencia en negativo, el botón crece hacia arriba invadiendo 
+       el espacio vacío, ¡sin empujar tu carrusel hacia abajo! */
+    margin-top: -2.7vw;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    cursor: default;
+    padding: 10px;
+    box-shadow: 0 -10px 30px rgb(0 0 0 / 50%);
+    z-index: 9999;
+}
+
+/* 3. Comportamiento del icono interior */
+.filter-trigger-btn.expanded .help-main-icon {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* 4. Mostrar el contenido interior al expandirse */
+.filter-trigger-btn.expanded .help-expanded-content {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* =================================================================
+   ESTILOS INTERNOS DE LOS SLIDERS DOBLES
+   ================================================================= */
+.double-slider-wrapper {
+    position: relative;
+    width: 100%;
+    height: 0.8vw;
+    display: flex;
+    align-items: center;
+    margin-top: 0.2vw;
+}
+
+.slider-track {
+    position: absolute;
+    width: 100%;
+    height: 0.25vw;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.slider-fill {
+    position: absolute;
+    height: 0.25vw;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 999px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.slider-input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: none;
+    pointer-events: none;
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+    outline: none;
+    z-index: 2;
+}
+
+.slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0.65vw;
+    height: 0.65vw;
+    background: #ffffff;
+    border-radius: 50%;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 0 0.4vw rgba(0, 0, 0, 0.8);
+    transition: transform 0.1s ease;
+}
+
+.slider-input::-webkit-slider-thumb:hover {
+    transform: scale(1.25);
+}
+
+.slider-input.on-top {
+    z-index: 3;
+}
+
+#filters-toolbar .help-body {
+    padding-right: 0;
+}
 
 
 
@@ -4116,12 +5115,14 @@ input:checked+.slider:before {
 @keyframes modalAppear {
     from {
         opacity: 0;
-        transform: translateY(-20px) scale(0.95);
+        transform: translateY(-20px);
+        /* ← quitar el scale(0.95) */
     }
 
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
+        /* ← quitar el scale(1) */
     }
 }
 

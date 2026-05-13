@@ -28,6 +28,7 @@ let currentActiveExtras = null; // Guardará la lista de extras activos
 let myPendingReservations = []; // Guarda los modelos que este jugador ya ha reservado
 let currentCustomPlate = ""; // Guarda la matrícula personalizada escrita por el usuario
 let dragStartCategoryIndex = -1; // Obligatoria para que el renderBossCatsTable sepa qué arrastras
+let companyBalanceChart = null; // Instancia global de la gráfica de la empresa
 
 // Variables del Showroom (Carrusel)
 let currentShowroomCategory = 'all';
@@ -35,6 +36,11 @@ let currentShowroomSearch = '';
 let filteredShowroomStock = [];
 let showroomLoadedCount = 0;
 const SHOWROOM_BATCH_SIZE = 65;
+
+// Filtros avanzados — valores por defecto (se actualizan al cargar stock)
+let filterPrice = { min: 0, max: 10000000 };
+let filterSpeed = { min: 0, max: 250 };
+let filterSeats = { min: 1, max: 16 };
 
 // Variables del Boss Menu (Stock Global y Lazy Load)
 let globalStock = []; // Aquí se guardarán los coches que mande el Lua
@@ -78,13 +84,18 @@ let empCurrentPage = 1;
 const empItemsPerPage = 10;
 
 // Variables del Boss Menu - Tablas Secundarias (Descuentos)
-let dummyDisc = [
-    { code: 'VERANO26', author: 'Alex', vehicles: 'TODOS', perc: 15, uses: 10, expires: 'ILIMITADO' },
-    { code: 'VIPZENT', author: 'Paca', vehicles: 'Zentorno', perc: 5, uses: 1, expires: '15-04-2026' },
-];
-let discWorkingList = [...dummyDisc];
+let discWorkingList = [];
+let originalDiscList = [];
 let discCurrentPage = 1;
 const discItemsPerPage = 15;
+let discVehLoadedCount = 0;
+const DISC_VEH_BATCH_SIZE = 100; // De 100 en 100
+let discVehWorkingList = []; // Aquí guardaremos los 3000 coches en la recámara
+
+// Variables de Control para el Modal de Descuentos
+let discountSelectedVehicles = []; // Guardará 'ALL', o un array de categorías y modelos
+let isDiscountRandom = true; // Controla el botón Izq/Der de Código
+let isDiscountGlobal = true; // Controla el botón Izq/Der de Límite de Usos
 
 // Controla si estamos comparando vehículos
 let isCompareModeActive = false;
@@ -699,7 +710,16 @@ function applyShowroomFilter(categoryName) {
             (v.brand && v.brand.toLowerCase().includes(term)) ||
             (v.model && v.model.toLowerCase().includes(term));
 
-        return matchCategory && matchSearch;
+        const price = v.price || 0;
+        const matchPrice = price >= filterPrice.min && price <= filterPrice.max;
+
+        const speed = v.maxSpeed || v.max_speed || 0;
+        const matchSpeed = speed === 0 || (speed >= filterSpeed.min && speed <= filterSpeed.max);
+
+        const seats = v.seats || 0;
+        const matchSeats = seats === 0 || (seats >= filterSeats.min && seats <= filterSeats.max);
+
+        return matchCategory && matchSearch && matchPrice && matchSpeed && matchSeats;
     });
 
     // 2. Ordenación Alfabética, Numérica y de Números Romanos
@@ -1082,6 +1102,9 @@ function hideVehicleInfo() {
     const extrasPanel = document.getElementById('extras-selection-panel');
     if (extrasPanel) extrasPanel.style.display = 'none';
 
+    const rgbPanelToHide = document.getElementById('rgb-selection-panel');
+    if (rgbPanelToHide) rgbPanelToHide.style.display = 'none';
+
     // OCULTAR EL PANEL DERECHO CLONADO
     const rightCustomPanel = document.getElementById('right-custom-panel');
     if (rightCustomPanel) rightCustomPanel.style.display = 'none';
@@ -1096,6 +1119,166 @@ function hideVehicleInfo() {
     if (pInput) pInput.value = "";
 
     currentPreviewVehicle = null;
+
+    // Resetear variables del cupón al cerrar o cambiar coche
+    if (typeof appliedDiscountData !== 'undefined') {
+        appliedDiscountData = null;
+    }
+    const discInput = document.getElementById('input-purchase-discount');
+    const discBtn = document.getElementById('btn-apply-discount');
+    const discMsg = document.getElementById('discount-status-msg');
+    const rowDisc = document.getElementById('conf-discount-block');
+
+    if (discInput) { discInput.value = ''; discInput.disabled = false; discInput.style.opacity = '1'; }
+    if (discBtn) discBtn.style.display = 'block';
+    if (discMsg) discMsg.style.display = 'none';
+    if (rowDisc) rowDisc.style.display = 'none';
+}
+
+// =================================================================
+// MÓDULO: SELECTOR DE COLOR CUSTOM (IRO.JS)
+// =================================================================
+const customRgbBtn = document.getElementById('custom-rgb-btn');
+const rgbPanel = document.getElementById('rgb-selection-panel');
+const closeRgbBtn = document.getElementById('close-rgb-panel');
+const applyRgbBtn = document.getElementById('apply-rgb-color');
+
+let colorPickerInstance = null;
+
+function initColorPicker() {
+    if (colorPickerInstance) return;
+
+    // Inicializar Iro.js adaptado al tamaño del panel
+    colorPickerInstance = new iro.ColorPicker("#iro-color-picker", {
+        width: 180, // Tamaño ajustado al ancho de tu UI
+        color: "#ffffff",
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.2)",
+        layout: [
+            { component: iro.ui.Box, options: {} },
+            { component: iro.ui.Slider, options: { sliderType: 'hue', marginTop: 15 } }
+        ]
+    });
+
+    // Evento al cambiar color en la ruleta
+    colorPickerInstance.on('color:change', function (color) {
+        document.getElementById('in-hex').value = color.hexString.substring(1).toUpperCase();
+        document.getElementById('in-r').value = color.rgb.r;
+        document.getElementById('in-g').value = color.rgb.g;
+        document.getElementById('in-b').value = color.rgb.b;
+
+        // NUEVO: Enviar color al coche en TIEMPO REAL
+        fetch(`https://${GetParentResourceName()}/updateVehicleColor`, {
+            method: 'POST',
+            body: JSON.stringify({ color: { r: color.rgb.r, g: color.rgb.g, b: color.rgb.b } })
+        });
+    });
+
+    // Eventos para inputs manuales
+    document.getElementById('in-hex').addEventListener('input', function () {
+        let val = this.value.trim();
+        // Usamos Regex para asegurar que solo manda a iro.js si son exactamente 3 o 6 letras/números válidos
+        let isValidHex = /^([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/i.test(val);
+
+        if (isValidHex) {
+            try {
+                colorPickerInstance.color.hexString = "#" + val;
+            } catch (error) {
+                // Silenciamos cualquier otro error interno de iro.js
+            }
+        }
+    });
+
+    ['r', 'g', 'b'].forEach(c => {
+        document.getElementById(`in-${c}`).addEventListener('input', () => {
+            const r = document.getElementById('in-r').value || 0;
+            const g = document.getElementById('in-g').value || 0;
+            const b = document.getElementById('in-b').value || 0;
+            colorPickerInstance.color.rgb = { r: parseInt(r), g: parseInt(g), b: parseInt(b) };
+        });
+    });
+
+    // Presets
+    document.querySelectorAll('.dp-swatch').forEach(swatch => {
+        swatch.addEventListener('click', function () {
+            colorPickerInstance.color.hexString = this.getAttribute('data-hex');
+        });
+    });
+}
+
+// Función global para cambiar entre RGB y HEX (se llama desde el HTML)
+window.switchColorMode = (mode) => {
+    // 1. Cambiamos la pestaña activa visualmente
+    document.querySelectorAll('.tab-btn-color').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // 2. Limpiamos TODOS los paneles (les quitamos la clase activa y los ocultamos)
+    document.querySelectorAll('.color-panel').forEach(panel => {
+        panel.classList.remove('active');
+        panel.style.display = 'none';
+    });
+
+    // 3. Activamos SOLO el panel correspondiente
+    const targetPanel = document.getElementById(`panel-${mode}`);
+    if (targetPanel) {
+        targetPanel.classList.add('active');
+        targetPanel.style.display = 'block';
+    }
+};
+
+// Abrir el panel
+if (customRgbBtn) {
+    customRgbBtn.addEventListener('click', () => {
+        const paymentPanel = document.getElementById('payment-selection-panel');
+        const extrasPanel = document.getElementById('extras-selection-panel');
+        if (paymentPanel) paymentPanel.style.display = 'none';
+        if (extrasPanel) extrasPanel.style.display = 'none';
+
+        if (rgbPanel) {
+            rgbPanel.style.display = rgbPanel.style.display === 'none' ? 'flex' : 'none';
+            if (rgbPanel.style.display === 'flex') {
+                initColorPicker();
+            }
+        }
+    });
+}
+
+// Cerrar panel
+if (closeRgbBtn) {
+    closeRgbBtn.addEventListener('click', () => {
+        if (rgbPanel) rgbPanel.style.display = 'none';
+    });
+}
+
+// Aplicar el color y mandar a Lua
+if (applyRgbBtn) {
+    applyRgbBtn.addEventListener('click', () => {
+        if (!colorPickerInstance) return;
+
+        const rgb = colorPickerInstance.color.rgb;
+
+        // Apagar los bordes blancos de la cuadrícula de colores GTA clásica
+        document.querySelectorAll('.color-option').forEach(el => el.classList.remove('selected'));
+
+        // Guardar el color como objeto en la variable global
+        currentPreviewColor = { r: rgb.r, g: rgb.g, b: rgb.b };
+
+        // Enviar al cliente Lua
+        fetch(`https://${GetParentResourceName()}/updateVehicleColor`, {
+            method: 'POST',
+            body: JSON.stringify({ color: currentPreviewColor })
+        });
+
+        if (rgbPanel) rgbPanel.style.display = 'none';
+
+        // Feedback visual en el botón de la paleta
+        customRgbBtn.style.background = '#fff';
+        customRgbBtn.style.color = '#000';
+        setTimeout(() => {
+            customRgbBtn.style.background = '';
+            customRgbBtn.style.color = '';
+        }, 1000);
+    });
 }
 
 // =================================================================
@@ -1105,15 +1288,36 @@ function hideVehicleInfo() {
 // 1. ALTERNANCIA: Cuando le damos a "COMPRAR"
 const btnBuyShowroom = document.getElementById('buy-vehicle');
 if (btnBuyShowroom) {
-    btnBuyShowroom.addEventListener('click', () => {
-        // OCULTAMOS EL PANEL DE EXTRAS
-        const extrasPanel = document.getElementById('extras-selection-panel');
-        if (extrasPanel) extrasPanel.style.display = 'none';
-
-        // Mostramos/Ocultamos el de pago
+    btnBuyShowroom.addEventListener('click', function () {
+        // 1. Tu código actual para abrir/cerrar paneles
         const paymentPanel = document.getElementById('payment-selection-panel');
-        if (paymentPanel) {
-            paymentPanel.style.display = paymentPanel.style.display === 'none' ? 'flex' : 'none';
+        const extrasPanel = document.getElementById('extras-selection-panel');
+        const rgbPanel = document.getElementById('rgb-selection-panel');
+
+        if (extrasPanel) extrasPanel.style.display = 'none';
+        if (rgbPanel) rgbPanel.style.display = 'none';
+        if (paymentPanel) paymentPanel.style.display = paymentPanel.style.display === 'none' ? 'flex' : 'none';
+
+        // 2. NUEVO: BLOQUEO DINÁMICO DE ENTREGAS
+        // Leemos el texto del botón en ese milisegundo. Si dice "RESERV...", es una reserva.
+        const isReservation = this.innerText.toUpperCase().includes('RESERV');
+
+        const optionDrive = document.querySelector('[data-delivery="drive"]') || document.getElementById('delivery-drive') || document.querySelector('.delivery-option:nth-child(1)');
+        const optionGarage = document.querySelector('[data-delivery="garage"]') || document.getElementById('delivery-garage') || document.querySelector('.delivery-option:nth-child(2)');
+
+        if (optionDrive && optionGarage) {
+            if (isReservation) {
+                // ES RESERVA: Bloqueamos "Sacar del concesionario" y forzamos "Garaje"
+                optionDrive.style.opacity = '0.3';
+                optionDrive.style.pointerEvents = 'none';
+                optionDrive.style.filter = 'grayscale(100%)';
+                optionGarage.click();
+            } else {
+                // ES COMPRA: Restauramos la opción por si antes estaba bloqueada
+                optionDrive.style.opacity = '1';
+                optionDrive.style.pointerEvents = 'auto';
+                optionDrive.style.filter = 'none';
+            }
         }
     });
 }
@@ -1125,6 +1329,9 @@ if (btnExtrasShowroom) {
         // OCULTAMOS EL PANEL DE PAGO
         const paymentPanel = document.getElementById('payment-selection-panel');
         if (paymentPanel) paymentPanel.style.display = 'none';
+
+        const rgbPanel = document.getElementById('rgb-selection-panel');
+        if (rgbPanel) rgbPanel.style.display = 'none';
 
         const extrasPanel = document.getElementById('extras-selection-panel');
         if (extrasPanel) {
@@ -1207,29 +1414,11 @@ if (plateInput) {
 
         // ACTUALIZACIÓN EN VIVO DEL RESUMEN (FACTURA)
         const confirmPanel = document.getElementById('purchase-confirmation-panel');
-        // Si el panel del resumen final está a la vista, lo actualizamos al instante
         if (confirmPanel && confirmPanel.style.display !== 'none') {
-            const buyBtn = document.getElementById('buy-vehicle');
-            const basePrice = buyBtn ? (parseInt(buyBtn.dataset.price) || 0) : 0;
-            let tempFinalPrice = basePrice;
-
-            const customPlateBlock = document.getElementById('conf-custom-plate-block');
-            const plateTextPreview = document.getElementById('conf-plate-text');
-
-            // Si hay algo escrito, sumamos 25k y mostramos el desglose
-            if (currentCustomPlate.trim() !== "") {
-                tempFinalPrice += 25000;
-                if (customPlateBlock) customPlateBlock.style.display = 'flex';
-                if (plateTextPreview) plateTextPreview.innerText = `(${currentCustomPlate})`;
-                isCustomPlateApplied = true;
-            } else {
-                // Si lo borra todo, ocultamos el desglose y volvemos al precio base
-                if (customPlateBlock) customPlateBlock.style.display = 'none';
-                isCustomPlateApplied = false;
+            isCustomPlateApplied = (currentCustomPlate.trim() !== "");
+            if (typeof window.calculateFinalCheckoutPrice === 'function') {
+                window.calculateFinalCheckoutPrice(); // Llama a la función maestra
             }
-
-            finalPurchasePrice = tempFinalPrice;
-            document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
         }
 
         // 3. Validación de Longitud y Envío al Coche 3D
@@ -1397,51 +1586,16 @@ if (mainBuyBtn) {
     mainBuyBtn.addEventListener('click', function () {
         const action = this.dataset.action;
 
-        // Preparamos el paquete de datos para mandarlo al servidor
-        const vehicleData = {
-            model: this.dataset.model,
-            price: parseInt(this.dataset.price),
-            brand: this.dataset.brand,
-            name: this.dataset.name,
-            color: currentPreviewColor,
-            plate: currentCustomPlate,
-        };
+        if (action === 'none' || this.disabled) return;
 
-        if (action === 'buy') {
-            // LÓGICA PARA COMPRAR (Stock > 0)
-            // En vez de comprar directo, abrimos el panel de método de pago
-            const paymentPanel = document.getElementById('payment-selection-panel');
-            if (paymentPanel) {
-                paymentPanel.style.display = 'flex';
+        // Tanto COMPRA como RESERVA abren el panel de pago primero.
+        // ¡Obligatorio para que puedan escribir el puñetero cupón!
+        const paymentPanel = document.getElementById('payment-selection-panel');
+        if (paymentPanel) {
+            paymentPanel.style.display = 'flex';
 
-                // Reseteamos el input de días por si tenía algo escrito de antes
-                const installmentsInput = document.getElementById('payment-installments');
-                if (installmentsInput) installmentsInput.value = '';
-            }
-
-        } else if (action === 'reserve') {
-            // LÓGICA PARA RESERVAR (Stock = 0)
-            fetch(`https://${GetParentResourceName()}/reserveVehicle`, {
-                method: 'POST',
-                body: JSON.stringify(vehicleData)
-            });
-
-            // 1. Lo añadimos a la memoria local para que no pueda volver a reservarlo
-            myPendingReservations.push(this.dataset.model);
-
-            // 2. Feedback visual rápido (Animación Verde)
-            this.innerText = '¡RESERVA ENVIADA!';
-            this.style.background = 'rgba(255, 255, 255, 0.05)';
-            this.style.color = 'rgba(255, 255, 255, 0.3)';
-            this.disabled = true; // Lo desactivamos al instante para evitar doble-clic
-
-            // 3. Después de 2.5s, lo dejamos en estado "YA RESERVADO" (Gris)
-            setTimeout(() => {
-                this.innerText = 'YA RESERVADO';
-                this.style.background = 'rgba(255, 255, 255, 0.05)';
-                this.style.color = 'rgba(255, 255, 255, 0.3)';
-                this.style.cursor = 'not-allowed';
-            }, 2500);
+            const installmentsInput = document.getElementById('payment-installments');
+            if (installmentsInput) installmentsInput.value = '';
         }
     });
 }
@@ -1487,52 +1641,68 @@ if (cancelPaymentBtn) {
 let isCustomPlateApplied = false;
 let finalPurchasePrice = 0;
 const EXTRA_PRICE_UNIT = 125; // Precio por cada extra
+let appliedDiscountData = null; // NUEVO: Memoria del cupón aplicado
 
-// 1. Botón CONFIRMAR original (Prepara el ticket/factura)
+// FUNCIÓN MAESTRA: Calcula todo el ticket de golpe sin errores
+window.calculateFinalCheckoutPrice = function () {
+    const buyBtn = document.getElementById('buy-vehicle');
+    const basePrice = buyBtn ? (parseInt(buyBtn.dataset.price) || 0) : 0;
+    let tempFinalPrice = basePrice;
+
+    // 1. DESCUENTO (Calculado sobre el precio base)
+    if (appliedDiscountData) {
+        const discountAmount = Math.floor(basePrice * (appliedDiscountData.percentage / 100));
+        tempFinalPrice -= discountAmount; // Se lo restamos al total
+
+        const rowDisc = document.getElementById('conf-discount-block');
+        if (rowDisc) rowDisc.style.display = 'flex';
+        document.getElementById('conf-discount-perc-text').innerText = `(${appliedDiscountData.percentage}%)`;
+        document.getElementById('conf-discount-amount').innerText = "- $ " + new Intl.NumberFormat('es-ES').format(discountAmount);
+    } else {
+        const rowDisc = document.getElementById('conf-discount-block');
+        if (rowDisc) rowDisc.style.display = 'none';
+    }
+
+    // 2. MATRÍCULA
+    const customPlateBlock = document.getElementById('conf-custom-plate-block');
+    const plateTextPreview = document.getElementById('conf-plate-text');
+    if (isCustomPlateApplied) {
+        tempFinalPrice += 25000; // Sumamos placa
+        if (customPlateBlock) customPlateBlock.style.display = 'flex';
+        if (plateTextPreview) plateTextPreview.innerText = `(${currentCustomPlate})`;
+    } else {
+        if (customPlateBlock) customPlateBlock.style.display = 'none';
+    }
+
+    // 3. EXTRAS
+    const extrasBlock = document.getElementById('conf-extras-block');
+    const extrasCountLabel = document.getElementById('conf-extras-count');
+    const extrasPriceLabel = document.getElementById('conf-extras-price');
+    const activeExtrasCount = (currentActiveExtras && Array.isArray(currentActiveExtras)) ? currentActiveExtras.length : 0;
+
+    if (activeExtrasCount > 0) {
+        const totalExtrasCost = activeExtrasCount * EXTRA_PRICE_UNIT;
+        tempFinalPrice += totalExtrasCost; // Sumamos extras
+        if (extrasBlock) extrasBlock.style.display = 'flex';
+        if (extrasCountLabel) extrasCountLabel.innerText = `(${activeExtrasCount} Activadas)`;
+        if (extrasPriceLabel) extrasPriceLabel.innerText = `+ $ ${new Intl.NumberFormat('es-ES').format(totalExtrasCost)}`;
+    } else {
+        if (extrasBlock) extrasBlock.style.display = 'none';
+    }
+
+    // PLASMAMOS EL PRECIO FINAL
+    finalPurchasePrice = tempFinalPrice;
+    document.getElementById('conf-base-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(basePrice);
+    document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
+};
+
+// --- BOTÓN CONFIRMAR DEL PANEL DE PAGO ---
 const confirmFinalBuyBtn = document.getElementById('confirm-final-buy');
 if (confirmFinalBuyBtn) {
     confirmFinalBuyBtn.addEventListener('click', () => {
-        const buyBtn = document.getElementById('buy-vehicle');
-        if (!buyBtn) return;
-
-        const basePrice = parseInt(buyBtn.dataset.price) || 0;
-        finalPurchasePrice = basePrice;
-
-        // --- LÓGICA DE MATRÍCULA ---
         isCustomPlateApplied = (currentCustomPlate && currentCustomPlate.trim() !== "");
-        const customPlateBlock = document.getElementById('conf-custom-plate-block');
-        const plateTextPreview = document.getElementById('conf-plate-text');
 
-        if (isCustomPlateApplied) {
-            finalPurchasePrice += 25000;
-            if (customPlateBlock) customPlateBlock.style.display = 'flex';
-            if (plateTextPreview) plateTextPreview.innerText = `(${currentCustomPlate})`;
-        } else {
-            if (customPlateBlock) customPlateBlock.style.display = 'none';
-        }
-
-        // --- LÓGICA DE EXTRAS ($125 por cada una) ---
-        const extrasBlock = document.getElementById('conf-extras-block');
-        const extrasCountLabel = document.getElementById('conf-extras-count');
-        const extrasPriceLabel = document.getElementById('conf-extras-price');
-
-        // currentActiveExtras es tu array global con los IDs de las piezas activas
-        const activeExtrasCount = (currentActiveExtras && Array.isArray(currentActiveExtras)) ? currentActiveExtras.length : 0;
-
-        if (activeExtrasCount > 0) {
-            const totalExtrasCost = activeExtrasCount * EXTRA_PRICE_UNIT;
-            finalPurchasePrice += totalExtrasCost;
-
-            if (extrasBlock) extrasBlock.style.display = 'flex';
-            if (extrasCountLabel) extrasCountLabel.innerText = `(${activeExtrasCount} Activadas)`;
-            if (extrasPriceLabel) extrasPriceLabel.innerText = `+ $ ${new Intl.NumberFormat('es-ES').format(totalExtrasCost)}`;
-        } else {
-            if (extrasBlock) extrasBlock.style.display = 'none';
-        }
-
-        // --- ACTUALIZACIÓN DE TEXTOS FINALES ---
-        document.getElementById('conf-base-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(basePrice);
-        document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
+        window.calculateFinalCheckoutPrice(); // Forzamos el cálculo perfecto
 
         const activeMethodBtn = document.querySelector('.payment-method-btn.active');
         document.getElementById('conf-method-selected').innerText = activeMethodBtn && activeMethodBtn.dataset.method === 'bank' ? 'BANCO' : 'EFECTIVO';
@@ -1540,42 +1710,88 @@ if (confirmFinalBuyBtn) {
         const activeDeliveryBtn = document.querySelector('.delivery-method-btn.active');
         document.getElementById('conf-delivery-selected').innerText = activeDeliveryBtn && activeDeliveryBtn.dataset.delivery === 'garage' ? 'GARAJE' : 'CONCES.';
 
-        // Cambio de paneles
         document.getElementById('payment-selection-panel').style.display = 'none';
         document.getElementById('purchase-confirmation-panel').style.display = 'flex';
     });
 }
 
-// 2. Botón PAPELERA DE EXTRAS (Desactiva todo de golpe)
+// --- BOTÓN DE COMPROBAR/APLICAR CUPÓN ---
+document.getElementById('btn-apply-discount')?.addEventListener('click', () => {
+    const input = document.getElementById('input-purchase-discount');
+    const msg = document.getElementById('discount-status-msg');
+    const code = input.value.trim().toUpperCase();
+
+    if (code === '') return;
+
+    // Efecto de cargando...
+    const btn = document.getElementById('btn-apply-discount');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    // Preguntamos al servidor si el código sirve para este coche en este concesionario
+    fetch(`https://${GetParentResourceName()}/verifyDiscountCode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            code: code,
+            model: currentPreviewVehicleData.model,
+            category: currentPreviewVehicleData.category
+        })
+    })
+        .then(resp => resp.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> APLICAR';
+
+            if (data.valid) {
+                appliedDiscountData = { code: code, percentage: data.percentage };
+                msg.style.display = 'block';
+                msg.className = 'disc-msg-success';
+                msg.innerText = `¡CUPÓN APLICADO! (-${data.percentage}%)`;
+                input.disabled = true;
+                input.style.opacity = '0.5';
+                btn.style.display = 'none';
+                window.calculateFinalCheckoutPrice(); // RECALCULAR TOTAL
+            } else {
+                msg.style.display = 'block';
+                msg.className = 'disc-msg-error';
+                msg.innerText = data.message || "CÓDIGO INVÁLIDO O CADUCADO.";
+            }
+        }).catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> APLICAR';
+        });
+});
+
+// --- PAPELERA: QUITAR CUPÓN ---
+document.getElementById('confirm-reset-discount')?.addEventListener('click', () => {
+    appliedDiscountData = null; // Lo borramos de la memoria
+
+    const input = document.getElementById('input-purchase-discount');
+    const btn = document.getElementById('btn-apply-discount');
+    const msg = document.getElementById('discount-status-msg');
+
+    if (input) { input.value = ''; input.disabled = false; input.style.opacity = '1'; }
+    if (btn) btn.style.display = 'block';
+    if (msg) msg.style.display = 'none';
+
+    window.calculateFinalCheckoutPrice(); // RECALCULAR TOTAL
+});
+
+// --- PAPELERA: EXTRAS ---
 const confirmResetExtrasBtn = document.getElementById('confirm-reset-extras');
 if (confirmResetExtrasBtn) {
     confirmResetExtrasBtn.addEventListener('click', () => {
-        // 1. Vaciamos el array global de extras
         currentActiveExtras = [];
-
-        // 2. Ocultamos el bloque de extras en el resumen
-        document.getElementById('conf-extras-block').style.display = 'none';
-
-        // 3. Recalculamos el precio total (Base + Matrícula si existe)
-        const buyBtn = document.getElementById('buy-vehicle');
-        const basePrice = buyBtn ? (parseInt(buyBtn.dataset.price) || 0) : 0;
-        finalPurchasePrice = basePrice + (isCustomPlateApplied ? 25000 : 0);
-
-        document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
-
-        // 4. Actualizamos visualmente el panel de selección de extras (quitando los 'active')
         document.querySelectorAll('.extra-item').forEach(item => item.classList.remove('active'));
-
-        // 5. Le decimos a Lua que apague físicamente los extras en el coche 3D
-        // Una sola llamada para apagarlo todo
         fetch(`https://${GetParentResourceName()}/resetAllVehicleExtras`, {
-            method: 'POST',
-            body: JSON.stringify({})
+            method: 'POST', body: JSON.stringify({})
         });
+        window.calculateFinalCheckoutPrice();
     });
 }
 
-// 2. Botón CANCELAR RESUMEN (Vuelve al panel anterior)
+// --- BOTÓN CANCELAR RESUMEN ---
 const cancelFinalPurchaseBtn = document.getElementById('cancel-final-purchase');
 if (cancelFinalPurchaseBtn) {
     cancelFinalPurchaseBtn.addEventListener('click', () => {
@@ -1584,43 +1800,30 @@ if (cancelFinalPurchaseBtn) {
     });
 }
 
-// 3. Botón PAPELERA (Resetea la matrícula desde el resumen)
+// --- PAPELERA: MATRÍCULA ---
 const confirmResetPlateBtn = document.getElementById('confirm-reset-plate');
 if (confirmResetPlateBtn) {
     confirmResetPlateBtn.addEventListener('click', () => {
-        // Vaciamos las variables globales de matrícula
         currentCustomPlate = "";
         isCustomPlateApplied = false;
 
-        // Recalculamos el precio (solo el base)
-        const buyBtn = document.getElementById('buy-vehicle');
-        finalPurchasePrice = parseInt(buyBtn.dataset.price) || 0;
-
-        // Ocultamos la fila de recargo visualmente y actualizamos el total
-        document.getElementById('conf-custom-plate-block').style.display = 'none';
-        document.getElementById('conf-total-price').innerText = "$ " + new Intl.NumberFormat('es-ES').format(finalPurchasePrice);
-
-        // ¡Vaciamos el INPUT físico de la derecha para que quede en blanco!
-        // (Busco los dos nombres de clase/id más comunes que sueles usar)
         const plateInputDOM = document.getElementById('custom-plate-input') || document.querySelector('.plate-modifier-input');
-        if (plateInputDOM) {
-            plateInputDOM.value = "";
-        }
+        if (plateInputDOM) plateInputDOM.value = "";
 
-        // Le pedimos al cliente Lua que restaure una matrícula aleatoria en la vista previa
         fetch(`https://${GetParentResourceName()}/updateVehiclePlate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plate: "" }) // Mandamos vacío para que Lua genere una
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plate: "" })
         });
+        window.calculateFinalCheckoutPrice();
     });
 }
 
-// 4. Botón ACEPTAR COMPRA FINAL (Hace el fetch real a Lua)
+// --- BOTÓN ACEPTAR COMPRA FINAL ---
 const acceptFinalPurchaseBtn = document.getElementById('accept-final-purchase');
 if (acceptFinalPurchaseBtn) {
     acceptFinalPurchaseBtn.addEventListener('click', () => {
         const buyBtn = document.getElementById('buy-vehicle');
+        const action = buyBtn.dataset.action; // Detectamos si es compra o reserva
+
         const activeMethodBtn = document.querySelector('.payment-method-btn.active');
         const paymentMethod = activeMethodBtn ? activeMethodBtn.dataset.method : 'cash';
         const activeDeliveryBtn = document.querySelector('.delivery-method-btn.active');
@@ -1628,9 +1831,10 @@ if (acceptFinalPurchaseBtn) {
         const installmentsVal = document.getElementById('payment-installments');
         const installments = installmentsVal ? (parseInt(installmentsVal.value) || 0) : 0;
 
+        // Empaquetamos todo
         const finalVehicleData = {
             model: buyBtn.dataset.model,
-            price: finalPurchasePrice,
+            price: parseInt(buyBtn.dataset.price),
             brand: buyBtn.dataset.brand,
             name: buyBtn.dataset.name,
             color: currentPreviewColor,
@@ -1638,26 +1842,56 @@ if (acceptFinalPurchaseBtn) {
             installments: installments,
             deliveryType: deliveryMethod,
             extras: currentActiveExtras,
-            plate: currentCustomPlate
+            plate: currentCustomPlate,
+            discountCode: appliedDiscountData ? appliedDiscountData.code : null // ENVIAMOS EL CÓDIGO A LUA
         };
 
-        // =========================================================
-        // CIERRE TOTAL Y ABSOLUTO DE LA INTERFAZ
-        // =========================================================
-        hideVehicleInfo();
-
+        // 1. Ocultamos SOLO el panel de confirmación del ticket (Común para ambos)
         const confirmPanel = document.getElementById('purchase-confirmation-panel');
         if (confirmPanel) confirmPanel.style.display = 'none';
 
-        document.getElementById('showroom-container').style.display = 'none';
-        isShowroomOpen = false;
+        if (action === 'reserve') {
+            // ==========================================
+            // LÓGICA DE RESERVA
+            // ==========================================
+            // NO cerramos el showroom entero, devolvemos al jugador a la vista del coche
 
-        // Mandamos la orden final a Lua
-        fetch(`https://${GetParentResourceName()}/buyVehicle`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(finalVehicleData)
-        });
+            fetch(`https://${GetParentResourceName()}/reserveVehicle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(finalVehicleData)
+            });
+
+            myPendingReservations.push(buyBtn.dataset.model);
+
+            // ¡Aquí aplicamos tu animación verde directamente en la pantalla de info!
+            buyBtn.innerText = '¡RESERVA ENVIADA!';
+            buyBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+            buyBtn.style.color = 'rgba(255, 255, 255, 0.3)';
+            buyBtn.disabled = true;
+
+            setTimeout(() => {
+                buyBtn.innerText = 'YA RESERVADO';
+                buyBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+                buyBtn.style.color = 'rgba(255, 255, 255, 0.3)';
+                buyBtn.style.cursor = 'not-allowed';
+            }, 2500);
+
+        } else {
+            // ==========================================
+            // LÓGICA DE COMPRA NORMAL
+            // ==========================================
+            // Aquí SÍ cerramos todo porque el Lua nos va a quitar el foco del ratón
+            hideVehicleInfo();
+            document.getElementById('showroom-container').style.display = 'none';
+            isShowroomOpen = false;
+
+            fetch(`https://${GetParentResourceName()}/buyVehicle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(finalVehicleData)
+            });
+        }
     });
 }
 
@@ -2310,14 +2544,10 @@ function loadPendingReservations(reservations) {
     document.querySelectorAll('.btn-res-accept').forEach(btn => {
         btn.addEventListener('click', function () {
             const resId = this.dataset.id;
-            // Botón en estado de carga
-            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            this.disabled = true;
 
-            setTimeout(() => {
-                this.closest('.reservation-card').remove();
-                checkEmptyReservations(container);
-            }, 500);
+            // Borrar al instante visualmente
+            this.closest('.reservation-card').remove();
+            checkEmptyReservations(container);
 
             fetch(`https://${GetParentResourceName()}/acceptReservation`, {
                 method: 'POST',
@@ -2330,6 +2560,8 @@ function loadPendingReservations(reservations) {
     document.querySelectorAll('.btn-res-cancel').forEach(btn => {
         btn.addEventListener('click', function () {
             const resId = this.dataset.id;
+
+            // Borrar al instante visualmente
             this.closest('.reservation-card').remove();
             checkEmptyReservations(container);
 
@@ -2537,6 +2769,183 @@ if (salesSearchInput) {
 }
 
 // =================================================================
+// MÓDULO: GRÁFICA DE RENDIMIENTO DE EMPRESA (CHART.JS)
+// =================================================================
+function updateCompanyChart(weeklyData) {
+    const ctx = document.getElementById('company-balance-chart');
+    if (!ctx) return;
+
+    const sanitizedData = weeklyData.map(val => Math.round(val));
+
+    // Calcular los últimos 7 días dinámicamente
+    const shortDays = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+    const longDays = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+
+    let dynamicLabels = [];
+    let fullNamesMap = {};
+    let todayDate = new Date();
+
+    // Generamos las letras y nombres desde hace 6 días hasta HOY
+    for (let i = 6; i >= 0; i--) {
+        let d = new Date();
+        d.setDate(todayDate.getDate() - i);
+        let dayIndex = d.getDay();
+
+        dynamicLabels.push(shortDays[dayIndex]);
+        fullNamesMap[shortDays[dayIndex]] = longDays[dayIndex];
+    }
+
+    if (companyBalanceChart) {
+        companyBalanceChart.data.labels = dynamicLabels; // Actualizamos las letras
+        companyBalanceChart.data.datasets[0].data = sanitizedData;
+
+        // Actualizamos también el mapa de nombres en las opciones por si cambia de día jugando
+        companyBalanceChart.options.plugins.tooltip.callbacks.title = function (context) {
+            let shortName = context[0].label;
+            return fullNamesMap[shortName] || shortName;
+        };
+
+        companyBalanceChart.update();
+    } else {
+        companyBalanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dynamicLabels, // Etiquetas dinámicas (Ej: J, V, S, D, L, M, X)
+                datasets: [{
+                    label: 'Balance ($)',
+                    data: sanitizedData,
+                    borderColor: '#ffffff',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#000000',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            font: { family: 'Orbitron', size: 10 },
+                            callback: function (value) {
+                                if (Number.isInteger(value)) {
+                                    return value;
+                                }
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.05)',
+                            drawBorder: false
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            font: { family: 'Orbitron', size: 12, weight: 'bold' }
+                        },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleFont: { family: 'Orbitron', size: 13 },
+                        bodyFont: { family: 'Orbitron', size: 14, weight: 'bold' },
+                        callbacks: {
+                            // Título dinámico usando el mapa que generamos arriba
+                            title: function (context) {
+                                let shortName = context[0].label;
+                                return fullNamesMap[shortName] || shortName;
+                            },
+                            label: function (context) {
+                                return '$ ' + new Intl.NumberFormat('es-ES').format(context.parsed.y);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Filtra las transacciones y calcula el neto de los ÚLTIMOS 7 DÍAS
+function calculateWeeklyChartData(transactions) {
+    let weeklyTotals = [0, 0, 0, 0, 0, 0, 0]; // [Hace 6 días, ..., Ayer, Hoy]
+    if (!transactions || transactions.length === 0) return weeklyTotals;
+
+    // Calculamos la medianoche de hoy para poder comparar días exactos
+    let todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+
+    // Calculamos la fecha límite (hace 6 días)
+    let sixDaysAgo = new Date(todayMidnight);
+    sixDaysAgo.setDate(todayMidnight.getDate() - 6);
+
+    transactions.forEach((t) => {
+        let rawDate = t.date || t.created_at || t.timestamp || t.fecha;
+        let action = (t.action_type || t.type || t.action || "").toUpperCase();
+
+        let amountStr = t.amount || t.price || t.value || t.cantidad;
+        if (!amountStr && t.details) {
+            try {
+                let det = typeof t.details === 'string' ? JSON.parse(t.details) : t.details;
+                amountStr = det.amount || det.price || det.value || 0;
+            } catch (e) { }
+        }
+        let amount = parseFloat(amountStr) || 0;
+
+        if (!rawDate) return;
+
+        let tDate;
+        if (typeof rawDate === 'string' && rawDate.includes('|')) {
+            let parts = rawDate.split('|');
+            let dateParts = parts[0].trim().split('-');
+            let timeParts = parts[1].trim().split(':');
+            tDate = new Date(dateParts[2], parseInt(dateParts[1]) - 1, dateParts[0], timeParts[0], timeParts[1]);
+        } else if (typeof rawDate === 'string' && rawDate.includes('-') && !rawDate.includes('T')) {
+            tDate = new Date(rawDate.replace(/-/g, "/"));
+        } else {
+            tDate = new Date(rawDate);
+        }
+
+        if (isNaN(tDate.getTime())) return;
+
+        // Comprobamos la distancia en días desde HOY
+        let tDateMidnight = new Date(tDate);
+        tDateMidnight.setHours(0, 0, 0, 0);
+
+        if (tDateMidnight >= sixDaysAgo && tDateMidnight <= todayMidnight) {
+            // Calculamos cuántos días han pasado desde esa transacción hasta hoy
+            let diffTime = todayMidnight - tDateMidnight;
+            let diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+            // diffDays será 0 si fue hoy, 1 si fue ayer...
+            // Hoy es el índice 6 (el de más a la derecha en la gráfica)
+            let index = 6 - diffDays;
+
+            if (index >= 0 && index <= 6) {
+                if (action.includes('DEP') || action.includes('INGR') || action.includes('VENTA')) {
+                    weeklyTotals[index] += amount;
+                }
+                else if (action.includes('RET') || action.includes('WITH')) {
+                    weeklyTotals[index] -= amount;
+                }
+            }
+        }
+    });
+
+    return weeklyTotals;
+}
+
+// =================================================================
 // MÓDULO 13: BOSS MENU - TABLAS SECUNDARIAS (PERSONAL Y DESCUENTOS)
 // =================================================================
 
@@ -2628,15 +3037,149 @@ function renderDiscTable() {
     if (itemsToShow.length === 0) return tbody.innerHTML = `<tr><td colspan="7" style="border:none;"><div class="empty-state"><iconify-icon icon="solar:ticket-sale-bold-duotone" class="empty-state-icon"></iconify-icon><span class="empty-state-text">No hay descuentos activos</span></div></td></tr>`;
 
     itemsToShow.forEach(d => {
+        // Formatear los vehículos permitidos
+        let vehText = "Múltiples";
+        try {
+            let parsed = JSON.parse(d.vehicles_allowed);
+            if (parsed === "ALL" || (Array.isArray(parsed) && parsed.includes("ALL"))) {
+                vehText = "TODOS";
+            } else if (Array.isArray(parsed)) {
+                vehText = `${parsed.length} Seleccionado(s)`;
+            }
+        } catch (e) { vehText = d.vehicles_allowed; }
+
+        // Formatear Usos
+        let usesText = d.is_unlimited_uses ? 'ILIMITADO' : `${d.uses_left} (${d.limit_type === 'GLOBAL' ? 'Total' : 'x Pers.'})`;
+
+        // Formatear Fechas (Manejamos compatibilidad por si el SQL escupe una T o espacios)
+        let dateText = "ILIMITADO";
+        if (!d.is_unlimited_time && d.expiration_date) {
+            let rawDate = typeof d.expiration_date === 'string' ? d.expiration_date.replace(/-/g, "/").replace("T", " ") : d.expiration_date;
+            dateText = new Date(rawDate).toLocaleDateString('es-ES');
+        }
+
         tbody.innerHTML += `<tr>
             <td><span class="discount-code-pill" data-code="${d.code}">${d.code}</span></td>
-            <td style="color:#aaa;">${d.author}</td>
-            <td style="color:#ccc;">${d.vehicles}</td>
-            <td style="color:#fff; font-weight:bold;">${d.perc}%</td>
-            <td style="color:#aaa;">${d.uses}</td>
-            <td><span class="expires-text">${d.expires}</span></td>
-            <td class="centro"><button class="btn-icon" style="color:#aaa;"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td style="color:#aaa;">${d.created_by}</td>
+            <td><span class="disc-veh-pill" data-vehicles="${encodeURIComponent(d.vehicles_allowed)}" data-code="${d.code}">${vehText}</span></td>
+            <td style="color:#fff; font-weight:bold;">${d.discount_percentage}%</td>
+            <td style="color:#aaa;">${usesText}</td>
+            <td><span class="expires-text">${dateText}</span></td>
+            <td class="centro"><button class="btn-icon" onclick="deleteDiscountCode(${d.id}, '${d.code}')" style="color:#aaa;"><i class="fa-solid fa-trash-can"></i></button></td>
         </tr>`;
+    });
+}
+
+// Listener delegado para el pill de vehículos (evita JSON en onclick inline)
+document.getElementById('disc-tbody')?.addEventListener('click', function (e) {
+    const pill = e.target.closest('.disc-veh-pill');
+    if (!pill) return;
+    const vehiclesJson = decodeURIComponent(pill.getAttribute('data-vehicles'));
+    const code = pill.getAttribute('data-code');
+    openDiscVehiclesModal(vehiclesJson, code);
+});
+
+// Función global para el botón de borrar
+window.deleteDiscountCode = function (id, code) {
+    // Si quieres meterle un modal de confirmación en el futuro lo metes aquí. Por ahora dispara a matar.
+    fetch(`https://${GetParentResourceName()}/deleteDiscountCode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, code: code })
+    });
+}
+
+// --- VARIABLES GLOBALES PARA EL LAZY LOAD DEL MODAL ---
+let currentModalVehicles = [];
+let modalVehLoadedCount = 0;
+const MODAL_VEH_BATCH_SIZE = 100;
+
+// Modal de detalle de vehículos de un descuento
+window.openDiscVehiclesModal = function (vehiclesJson, code) {
+    let parsed;
+    try { parsed = JSON.parse(vehiclesJson); } catch (e) { parsed = vehiclesJson; }
+
+    const listEl = document.getElementById('disc-veh-modal-list');
+    const subEl = document.getElementById('disc-veh-modal-subtitle');
+    listEl.innerHTML = '';
+
+    // Construir lista expandida de vehículos reales
+    let vehicles = [];
+
+    if (parsed === 'ALL' || (Array.isArray(parsed) && parsed.includes('ALL'))) {
+        // TODOS: mostrar cada vehículo del stock
+        vehicles = globalStock.map(v => ({ name: v.name || v.model, type: 'veh' }));
+        subEl.innerText = `Código ${code} · Aplica a TODO EL STOCK (${vehicles.length} vehículos)`;
+    } else if (Array.isArray(parsed)) {
+        parsed.forEach(entry => {
+            if (entry.startsWith('CAT_')) {
+                // Expandir categoría: todos los vehículos de esa cat
+                const catName = entry.replace('CAT_', '');
+                const catObj = activeCategories.find(c => c.name === catName);
+                const vehs = globalStock.filter(v => v.category === catName);
+                vehs.forEach(v => vehicles.push({ name: v.name || v.model, type: 'cat', catLabel: catObj ? catObj.label : catName }));
+            } else if (entry.startsWith('VEH_')) {
+                const model = entry.replace('VEH_', '');
+                const vehObj = globalStock.find(v => v.model === model);
+                vehicles.push({ name: vehObj ? (vehObj.name || model) : model, type: 'veh' });
+            }
+        });
+        subEl.innerText = `Código ${code} · ${vehicles.length} vehículo(s) en total`;
+    }
+
+    if (vehicles.length === 0) {
+        listEl.innerHTML = '<span style="color:rgba(255,255,255,0.3); font-size:0.7vw; font-style:italic;">Sin vehículos registrados.</span>';
+    } else {
+        // --- INICIO DE LAZY LOAD ---
+        currentModalVehicles = vehicles;
+        modalVehLoadedCount = 0;
+        window.loadMoreModalVehicles(); // Cargamos los primeros 100
+    }
+
+    toggleModal('disc-vehicles-modal', true);
+};
+
+// Función que inyecta los vehículos de 100 en 100
+window.loadMoreModalVehicles = function () {
+    const listEl = document.getElementById('disc-veh-modal-list');
+    if (!listEl) return;
+
+    const nextBatch = currentModalVehicles.slice(modalVehLoadedCount, modalVehLoadedCount + MODAL_VEH_BATCH_SIZE);
+    let htmlBatch = ''; // Agrupamos todo en un string para inyectarlo 1 sola vez (más rendimiento)
+
+    nextBatch.forEach(v => {
+        const isCat = v.type === 'cat';
+        htmlBatch += `
+            <div style="
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35vw;
+                padding: 0.25vw 0.5vw;
+                border-radius: 4px;
+                background: ${isCat ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.05)'};
+                border: 1px solid ${isCat ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.1)'};
+            ">
+                ${isCat ? `<span style="font-family:'Orbitron',sans-serif; font-size:0.42vw; font-weight:900; color:rgba(0,0,0,0.4); background:rgba(0,0,0,0.1); border:1px solid rgba(0,0,0,0.08); border-radius:2px; padding:0.1vw 0.3vw;">CAT</span>`
+                : `<span style="font-family:'Orbitron',sans-serif; font-size:0.42vw; font-weight:900; color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); border-radius:2px; padding:0.1vw 0.3vw;">VEH</span>`}
+                <span style="font-family:'Orbitron',sans-serif; font-size:0.62vw; font-weight:700; color:${isCat ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.8)'};">${v.name}</span>
+                ${isCat && v.catLabel ? `<span style="font-size:0.52vw; color:rgba(0,0,0,0.4); font-style:italic;">${v.catLabel}</span>` : ''}
+            </div>`;
+    });
+
+    listEl.insertAdjacentHTML('beforeend', htmlBatch); // Inyección ultra rápida
+    modalVehLoadedCount += nextBatch.length;
+};
+
+// Añadimos el listener directamente al contenedor (este código se ejecuta solo 1 vez)
+const modalVehiclesListEl = document.getElementById('disc-veh-modal-list');
+if (modalVehiclesListEl) {
+    modalVehiclesListEl.addEventListener('scroll', function () {
+        // Si estamos a 50px del final y aún quedan coches por pintar
+        if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
+            if (modalVehLoadedCount < currentModalVehicles.length) {
+                window.loadMoreModalVehicles();
+            }
+        }
     });
 }
 
@@ -2644,12 +3187,13 @@ document.getElementById('disc-prev')?.addEventListener('click', () => { if (disc
 document.getElementById('disc-next')?.addEventListener('click', () => { if (discCurrentPage < Math.ceil(discWorkingList.length / discItemsPerPage)) { discCurrentPage++; renderDiscTable(); } });
 document.getElementById('disc-search')?.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
-    discWorkingList = dummyDisc.filter(d =>
+    // Filtramos la lista real original
+    discWorkingList = originalDiscList.filter(d =>
         d.code.toLowerCase().includes(term) ||
-        d.author.toLowerCase().includes(term) ||
-        d.vehicles.toLowerCase().includes(term)
+        d.created_by.toLowerCase().includes(term)
     );
-    discCurrentPage = 1; renderDiscTable();
+    discCurrentPage = 1;
+    renderDiscTable();
 });
 
 // =================================================================
@@ -3372,6 +3916,456 @@ document.addEventListener('DOMContentLoaded', () => {
         // 4. Cerramos
         toggleModal('mass-add-vehicles-modal', false);
     });
+
+    // 3. LÓGICA DE CHECKBOXES (BLOQUEO DE INPUTS)
+    document.getElementById('check-disc-unlimited-uses')?.addEventListener('change', function (e) {
+        const input = document.getElementById('input-disc-uses');
+        const container = document.getElementById('disc-toggle-uses-container');
+        const desc = document.getElementById('disc-toggle-uses-desc');
+
+        input.disabled = e.target.checked;
+        input.style.opacity = e.target.checked ? '0.3' : '1';
+        if (e.target.checked) input.value = '';
+
+        if (e.target.checked) {
+            container.classList.add('active');
+            desc.innerText = '¡Sin límite de usos!';
+            desc.style.color = '#fff';
+        } else {
+            container.classList.remove('active');
+            desc.innerText = 'Límite de usos activo';
+            desc.style.color = '#aaa';
+        }
+    });
+
+    document.getElementById('check-disc-unlimited-time')?.addEventListener('change', function (e) {
+        const input = document.getElementById('input-disc-expiration');
+        const container = document.getElementById('disc-toggle-time-container');
+        const desc = document.getElementById('disc-toggle-time-desc');
+
+        input.disabled = e.target.checked;
+        input.style.opacity = e.target.checked ? '0.3' : '1';
+        if (e.target.checked) input.value = '';
+
+        if (e.target.checked) {
+            container.classList.add('active');
+            desc.innerText = '¡Sin fecha de expiración!';
+            desc.style.color = '#fff';
+        } else {
+            container.classList.remove('active');
+            desc.innerText = 'Fecha de expiración activa';
+            desc.style.color = '#aaa';
+        }
+    });
+
+}); // <-- Este es el cierre del DOMContentLoaded de línea 3709
+
+// =================================================================
+// MÓDULO 17: SISTEMA DE CREACIÓN DE DESCUENTOS (MODAL HEAVY)
+// =================================================================
+
+// 1. ABRIR EL MODAL Y REINICIAR TODO AL ESTADO "LIMPIO"
+window.openCreateDiscountModal = function () {
+    // Reset de variables de control
+    discountSelectedVehicles = [];
+    isDiscountRandom = true;
+    isDiscountGlobal = true;
+
+    // UI: Tipo de Código
+    const btnRandom = document.getElementById('btn-disc-random');
+    const btnCustom = document.getElementById('btn-disc-custom');
+    const customBox = document.getElementById('disc-custom-box');
+    if (btnRandom) btnRandom.classList.add('active');
+    if (btnCustom) btnCustom.classList.remove('active');
+    if (customBox) {
+        customBox.style.display = 'none';
+        customBox.querySelector('input').value = '';
+    }
+
+    // UI: Inputs básicos y Checkboxes
+    document.getElementById('input-disc-perc').value = '';
+    document.getElementById('input-disc-search').value = '';
+    document.getElementById('disc-search-results').style.display = 'none';
+
+    // Reset visual de los switch-containers
+    const contUses = document.getElementById('disc-toggle-uses-container');
+    const contTime = document.getElementById('disc-toggle-time-container');
+    if (contUses) {
+        contUses.classList.remove('active');
+        document.getElementById('disc-toggle-uses-desc').innerText = 'Límite de usos activo';
+        document.getElementById('disc-toggle-uses-desc').style.color = '#aaa';
+    }
+    if (contTime) {
+        contTime.classList.remove('active');
+        document.getElementById('disc-toggle-time-desc').innerText = 'Fecha de expiración activa';
+        document.getElementById('disc-toggle-time-desc').style.color = '#aaa';
+    }
+
+    // UI: Usos
+    const inputUses = document.getElementById('input-disc-uses');
+    const checkUses = document.getElementById('check-disc-unlimited-uses');
+    if (inputUses) { inputUses.value = ''; inputUses.disabled = false; inputUses.style.opacity = '1'; }
+    if (checkUses) checkUses.checked = false;
+
+    const btnGlobal = document.getElementById('btn-disc-global');
+    const btnPerson = document.getElementById('btn-disc-person');
+    if (btnGlobal) btnGlobal.classList.add('active');
+    if (btnPerson) btnPerson.classList.remove('active');
+
+    // UI: Tiempo
+    const inputTime = document.getElementById('input-disc-expiration');
+    const checkTime = document.getElementById('check-disc-unlimited-time');
+    if (inputTime) { inputTime.value = ''; inputTime.disabled = false; inputTime.style.opacity = '1'; }
+    if (checkTime) checkTime.checked = false;
+
+    window.populateDiscCatFilter(); // ← añadir esta línea
+    renderDiscountTags();
+    toggleModal('create-discount-modal', true);
+    updateDiscPreview();
+};
+
+// 2. GESTIÓN DE BOTONES DUALES (ESTILO REUTILIZADO)
+document.addEventListener('click', (e) => {
+    // Código: Aleatorio vs Personalizado
+    if (e.target.id === 'btn-disc-random' || e.target.closest('#btn-disc-random')) {
+        isDiscountRandom = true;
+        document.getElementById('btn-disc-random').classList.add('active');
+        document.getElementById('btn-disc-custom').classList.remove('active');
+        document.getElementById('disc-custom-box').style.display = 'none';
+    }
+    if (e.target.id === 'btn-disc-custom' || e.target.closest('#btn-disc-custom')) {
+        isDiscountRandom = false;
+        document.getElementById('btn-disc-custom').classList.add('active');
+        document.getElementById('btn-disc-random').classList.remove('active');
+        document.getElementById('disc-custom-box').style.display = 'block';
+    }
+
+    // Límite: Global vs Por Persona
+    if (e.target.id === 'btn-disc-global' || e.target.closest('#btn-disc-global')) {
+        isDiscountGlobal = true;
+        document.getElementById('btn-disc-global').classList.add('active');
+        document.getElementById('btn-disc-person').classList.remove('active');
+    }
+    if (e.target.id === 'btn-disc-person' || e.target.closest('#btn-disc-person')) {
+        isDiscountGlobal = false;
+        document.getElementById('btn-disc-person').classList.add('active');
+        document.getElementById('btn-disc-global').classList.remove('active');
+    }
+});
+
+// 4. BUSCADORES — Lazy Load (50 en 50), Caché y Filtros
+let _discSearchTimer = null;
+let _discActiveCatFilter = 'ALL';
+
+// Variables para el Scroll Infinito de Vehículos
+let _discVehList = []; // Lista filtrada guardada en caché
+let _discVehLoadedCount = 0;
+const DISC_BATCH_SIZE = 50; // De cuántos en cuántos carga al bajar el ratón
+
+// Poblar el filtro cuando se abra el modal
+window.populateDiscCatFilter = function () {
+    const selFilter = document.getElementById('disc-cat-filter');
+
+    // 1. Selector que filtra la lupa (Vehículos Específicos)
+    if (selFilter) {
+        selFilter.innerHTML = '<option value="ALL">⬡ TODOS</option>';
+        activeCategories.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.name;
+            opt.textContent = '⬡ ' + cat.label.toUpperCase();
+            selFilter.appendChild(opt);
+        });
+        selFilter.value = 'ALL';
+    }
+
+    _discActiveCatFilter = 'ALL';
+
+    // Limpiamos los inputs y la caché visual al abrir el menú de cero
+    document.getElementById('input-disc-search').value = '';
+    document.getElementById('input-disc-category').value = '';
+    _discVehList = [];
+    _discVehLoadedCount = 0;
+};
+
+// ==========================================
+// EVENTO: CAMBIAR FILTRO (Desplegable superior)
+// ==========================================
+document.getElementById('disc-cat-filter')?.addEventListener('change', function () {
+    _discActiveCatFilter = this.value;
+    // Si cambiamos de filtro, obligamos al buscador a recalcular
+    document.getElementById('input-disc-search').dispatchEvent(new Event('input'));
+});
+
+
+// ==========================================
+// LUPA 1: VEHÍCULOS (SCROLL INFINITO)
+// ==========================================
+// Al hacer clic, si ya teníamos la caché cargada y no hemos borrado el texto, solo mostramos la caja
+document.getElementById('input-disc-search')?.addEventListener('click', function () {
+    if (_discVehList.length > 0 && this.value === '') {
+        document.getElementById('disc-search-results').style.display = 'block';
+    } else {
+        this.dispatchEvent(new Event('input'));
+    }
+});
+
+// Al escribir en la lupa de Vehículos
+document.getElementById('input-disc-search')?.addEventListener('input', function () {
+    const resultsBox = document.getElementById('disc-search-results');
+    const term = this.value.toLowerCase().trim();
+
+    clearTimeout(_discSearchTimer);
+    _discSearchTimer = setTimeout(() => {
+
+        // 1. Primero filtramos por la carpeta seleccionada en el select
+        const stockToSearch = _discActiveCatFilter === 'ALL'
+            ? globalStock
+            : globalStock.filter(v => v.category === _discActiveCatFilter);
+
+        // 2. Luego filtramos por lo que ha escrito en la lupa y lo GUARDAMOS EN CACHÉ
+        _discVehList = stockToSearch.filter(v => {
+            const name = (v.name || v.model).toLowerCase();
+            return term === '' || name.includes(term) || v.model.toLowerCase().includes(term);
+        });
+
+        // 3. Reseteamos el contador y la caja visual
+        _discVehLoadedCount = 0;
+        resultsBox.innerHTML = '';
+        resultsBox.scrollTop = 0;
+
+        if (_discVehList.length === 0) {
+            resultsBox.innerHTML = `<div class="disc-result-empty">Sin vehículos${term !== '' ? ` para "${term}"` : ' en esta categoría'}</div>`;
+        } else {
+            // 4. Disparamos la carga de los primeros 50
+            window.loadMoreDiscVehicles();
+        }
+
+        resultsBox.style.display = 'block';
+    }, 150); // Pequeño retraso para que no laguee si escribe muy rápido
+});
+
+// Función que inyecta de 50 en 50
+window.loadMoreDiscVehicles = function () {
+    const resultsBox = document.getElementById('disc-search-results');
+    if (!resultsBox) return;
+
+    // Cortamos los siguientes 50 coches
+    const nextBatch = _discVehList.slice(_discVehLoadedCount, _discVehLoadedCount + DISC_BATCH_SIZE);
+    let html = '';
+
+    nextBatch.forEach(v => {
+        const safeName = (v.name || v.model).replace(/'/g, "\\'");
+        html += `<div class="disc-result-row" onclick="addDiscountTag('VEH_${v.model}','${safeName}')">
+            <span class="disc-result-name">${v.name || v.model}</span>
+            <span class="disc-result-meta">${v.brand || v.model}</span>
+        </div>`;
+    });
+
+    resultsBox.insertAdjacentHTML('beforeend', html);
+    _discVehLoadedCount += nextBatch.length;
+};
+
+// Evento: Detectar cuando llegamos al final del scroll para cargar más
+document.getElementById('disc-search-results')?.addEventListener('scroll', function () {
+    // Si estamos a 20 píxeles del fondo y aún quedan coches por pintar...
+    if (this.scrollTop + this.clientHeight >= this.scrollHeight - 20) {
+        if (_discVehLoadedCount < _discVehList.length) {
+            window.loadMoreDiscVehicles(); // Inyectamos 50 más!
+        }
+    }
+});
+
+
+// ==========================================
+// LUPA 2: CATEGORÍAS (Buscador Inteligente)
+// ==========================================
+document.getElementById('input-disc-category')?.addEventListener('click', function () {
+    this.dispatchEvent(new Event('input'));
+});
+
+document.getElementById('input-disc-category')?.addEventListener('input', function () {
+    const resultsBox = document.getElementById('disc-cat-search-results');
+    const term = this.value.toLowerCase().trim();
+    let html = '';
+
+    // Filtramos las categorías
+    const filteredCats = activeCategories.filter(cat =>
+        term === '' || cat.label.toLowerCase().includes(term) || cat.name.toLowerCase().includes(term)
+    );
+
+    if (filteredCats.length === 0) {
+        html = `<div class="disc-result-empty">Sin resultados para "${term}"</div>`;
+    } else {
+        filteredCats.forEach(cat => {
+            const safeLabel = cat.label.replace(/'/g, "\\'");
+            // Usamos la misma clase 'disc-result-row' para que tenga el mismo diseño exacto
+            html += `<div class="disc-result-row disc-result-cat" onclick="addDiscountTag('CAT_${cat.name}','${safeLabel}')">
+                <span class="disc-result-name">${cat.label.toUpperCase()}</span>
+                <span class="disc-result-meta">Categoría completa</span>
+            </div>`;
+        });
+    }
+
+    resultsBox.innerHTML = html;
+    resultsBox.style.display = 'block';
+});
+
+// ==========================================
+// OCULTAR CAJAS AL CLICAR FUERA
+// ==========================================
+document.addEventListener('click', (e) => {
+    // Si pincha fuera del buscador de Vehículos
+    if (!e.target.closest('#input-disc-search') && !e.target.closest('#disc-search-results')) {
+        const resV = document.getElementById('disc-search-results');
+        if (resV) resV.style.display = 'none';
+    }
+    // Si pincha fuera del buscador de Categorías
+    if (!e.target.closest('#input-disc-category') && !e.target.closest('#disc-cat-search-results')) {
+        const resC = document.getElementById('disc-cat-search-results');
+        if (resC) resC.style.display = 'none';
+    }
+});
+
+// 5. GESTIÓN DE ETIQUETAS (TAGS SEPARADOS)
+window.addDiscountTag = function (id, label) {
+    if (!discountSelectedVehicles.find(x => x.id === id)) {
+        discountSelectedVehicles.push({ id: id, label: label });
+    }
+    document.getElementById('input-disc-search').value = '';
+    document.getElementById('disc-search-results').style.display = 'none';
+    renderDiscountTags();
+};
+
+window.renderDiscountTags = function () {
+    const vehContainer = document.getElementById('disc-tags-container');
+    const catContainer = document.getElementById('disc-cat-tags-container');
+
+    if (vehContainer) vehContainer.innerHTML = '';
+    if (catContainer) catContainer.innerHTML = '';
+
+    let hasVehs = false;
+    let hasCats = false;
+
+    discountSelectedVehicles.forEach((tag, idx) => {
+        const isCat = tag.id.startsWith('CAT_');
+        const typeLabel = isCat ? 'CAT' : 'VEH';
+        const extraClass = isCat ? 'is-cat' : '';
+
+        const tagHTML = `
+            <div class="disc-tag-card ${extraClass}">
+                <span class="disc-tag-type">${typeLabel}</span>
+                <span class="disc-tag-name">${tag.label}</span>
+                <button class="disc-tag-remove" onclick="removeDiscountTag(${idx})">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        `;
+
+        // Repartimos los tags en su cajón correspondiente
+        if (isCat && catContainer) {
+            catContainer.innerHTML += tagHTML;
+            hasCats = true;
+        } else if (!isCat && vehContainer) {
+            vehContainer.innerHTML += tagHTML;
+            hasVehs = true;
+        }
+    });
+
+    if (!hasVehs && vehContainer) {
+        vehContainer.innerHTML = '<span class="disc-tags-empty" style="font-size: 0.55vw; color: rgba(255,255,255,0.3); font-style: italic;">Ningún vehículo específico seleccionado...</span>';
+    }
+    if (!hasCats && catContainer) {
+        catContainer.innerHTML = '<span class="disc-tags-empty" style="font-size: 0.55vw; color: rgba(255,255,255,0.3); font-style: italic;">Ninguna categoría seleccionada...</span>';
+    }
+
+    updateDiscPreview();
+};
+
+window.removeDiscountTag = function (index) {
+    discountSelectedVehicles.splice(index, 1);
+    renderDiscountTags();
+};
+
+// 6. ENVÍO FINAL AL SERVIDOR
+
+// VISTA PREVIA EN VIVO (ACTUALIZADA)
+function updateDiscPreview() {
+    const perc = document.getElementById('input-disc-perc')?.value;
+    const isRandom = isDiscountRandom;
+    const customCode = document.getElementById('input-disc-custom-code')?.value?.trim().toUpperCase();
+
+    const codeEl = document.getElementById('disc-preview-code-text');
+    const percEl = document.getElementById('disc-preview-perc-text');
+    const subEl = document.getElementById('disc-preview-sub-text');
+
+    if (!codeEl || !percEl) return;
+
+    if (isRandom) {
+        codeEl.innerText = '— — — — — — — —';
+    } else if (customCode.length >= 5) {
+        codeEl.innerText = customCode;
+    } else {
+        codeEl.innerText = '— — — — — — — —';
+    }
+
+    if (perc && perc >= 5 && perc <= 90) {
+        percEl.innerText = perc + '%';
+        // Si no hay etiquetas seleccionadas, avisamos de que es GLOBAL
+        subEl.innerText = discountSelectedVehicles.length > 0
+            ? `${discountSelectedVehicles.length} objetivo(s) específico(s)`
+            : 'Se aplicará a TODO EL STOCK';
+    } else {
+        percEl.innerText = '?%';
+        subEl.innerText = 'Completa los campos para generar';
+    }
+}
+
+document.getElementById('input-disc-perc')?.addEventListener('input', updateDiscPreview);
+document.getElementById('input-disc-custom-code')?.addEventListener('input', updateDiscPreview);
+
+document.getElementById('btn-save-discount')?.addEventListener('click', function () {
+    const percentage = parseInt(document.getElementById('input-disc-perc').value);
+    const uses = parseInt(document.getElementById('input-disc-uses').value);
+    const isUnlimitedUses = document.getElementById('check-disc-unlimited-uses').checked;
+    const expiration = document.getElementById('input-disc-expiration').value;
+    const isUnlimitedTime = document.getElementById('check-disc-unlimited-time').checked;
+
+    if (isNaN(percentage) || percentage < 5 || percentage > 90) return;
+
+    // YA NO BLOQUEAMOS SI ESTÁ VACÍO. Si está vacío, se aplica a todo.
+    // if (discountSelectedVehicles.length === 0) return; 
+
+    if (!isUnlimitedUses && (isNaN(uses) || uses <= 0)) return;
+    if (!isUnlimitedTime && !expiration) return;
+
+    let code = "";
+    if (isDiscountRandom) {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    } else {
+        code = document.getElementById('input-disc-custom-code').value.trim().toUpperCase();
+        if (code.length < 5) return;
+    }
+
+    // LA MAGIA DE "TODOS": Si el array está vacío, enviamos "ALL" a la base de datos
+    const finalVehicles = discountSelectedVehicles.length === 0 ? "ALL" : discountSelectedVehicles.map(v => v.id);
+
+    fetch(`https://${GetParentResourceName()}/createDiscountCode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            code: code,
+            percentage: percentage,
+            vehicles: finalVehicles,
+            unlimitedUses: isUnlimitedUses,
+            uses: uses,
+            limitType: isDiscountGlobal ? 'GLOBAL' : 'PER_PERSON',
+            unlimitedTime: isUnlimitedTime,
+            expiration: expiration
+        })
+    });
+
+    toggleModal('create-discount-modal', false);
 });
 
 // =================================================================
@@ -3616,11 +4610,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 transCurrentPage = 1;
                 renderTransactionsTable();
 
+                // DIBUJAR GRÁFICA CON DATOS REALES
+                const chartData = calculateWeeklyChartData(transWorkingList);
+                updateCompanyChart(chartData);
+
                 // Cargar Últimas Ventas
                 salesWorkingList = data.sales || [];
                 originalSalesList = [...salesWorkingList];
                 salesCurrentPage = 1;
                 renderSalesTable();
+
+                // Cargar Descuentos Reales
+                originalDiscList = data.discounts || [];
+                discWorkingList = [...originalDiscList];
+                discCurrentPage = 1;
+                renderDiscTable();
+                break;
+            // Refresco individual solo para la tabla de descuentos
+            case 'updateDiscounts':
+                originalDiscList = data.discounts || [];
+                discWorkingList = [...originalDiscList];
+                discCurrentPage = 1;
+                renderDiscTable();
                 break;
             // Abre el menú de compra del concesionario (Buy Menu)
             case 'openBuyMenu':
@@ -4032,8 +5043,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('buy-container').style.display = 'none';
     });
 
-    // --- LISTENERS DE LOS BOTONES GUARDAR/ELIMINAR RANGOS ---
-
     // Efectos visuales del interruptor de Jefe (Escala de grises)
     document.getElementById('grade-isboss-input')?.addEventListener('change', (e) => {
         const container = document.getElementById('boss-toggle-container');
@@ -4124,9 +5133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBossCatsTable();
     renderShowroomFilters();
 
-    // =================================================================
     // NAVEGACIÓN HORIZONTAL PARA CATEGORÍAS (SCROLL CON RUEDA)
-    // =================================================================
     const categoriesContainer = document.getElementById('categories-container');
     if (categoriesContainer) {
         categoriesContainer.addEventListener('wheel', (evt) => {
@@ -4137,4 +5144,138 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-});
+
+    // FILTROS AVANZADOS — DOUBLE RANGE SLIDERS (OPTIMIZADO)
+    function initRangeSlider(idMin, idMax, idFill, idBadge, stateObj, formatFn) {
+        const elMin = document.getElementById(idMin);
+        const elMax = document.getElementById(idMax);
+        const elFill = document.getElementById(idFill);
+        const badge = document.getElementById(idBadge);
+        if (!elMin || !elMax || !elFill || !badge) return;
+
+        // 1. Solo actualiza los colores y el texto al arrastrar (Sin laguear el menú)
+        function updateVisuals(e) {
+            const rangeMin = parseFloat(elMin.min);
+            const rangeMax = parseFloat(elMin.max);
+            let valMin = parseFloat(elMin.value);
+            let valMax = parseFloat(elMax.value);
+
+            // Evitar cruce de bolitas
+            if (valMin > valMax) {
+                if (e && e.target === elMin) { elMin.value = valMax; valMin = valMax; }
+                else { elMax.value = valMin; valMax = valMin; }
+            }
+
+            // Z-index: si están pegados a la derecha, el min debe estar encima para poder cogerlo
+            if (valMin === rangeMax) elMin.classList.add('on-top');
+            else elMin.classList.remove('on-top');
+
+            // Rellenar la barra blanca
+            const pctMin = (valMin - rangeMin) / (rangeMax - rangeMin) * 100;
+            const pctMax = (valMax - rangeMin) / (rangeMax - rangeMin) * 100;
+            elFill.style.left = pctMin + '%';
+            elFill.style.width = (pctMax - pctMin) + '%';
+
+            badge.textContent = formatFn(valMin, valMax);
+        }
+
+        // 2. Aplica el filtro REAL a los vehículos (Solo cuando sueltas el ratón)
+        function applyFilter() {
+            stateObj.min = parseFloat(elMin.value);
+            stateObj.max = parseFloat(elMax.value);
+            applyShowroomFilter(currentShowroomCategory);
+        }
+
+        elMin.addEventListener('input', updateVisuals);
+        elMax.addEventListener('input', updateVisuals);
+
+        elMin.addEventListener('change', applyFilter);
+        elMax.addEventListener('change', applyFilter);
+
+        updateVisuals(); // Llamada inicial
+    }
+
+    // Formateadores de texto para los Badges
+    function formatPrice(min, max) {
+        const fmt = v => '$' + new Intl.NumberFormat('es-ES').format(Math.round(v / 1000) * 1000);
+        return fmt(min) + ' — ' + fmt(max);
+    }
+
+    function formatSpeed(min, max) {
+        return min + ' — ' + max + ' KM/H';
+    }
+
+    function formatSeats(min, max) {
+        return min + ' — ' + max + ' Seats';
+    }
+
+    // Función para restaurar filtros al pulsar el botón
+    function resetAdvancedFilters() {
+        const sliders = [
+            { idMin: 'filter-price-min', idMax: 'filter-price-max' },
+            { idMin: 'filter-speed-min', idMax: 'filter-speed-max' },
+            { idMin: 'filter-seats-min', idMax: 'filter-seats-max' },
+        ];
+
+        sliders.forEach(({ idMin, idMax }) => {
+            const elMin = document.getElementById(idMin);
+            const elMax = document.getElementById(idMax);
+            if (elMin) elMin.value = elMin.min;
+            if (elMax) elMax.value = elMax.max;
+        });
+
+        filterPrice = { min: 0, max: 10000000 };
+        filterSpeed = { min: 0, max: 250 };
+        filterSeats = { min: 1, max: 16 };
+
+        initAdvancedFilters(); // Forzamos recálculo visual
+        applyShowroomFilter(currentShowroomCategory); // Refrescamos los coches
+    }
+
+    function initAdvancedFilters() {
+        initRangeSlider('filter-price-min', 'filter-price-max', 'filter-price-fill', 'filter-price-badge', filterPrice, formatPrice);
+        initRangeSlider('filter-speed-min', 'filter-speed-max', 'filter-speed-fill', 'filter-speed-badge', filterSpeed, formatSpeed);
+        initRangeSlider('filter-seats-min', 'filter-seats-max', 'filter-seats-fill', 'filter-seats-badge', filterSeats, formatSeats);
+    }
+
+    // DISPARADORES INICIALES (AQUÍ ESTÁ LA CORRECCIÓN CLAVE)
+    initAdvancedFilters();
+    document.getElementById('filter-reset-btn')?.addEventListener('click', resetAdvancedFilters);
+
+    // ANIMACIÓN DE LOS MENÚS DESPLEGABLES (ESTILO HELP)
+    const filterTriggers = document.querySelectorAll('.filter-trigger-btn');
+
+    filterTriggers.forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            // 1. Si hacemos clic DENTRO del panel ya expandido (para mover la barra), no queremos que se cierre
+            if (e.target.closest('.help-expanded-content')) {
+                // Excepto si hacemos clic en la 'X' de cerrar el panel
+                if (e.target.closest('.filter-close')) {
+                    this.classList.remove('expanded');
+                }
+                return; // Cortamos aquí para que el jugador pueda seguir moviendo el slider
+            }
+
+            e.stopPropagation(); // Evitamos que el clic se escape al fondo de la pantalla
+
+            // 2. Cerramos cualquier OTRO botón de filtro que estuviera abierto para que no se superpongan
+            document.querySelectorAll('.filter-trigger-btn.expanded').forEach(otherBtn => {
+                if (otherBtn !== this) {
+                    otherBtn.classList.remove('expanded');
+                }
+            });
+
+            // 3. Abrimos o cerramos este botón (le aplica la clase que lo "hincha" como el de Ayuda)
+            this.classList.toggle('expanded');
+        });
+    });
+
+    // Cerrar los menús al hacer clic en cualquier lugar fuera de ellos (ej: en el suelo del concesionario)
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.filter-trigger-btn')) {
+            document.querySelectorAll('.filter-trigger-btn.expanded').forEach(openBtn => {
+                openBtn.classList.remove('expanded');
+            });
+        }
+    });
+}); // <--- RECUERDA: ESTA ES LA LLAVE DE CIERRE FINAL DE TU MÓDULO 16, NO LA BORRES.

@@ -560,7 +560,7 @@ RegisterNetEvent('DP-VehicleShop:client:exitShowroomMode', function()
     TriggerEvent('bcs-voice-ui:client:showVoice', true)
 end)
 
--- 2. Apertura del Showroom
+-- 2. Apertura del Showroom (CON ESCANEO TÉCNICO)
 RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, categories, vehicles, myReservations)
     -- Guardamos el ID del concesionario actual
     currentShowroomDealerId = dealerId
@@ -570,7 +570,20 @@ RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, catego
     local pos = GetEntityCoords(p)
     testDriveReturnCoords = vector4(pos.x, pos.y, pos.z, GetEntityHeading(p))
 
-    -- Enviamos tus reservas activas al Javascript para bloquear los botones correspondientes
+    -- Recorremos el stock y pedimos al motor del juego los datos de cada modelo
+    for i=1, #vehicles do
+        local modelHash = GetHashKey(vehicles[i].model)
+        
+        -- 1. Velocidad Máxima (Convertimos de m/s a KM/H)
+        -- Usamos la velocidad teórica del handling del modelo
+        local maxSpeedMS = GetVehicleModelMaxSpeed(modelHash)
+        vehicles[i].maxSpeed = math.ceil(maxSpeedMS * 3.6)
+
+        -- 2. Cantidad de Asientos
+        vehicles[i].seats = GetVehicleModelNumberOfSeats(modelHash)
+    end
+
+    -- Enviamos tus reservas activas al Javascript
     SendNUIMessage({
         action = 'loadMyReservations',
         myReservations = myReservations or {}
@@ -582,7 +595,7 @@ RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, catego
         categories = categories
     })
 
-    -- 1.5. Pasamos los coches reales al catálogo
+    -- 1.5. Pasamos los coches reales al catálogo (AHORA CON DATOS TÉCNICOS)
     SendNUIMessage({
         action = 'loadBossStock',
         vehicles = vehicles
@@ -609,7 +622,7 @@ end)
 -- ENTREGA DE VEHÍCULO FÍSICO (SACAR DEL CONCESIONARIO)
 -- =================================================================
 -- Añadido el parámetro 'extras' al final
-RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelName, plate, colorId, dealerId, extras)
+RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelName, plate, colorData, dealerId, extras)
     local dealerConfig = Config.Dealerships[dealerId]
     if not dealerConfig or not dealerConfig.ExitSpawnPoints then
         return
@@ -651,8 +664,16 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
     -- 4. PERSONALIZACIÓN BÁSICA (Matrícula y Color)
     SetEntityHeading(veh, spawnPoint.w)
     SetVehicleNumberPlateText(veh, plate)
-    SetVehicleColours(veh, colorId, colorId)
-    SetVehicleExtraColours(veh, colorId, colorId)
+
+    if type(colorData) == 'table' then
+        local r, g, b = tonumber(colorData.r), tonumber(colorData.g), tonumber(colorData.b)
+        SetVehicleCustomPrimaryColour(veh, r, g, b)
+        SetVehicleCustomSecondaryColour(veh, r, g, b)
+    else
+        local cId = tonumber(colorData) or 0
+        SetVehicleColours(veh, cId, cId)
+        SetVehicleExtraColours(veh, cId, cId)
+    end
 
     SetVehicleModKit(veh, 0)
     SetVehicleLivery(veh, -1)
@@ -721,12 +742,22 @@ RegisterNetEvent('DP-VehicleShop:client:openBossMenu', function(dealerId, dealer
     TriggerEvent('bcs-voice-ui:client:showVoice', false)
 end)
 
-RegisterNetEvent('DP-VehicleShop:client:updateBossData', function(balance, logs, sales)
+RegisterNetEvent('DP-VehicleShop:client:updateBossData', function(balance, transactions, sales, discounts)
     SendNUIMessage({
         action = 'updateBossData',
         balance = balance,
-        transactions = logs,
-        sales = sales
+        transactions = transactions,
+        sales = sales,
+        discounts = discounts -- <-- ESTO ES VITAL PARA QUE LLEGUE AL JS
+    })
+end)
+
+-- Actualiza únicamente la tabla de descuentos en la UI
+RegisterNetEvent('DP-VehicleShop:client:updateDiscounts')
+AddEventHandler('DP-VehicleShop:client:updateDiscounts', function(discountsData)
+    SendNUIMessage({
+        action = 'updateDiscounts',
+        discounts = discountsData
     })
 end)
 
@@ -934,9 +965,18 @@ RegisterNUICallback('previewVehicle', function(data, cb)
     previewVehicleEntity = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnCoords.w, false,
         false)
 
-    -- 1. Aplicamos el color seleccionado (o el negro por defecto)
-    SetVehicleColours(previewVehicleEntity, colorId, colorId)
-    SetVehicleExtraColours(previewVehicleEntity, colorId, colorId)
+    -- 1. Aplicamos el color seleccionado (Normal o RGB)
+    if type(data.color) == 'table' then
+        local r, g, b = tonumber(data.color.r), tonumber(data.color.g), tonumber(data.color.b)
+        SetVehicleCustomPrimaryColour(previewVehicleEntity, r, g, b)
+        SetVehicleCustomSecondaryColour(previewVehicleEntity, r, g, b)
+    else
+        local cId = tonumber(data.color) or 0
+        ClearVehicleCustomPrimaryColour(previewVehicleEntity)
+        ClearVehicleCustomSecondaryColour(previewVehicleEntity)
+        SetVehicleColours(previewVehicleEntity, cId, cId)
+        SetVehicleExtraColours(previewVehicleEntity, cId, cId)
+    end
 
     -- 2. Limpiamos cualquier librea (pegatinas/vinilos) aleatoria
     SetVehicleLivery(previewVehicleEntity, -1)
@@ -1051,15 +1091,21 @@ RegisterNUICallback('previewVehicle', function(data, cb)
 end)
 
 RegisterNUICallback('updateVehicleColor', function(data, cb)
-    local colorId = tonumber(data.color) or 0
-
     if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
-        -- Aplicamos el color primario y secundario
-        SetVehicleColours(previewVehicleEntity, colorId, colorId)
-        -- También el perlado para que el brillo sea coherente
-        SetVehicleExtraColours(previewVehicleEntity, colorId, colorId)
+        if type(data.color) == 'table' then
+            -- Es un color RGB Custom de iro.js
+            local r, g, b = tonumber(data.color.r), tonumber(data.color.g), tonumber(data.color.b)
+            SetVehicleCustomPrimaryColour(previewVehicleEntity, r, g, b)
+            SetVehicleCustomSecondaryColour(previewVehicleEntity, r, g, b)
+        else
+            -- Es un ID de color normal de la paleta de GTA
+            local colorId = tonumber(data.color) or 0
+            ClearVehicleCustomPrimaryColour(previewVehicleEntity)
+            ClearVehicleCustomSecondaryColour(previewVehicleEntity)
+            SetVehicleColours(previewVehicleEntity, colorId, colorId)
+            SetVehicleExtraColours(previewVehicleEntity, colorId, colorId)
+        end
     end
-
     cb('ok')
 end)
 
@@ -1575,6 +1621,45 @@ RegisterNUICallback('requestCompareStats', function(data, cb)
     cb('ok')
 end)
 
+-- Recibe los datos del modal y pide al servidor que cree el cupón
+RegisterNUICallback('createDiscountCode', function(data, cb)
+    if not currentBossDealerId then
+        cb('error')
+        return
+    end
+
+    TriggerServerEvent('DP-VehicleShop:server:createDiscount', currentBossDealerId, data)
+    cb('ok')
+end)
+
+-- Pide al servidor eliminar un cupón existente
+RegisterNUICallback('deleteDiscountCode', function(data, cb)
+    if not currentBossDealerId then
+        cb('error')
+        return
+    end
+
+    TriggerServerEvent('DP-VehicleShop:server:deleteDiscount', currentBossDealerId, data.id)
+    cb('ok')
+end)
+
+RegisterNUICallback('verifyDiscountCode', function(data, cb)
+    -- Si por algún motivo no sabemos en qué concesionario estamos, cortamos
+    if not currentShowroomDealerId then
+        cb({
+            valid = false,
+            message = "Error: No se ha detectado el concesionario."
+        })
+        return
+    end
+
+    -- Usamos un Callback de QBCore para preguntarle al Servidor y esperar su respuesta
+    Framework.Core.Functions.TriggerCallback('DP-VehicleShop:server:verifyDiscount', function(result)
+        -- result será un JSON que JS entiende: { valid = true, percentage = 15 } o { valid = false, message = "..." }
+        cb(result)
+    end, currentShowroomDealerId, data.code, data.model, data.category)
+end)
+
 -- =================================================================
 -- MÓDULO 14: HILOS DE EJECUCIÓN OPTIMIZADOS
 -- =================================================================
@@ -1915,10 +2000,17 @@ AddEventHandler('DP-VehicleShop:client:beginTestDrive', function(dealerId, vehic
     testDriveVehicle = CreateVehicle(modelHash, spawnPoint.x, spawnPoint.y, spawnPoint.z, spawnPoint.w, true, false)
 
     -- 5. Personalización (color, matrícula, extras)
-    local colorId = tonumber(vehicleData.color) or 0
     SetVehicleNumberPlateText(testDriveVehicle, vehicleData.plate or 'PRUEBA')
-    SetVehicleColours(testDriveVehicle, colorId, colorId)
-    SetVehicleExtraColours(testDriveVehicle, colorId, colorId)
+
+    if type(vehicleData.color) == 'table' then
+        local r, g, b = tonumber(vehicleData.color.r), tonumber(vehicleData.color.g), tonumber(vehicleData.color.b)
+        SetVehicleCustomPrimaryColour(testDriveVehicle, r, g, b)
+        SetVehicleCustomSecondaryColour(testDriveVehicle, r, g, b)
+    else
+        local cId = tonumber(vehicleData.color) or 0
+        SetVehicleColours(testDriveVehicle, cId, cId)
+        SetVehicleExtraColours(testDriveVehicle, cId, cId)
+    end
     SetVehicleModKit(testDriveVehicle, 0)
     SetVehicleLivery(testDriveVehicle, -1)
 
@@ -1944,6 +2036,20 @@ AddEventHandler('DP-VehicleShop:client:beginTestDrive', function(dealerId, vehic
     -- 7. Meter al jugador dentro como conductor
     TaskWarpPedIntoVehicle(ped, testDriveVehicle, -1)
 
+    -- [NUEVO] MODO DIOS, ANTI-CAÍDAS Y GASOLINA AL 100%
+    SetEntityInvincible(testDriveVehicle, true) -- Vehículo indestructible
+    SetVehicleCanBeVisiblyDamaged(testDriveVehicle, false) -- Sin rasguños
+    SetVehicleEngineOn(testDriveVehicle, true, true, false)
+    SetVehicleFuelLevel(testDriveVehicle, 100.0)
+
+    -- Si usas LegacyFuel o similar, forzamos el 100% también
+    if exports['LegacyFuel'] then
+        exports['LegacyFuel']:SetFuel(testDriveVehicle, 100.0)
+    end
+
+    SetPlayerInvincible(PlayerId(), true) -- Jugador no recibe daño
+    SetPedCanBeKnockedOffVehicle(ped, 1) -- 1 = KNOCKOFFVEHICLE_NEVER (No se cae de las motos)
+
     SetModelAsNoLongerNeeded(modelHash)
 
     -- 8. Arrancar el HUD con el timer y el hilo de vigilancia
@@ -1955,50 +2061,63 @@ AddEventHandler('DP-VehicleShop:client:beginTestDrive', function(dealerId, vehic
         duration = Config.TestDrive.Duration
     })
 
-    -- 9. Hilo de vigilancia: countdown + detección de bajada del coche
+    -- 9. Hilo de vigilancia optimizado: countdown al segundo + detección al milisegundo
     CreateThread(function()
+        local lastUpdate = GetGameTimer()
+
         while testDriveActive and testDriveTimer > 0 do
-            Wait(1000)
-            testDriveTimer = testDriveTimer - 1
+            Wait(0) -- Vigilancia al milisegundo para que sea instantáneo
 
-            -- Actualizar HUD cada segundo
-            SendNUIMessage({
-                action = 'updateTestDriveTimer',
-                timeLeft = testDriveTimer
-            })
-
-            -- Si se bajó del coche, terminamos antes
             local currentPed = PlayerPedId()
-            if not IsPedInVehicle(currentPed, testDriveVehicle, false) then
+
+            -- DETECCIÓN INSTANTÁNEA: ¿Está saliendo del coche (Task 2) o ya no está dentro?
+            if GetIsTaskActive(currentPed, 2) or GetVehiclePedIsIn(currentPed, false) == 0 then
+                -- Opcional: Avisar que se canceló
+                Framework.Core.Functions.Notify('Prueba de manejo finalizada.', 'primary')
                 break
+            end
+
+            -- ACTUALIZACIÓN DEL TIMER: Solo cada 1000ms (1 segundo)
+            if GetGameTimer() - lastUpdate >= 1000 then
+                testDriveTimer = testDriveTimer - 1
+
+                SendNUIMessage({
+                    action = 'updateTestDriveTimer',
+                    timeLeft = testDriveTimer
+                })
+
+                lastUpdate = GetGameTimer()
             end
         end
 
-        -- Tiempo agotado o se bajó: terminar prueba
+        -- Tiempo agotado o se bajó: terminar prueba de golpe
         if testDriveActive then
             EndTestDrive()
         end
     end)
 end)
 
--- Función interna para limpiar y volver al showroom
+-- Función para limpiar y volver al showroom
 function EndTestDrive()
     if not testDriveActive then
         return
     end
     testDriveActive = false
 
+    local ped = PlayerPedId()
+
+    -- Restaurar vulnerabilidad del jugador al estado normal
+    SetPlayerInvincible(PlayerId(), false)
+    SetPedCanBeKnockedOffVehicle(ped, 0) -- 0 = Default (Se puede caer)
+
     -- 1. Ocultar HUD
     SendNUIMessage({
         action = 'hideTestDriveHUD'
     })
 
-    -- 2. Borrar coche de prueba
+    -- 2. Borrar coche de prueba al instante (Sin delays)
     if testDriveVehicle and DoesEntityExist(testDriveVehicle) then
-        local ped = PlayerPedId()
-        -- Sacar al jugador del coche antes de borrarlo
-        TaskLeaveVehicle(ped, testDriveVehicle, 0)
-        Wait(500)
+        ClearPedTasksImmediately(ped) -- Cortamos en seco la animación de bajarse
         DeleteEntity(testDriveVehicle)
         testDriveVehicle = nil
     end
