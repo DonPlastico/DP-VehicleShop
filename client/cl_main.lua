@@ -29,6 +29,23 @@ local baseCamRot = nil
 local baseCamFOV = nil
 local prePlateHeading = nil
 local testDriveReturnCoords = nil -- Coordenadas del NPC para volver al terminar
+local testDriveVehicle = nil -- Entidad del coche de prueba
+local testDriveActive = false -- Flag para el hilo de vigilancia
+local testDriveTimer = 0 -- Segundos restantes
+local dealerBlips = {} -- Guardamos los blips en memoria para borrarlos al reiniciar
+local dealersFromDB = {} -- Concesionarios cargados desde la base de datos (para los blips)
+local dealerConfigsFromDB = {} -- Configuración completa de concesionarios desde la BD
+
+-- Posiciones relativas en el remolque tr2 (Capacidad 6 coches)
+local trailerOffsets = { -- PLANTA BAJA
+vector3(0.0, 4.2, 1.1), -- 1. Abajo Frontal
+vector3(0.0, 0.0, 1.35), -- 2. Abajo Medio
+vector3(0.0, -4.5, 1.1), -- 3. Abajo Trasero
+-- PLANTA ALTA
+vector3(0.0, 4.2, 3.0), -- 4. Arriba Frontal
+vector3(0.0, 0.0, 3.1), -- 5. Arriba Medio
+vector3(0.0, -4.5, 3.0) -- 6. Arriba Trasero
+}
 
 -- =================================================================
 -- MÓDULO 2: CARGA DINÁMICA DEL FRAMEWORK (SOLO QB-CORE)
@@ -186,28 +203,39 @@ end
 -- =================================================================
 
 local function SpawnDealershipNPCs()
-    for dealerKey, data in pairs(Config.Dealerships) do
-        -- 1. NPC Vendedor (Solo si no existe ya)
-        if not spawnedNPCs[dealerKey] then
-            local model = GetHashKey(data.npc_model)
-            RequestModel(model)
-            while not HasModelLoaded(model) do
-                Wait(10)
-            end
+    -- 1. Spawn dinámico desde la configuración de la BD para puntos de showroom
+    for dealerId, config in pairs(dealerConfigsFromDB) do
+        if config and type(config.showroomPoints) == 'table' and #config.showroomPoints > 0 then
+            for index, point in ipairs(config.showroomPoints) do
+                local key = dealerId .. '_showroom_' .. index
+                if not spawnedNPCs[key] and point.coords_npc and point.npc_model then
+                    local model = GetHashKey(point.npc_model)
+                    RequestModel(model)
+                    while not HasModelLoaded(model) do
+                        Wait(10)
+                    end
 
-            local ped = CreatePed(0, model, data.coords_npc.x, data.coords_npc.y, data.coords_npc.z - 1.0,
-                data.coords_npc.w, false, false)
-            FreezeEntityPosition(ped, true)
-            SetEntityInvincible(ped, true)
-            SetBlockingOfNonTemporaryEvents(ped, true)
-            if data.npc_scenario then
-                TaskStartScenarioInPlace(ped, data.npc_scenario, 0, true)
-            end
+                    local x = tonumber(point.coords_npc.x) or 0.0
+                    local y = tonumber(point.coords_npc.y) or 0.0
+                    local z = tonumber(point.coords_npc.z) or 0.0
+                    local h = tonumber(point.coords_npc.h) or 0.0
 
-            spawnedNPCs[dealerKey] = ped -- Guardamos con su clave (ej: 'cars')
+                    local ped = CreatePed(0, model, x, y, z - 1.0, h, false, false)
+                    SetEntityHeading(ped, h)
+                    FreezeEntityPosition(ped, true)
+                    SetEntityInvincible(ped, true)
+                    SetBlockingOfNonTemporaryEvents(ped, true)
+                    if point.npc_scenario then
+                        TaskStartScenarioInPlace(ped, point.npc_scenario, 0, true)
+                    end
+                    spawnedNPCs[key] = ped
+                end
+            end
         end
+    end
 
-        -- 2. NPC Agencia (Agente inmobiliario para COMPRAR la empresa. Solo si NO hay dueño)
+    -- 2. NPC Agencia (Agente inmobiliario para COMPRAR la empresa. Solo si NO hay dueño)
+    for dealerKey, data in pairs(Config.Dealerships) do
         if not DealerOwners[dealerKey] and data.npc_buy then
             if not spawnedAgencyNPCs[dealerKey] then
                 local model = GetHashKey(Config.RealEstateNPC or 'a_m_y_business_03')
@@ -216,7 +244,6 @@ local function SpawnDealershipNPCs()
                     Wait(10)
                 end
 
-                -- AHORA USA LAS COORDENADAS 'npc_buy' (Y su rotación 'w')
                 local ped = CreatePed(0, model, data.npc_buy.x, data.npc_buy.y, data.npc_buy.z - 1.0, data.npc_buy.w,
                     false, false)
 
@@ -250,42 +277,17 @@ local function DeleteDealershipNPCs()
 end
 
 -- =================================================================
--- MÓDULO 6.5: CREACIÓN DE BLIPS (ICONOS DEL MAPA)
+-- Función para cargar modelos de forma segura (usada para NPCs y vehículos de exposición)
 -- =================================================================
-local dealerBlips = {} -- Guardamos los blips en memoria para borrarlos al reiniciar
-
-CreateThread(function()
-    for dealerName, data in pairs(Config.Dealerships) do
-        if data.blip and data.blip.enabled then
-            local blip = AddBlipForCoord(data.blip.coords.x, data.blip.coords.y, data.blip.coords.z)
-
-            -- Forzamos a que lo lea como número para evitar errores de sintaxis
-            SetBlipSprite(blip, tonumber(data.blip.id))
-            SetBlipDisplay(blip, 4)
-            SetBlipScale(blip, tonumber(data.blip.scale) or 0.8)
-
-            -- FIX: El color 0 a veces rompe el icono. El 4 es el Blanco Puro oficial.
-            local blipColor = tonumber(data.blip.color)
-            if blipColor == 0 then
-                blipColor = 4
-            end
-            SetBlipColour(blip, blipColor)
-
-            SetBlipAsShortRange(blip, true)
-
-            BeginTextCommandSetBlipName("STRING")
-            AddTextComponentString(data.label)
-            EndTextCommandSetBlipName(blip)
-
-            -- Lo añadimos a la lista de "activos"
-            table.insert(dealerBlips, blip)
-        end
+local function LoadModel(modelName)
+    local hash = GetHashKey(modelName)
+    RequestModel(hash)
+    while not HasModelLoaded(hash) do
+        Wait(10)
     end
-end)
+    return hash
+end
 
--- =================================================================
--- SISTEMA DE LIMPIEZA: AL REINICIAR/APAGAR EL SCRIPT
--- =================================================================
 AddEventHandler('onResourceStop', function(resourceName)
     if GetCurrentResourceName() == resourceName then
 
@@ -304,18 +306,62 @@ AddEventHandler('onResourceStop', function(resourceName)
         -- 3. Liberar el ratón y el teclado del jugador por si estaba en un menú
         SetNuiFocus(false, false)
 
+        -- 4. Ocultar el TextUI activo si lo hay
+        if currentActiveZone then
+            exports['DP-TextUI']:OcultarUI(currentActiveZone)
+            currentActiveZone = nil
+            currentActiveText = nil
+        end
     end
 end)
+
+-- =================================================================
+-- PRUEBA DE MANEJO (TEST DRIVE)
+-- =================================================================
+
+-- Función para limpiar y volver al showroom
+local function EndTestDrive()
+    if not testDriveActive then
+        return
+    end
+    testDriveActive = false
+
+    local ped = PlayerPedId()
+
+    -- Restaurar vulnerabilidad del jugador al estado normal
+    SetPlayerInvincible(PlayerId(), false)
+    SetPedCanBeKnockedOffVehicle(ped, 0) -- 0 = Default (Se puede caer)
+
+    -- 1. Ocultar HUD
+    SendNUIMessage({
+        action = 'hideTestDriveHUD'
+    })
+
+    -- 2. Borrar coche de prueba al instante (Sin delays)
+    if testDriveVehicle and DoesEntityExist(testDriveVehicle) then
+        ClearPedTasksImmediately(ped) -- Cortamos en seco la animación de bajarse
+        DeleteEntity(testDriveVehicle)
+        testDriveVehicle = nil
+    end
+
+    -- 3. Avisar al servidor para que devuelva al jugador al bucket 0
+    TriggerServerEvent('DP-VehicleShop:server:endTestDrive')
+end
 
 -- =================================================================
 -- MÓDULO 7: INICIALIZACIÓN Y SISTEMA ANTI-BUGS
 -- =================================================================
 
 local function InitializeClientLoad()
-    UpdateLocalPlayerData() -- Cargamos tus datos en la caché al iniciar
+    -- Forzar reset del TextUI para que el loop lo redibuje desde cero
+    currentActiveZone = nil
+    currentActiveText = nil
+
+    UpdateLocalPlayerData()
     TriggerServerEvent('DP-VehicleShop:server:getVehicles')
     TriggerServerEvent('DP-VehicleShop:server:getSpawns')
     TriggerServerEvent('DP-VehicleShop:server:requestOwners')
+    TriggerServerEvent('DP-VehicleShop:server:requestBlips')
 end
 
 -- AÑADE ESTOS EVENTOS JUSTO AQUÍ (Para actualizar si cambias de trabajo en vivo)
@@ -448,10 +494,6 @@ RegisterNetEvent('DP-VehicleShop:client:deleteVehicleEntity', function(vehicleId
     DeleteSpecificShowroomVehicle(vehicleId)
 end)
 
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    InitializeClientLoad()
-end)
-
 -- =================================================================
 -- MÓDULO 9: EVENTOS DE RED - SHOWROOM (CATÁLOGO DE CLIENTES)
 -- =================================================================
@@ -571,9 +613,9 @@ RegisterNetEvent('DP-VehicleShop:client:openShowroom', function(dealerId, catego
     testDriveReturnCoords = vector4(pos.x, pos.y, pos.z, GetEntityHeading(p))
 
     -- Recorremos el stock y pedimos al motor del juego los datos de cada modelo
-    for i=1, #vehicles do
+    for i = 1, #vehicles do
         local modelHash = GetHashKey(vehicles[i].model)
-        
+
         -- 1. Velocidad Máxima (Convertimos de m/s a KM/H)
         -- Usamos la velocidad teórica del handling del modelo
         local maxSpeedMS = GetVehicleModelMaxSpeed(modelHash)
@@ -696,12 +738,17 @@ RegisterNetEvent('DP-VehicleShop:client:spawnPurchasedVehicle', function(modelNa
 
     SetVehicleOnGroundProperly(veh)
 
-    -- 5. ENTREGA AL JUGADOR
-    TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
+    -- 5. ENTREGA AL JUGADOR (MODIFICADO PARA NO ROMPER EL UI)
+    -- TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1) -- <-- BLOQUEAMOS EL TP
+
+    -- Hacemos que el vehículo sea persistente para que no desaparezca si miras a otro lado
+    SetEntityAsMissionEntity(veh, true, true)
 
     TriggerEvent("vehiclekeys:client:SetOwner", plate)
     TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
-    Framework.Core.Functions.Notify('¡Disfruta de tu nuevo vehículo!', 'success', 5000)
+
+    -- Notificación adaptada
+    Framework.Core.Functions.Notify('Vehículo entregado en la puerta con matrícula: ' .. plate, 'success', 7500)
 
     SetModelAsNoLongerNeeded(modelHash)
 end)
@@ -814,6 +861,478 @@ RegisterNetEvent('DP-VehicleShop:client:refreshJobGrades', function(grades)
     SendNUIMessage({
         action = 'closeGradeForm' -- Usaremos un truco sucio: si le pasamos una key falsa, el JS lo ignora pero igual le pasamos los rangos. JS ya tiene la función `closeGradeForm` vinculada al HTML.
     })
+end)
+
+-- Evento que recibe la orden del servidor para desplegar la interfaz (Con datos de la BD)
+RegisterNetEvent('DP-VehicleShop:client:openAdminMenu', function(dealers)
+    -- Activamos el foco del NUI (ratón y teclado) en el juego
+    SetNuiFocus(true, true)
+
+    -- Enviamos la acción al archivo de JavaScript (script.js) pasando la tabla de concesionarios
+    SendNUIMessage({
+        action = 'openAdminConfigMenu',
+        dealers = dealers
+    })
+end)
+
+-- Evento que inicia la ruta de entrega de vehículos por NPC (Logística)
+RegisterNetEvent('DP-VehicleShop:client:StartNPCDelivery', function(dealerId, vehiclesBatch)
+    print('=================================================================')
+    print('^2[DP-LOGISTICA]^7 INICIANDO RUTA COMPLETA DE ENTREGA.')
+    print('^2[DP-LOGISTICA]^7 Vehículos en cola: ' .. tostring(#vehiclesBatch))
+    print('=================================================================')
+
+    CreateThread(function()
+        local dealerConfig = Config.Dealerships[dealerId]
+        if not dealerConfig or not dealerConfig.Logistics then
+            return
+        end
+        local logis = dealerConfig.Logistics
+
+        local pedModel = LoadModel('mp_f_bennymech_01')
+        local truckModel = LoadModel('packer')
+        local trailerModel = LoadModel('tr2')
+
+        -- 1. SPAWN CAMIÓN Y REMOLQUE
+        local truck = CreateVehicle(truckModel, logis.truckSpawn.x, logis.truckSpawn.y, logis.truckSpawn.z,
+            logis.truckSpawn.w, true, false)
+        local trailer = CreateVehicle(trailerModel, logis.truckSpawn.x - 10.0, logis.truckSpawn.y, logis.truckSpawn.z,
+            logis.truckSpawn.w, true, false)
+
+        SetEntityAsMissionEntity(truck, true, true)
+        SetEntityAsMissionEntity(trailer, true, true)
+
+        -- Fijar el remolque al camión con físicas REALES de camión articulado
+        AttachVehicleToTrailer(truck, trailer, 10.0)
+
+        -- Bucle vigía: Si el remolque se suelta por un choque o bache, lo re-enganchamos al instante
+        local isRouteActive = true
+        CreateThread(function()
+            while isRouteActive and DoesEntityExist(trailer) and DoesEntityExist(truck) do
+                local hasTrailer, attachedTrailer = GetVehicleTrailerVehicle(truck)
+                if not hasTrailer or attachedTrailer ~= trailer then
+                    AttachVehicleToTrailer(truck, trailer, 10.0)
+                end
+                Wait(1000)
+            end
+        end)
+
+        -- 2. SPAWN CONDUCTOR
+        local driver = CreatePed(4, pedModel, logis.truckSpawn.x + 3.0, logis.truckSpawn.y + 3.0, logis.truckSpawn.z,
+            0.0, true, false)
+        SetEntityAsMissionEntity(driver, true, true)
+        SetBlockingOfNonTemporaryEvents(driver, true)
+        SetPedKeepTask(driver, true)
+        SetPedCanBeDraggedOut(driver, false)
+
+        SetModelAsNoLongerNeeded(pedModel)
+        SetModelAsNoLongerNeeded(truckModel)
+        SetModelAsNoLongerNeeded(trailerModel)
+
+        -- 3. CARGA DE VEHÍCULOS (CONCESIONARIO)
+        -- ★ FIX: Le damos 60 segundos de paciencia al NPC para caminar y subirse (60000ms)
+        TaskEnterVehicle(driver, truck, 60000, -1, 2.0, 1, 0)
+        local timeout = 0
+        while not IsPedInVehicle(driver, truck, false) and timeout < 60 do
+            Wait(1000)
+            timeout = timeout + 1
+        end
+        if not IsPedInVehicle(driver, truck, false) then
+            TaskWarpPedIntoVehicle(driver, truck, -1)
+        end
+
+        TaskVehicleDriveToCoordLongrange(driver, truck, logis.loadingZone.x, logis.loadingZone.y, logis.loadingZone.z,
+            15.0, 2883621, 5.0)
+        timeout = 0
+        while #(GetEntityCoords(truck) - vector3(logis.loadingZone.x, logis.loadingZone.y, logis.loadingZone.z)) > 15.0 and
+            timeout < 600 do
+            Wait(1000)
+            timeout = timeout + 1
+        end
+        TaskVehicleTempAction(driver, truck, 27, 3000)
+        Wait(3000)
+
+        local loadedCarsEntities = {}
+
+        for i, vData in ipairs(vehiclesBatch) do
+            if i > 6 then
+                break
+            end
+
+            local carHash = LoadModel(vData.model)
+            local car = CreateVehicle(carHash, logis.carSpawn.x, logis.carSpawn.y, logis.carSpawn.z, logis.carSpawn.w,
+                true, false)
+            SetEntityAsMissionEntity(car, true, true)
+            SetVehicleNumberPlateText(car, vData.plate)
+
+            if type(vData.color) == 'table' then
+                SetVehicleCustomPrimaryColour(car, tonumber(vData.color.r), tonumber(vData.color.g),
+                    tonumber(vData.color.b))
+                SetVehicleCustomSecondaryColour(car, tonumber(vData.color.r), tonumber(vData.color.g),
+                    tonumber(vData.color.b))
+            else
+                local cId = tonumber(vData.color) or 0
+                SetVehicleColours(car, cId, cId)
+                SetVehicleExtraColours(car, cId, cId)
+            end
+
+            SetVehicleModKit(car, 0)
+            for j = 1, 20 do
+                if DoesExtraExist(car, j) then
+                    SetVehicleExtra(car, j, 1)
+                end
+            end
+            if vData.extras then
+                for _, extraId in ipairs(vData.extras) do
+                    if DoesExtraExist(car, extraId) then
+                        SetVehicleExtra(car, extraId, 0)
+                    end
+                end
+            end
+            SetVehicleOnGroundProperly(car)
+
+            -- ★ FIX: Que se baje solo si está dentro de un vehículo (Para que no se buguee si ya está a pie)
+            local currentVeh = GetVehiclePedIsIn(driver, false)
+            if currentVeh ~= 0 then
+                TaskLeaveVehicle(driver, currentVeh, 0)
+                Wait(2000)
+            end
+
+            -- ★ FIX: 60 segundos de paciencia para caminar hacia el coche recién spawneado
+            TaskEnterVehicle(driver, car, 60000, -1, 2.0, 1, 0)
+
+            timeout = 0
+            while not IsPedInVehicle(driver, car, false) and timeout < 60 do
+                Wait(1000)
+                timeout = timeout + 1
+            end
+            if not IsPedInVehicle(driver, car, false) then
+                TaskWarpPedIntoVehicle(driver, car, -1)
+            end
+
+            local trailerRear = GetOffsetFromEntityInWorldCoords(trailer, 0.0, -15.0, 0.0)
+            TaskVehicleDriveToCoord(driver, car, trailerRear.x, trailerRear.y, trailerRear.z, 10.0, 0, carHash, 2883621,
+                5.0)
+
+            timeout = 0
+            while #(GetEntityCoords(car) - trailerRear) > 8.0 and timeout < 300 do
+                Wait(1000)
+                timeout = timeout + 1
+            end
+
+            local offset = trailerOffsets[i]
+            AttachEntityToEntity(car, trailer, 0, offset.x, offset.y, offset.z, 0.0, 0.0, 0.0, false, false, false,
+                false, 2, true)
+            table.insert(loadedCarsEntities, car)
+            SetModelAsNoLongerNeeded(carHash)
+
+            TaskLeaveVehicle(driver, car, 0)
+            Wait(2000)
+        end
+
+        -- 4. VIAJE HASTA EL GARAJE (PLAZA CUBOS / CENTRAL)
+        print('^3[DP-LOGISTICA]^7 Vehículos cargados. Iniciando ruta hasta el Garaje Central (Plaza Cubos)...')
+
+        -- ★ FIX: 60 segundos para volver al camión
+        TaskEnterVehicle(driver, truck, 60000, -1, 2.0, 1, 0)
+        timeout = 0
+        while not IsPedInVehicle(driver, truck, false) and timeout < 60 do
+            Wait(1000)
+            timeout = timeout + 1
+        end
+        if not IsPedInVehicle(driver, truck, false) then
+            TaskWarpPedIntoVehicle(driver, truck, -1)
+        end
+
+        -- Coordenadas de Plaza Cubos (Garaje Central) - ZONA AMPLIA BAJO EL PUENTE
+        local garageCoords = vector3(232.25, -856.53, 29.81)
+
+        -- Punto donde el NPC dejará el coche (unos metros por delante del camión)
+        local garageDropoff = vector3(225.00, -845.00, 29.81)
+
+        TaskVehicleDriveToCoordLongrange(driver, truck, garageCoords.x, garageCoords.y, garageCoords.z, 20.0, 2883621,
+            10.0)
+
+        timeout = 0
+        while #(GetEntityCoords(truck) - garageCoords) > 25.0 and timeout < 1800 do
+            Wait(1000)
+            timeout = timeout + 1
+        end
+        TaskVehicleTempAction(driver, truck, 27, 3000)
+        Wait(3000)
+
+        -- 5. DESCARGA EN EL GARAJE
+        print('^3[DP-LOGISTICA]^7 Destino alcanzado. Procediendo a descargar vehículos...')
+        for _, carEnt in ipairs(loadedCarsEntities) do
+            if DoesEntityExist(carEnt) then
+                local currentVeh = GetVehiclePedIsIn(driver, false)
+                if currentVeh ~= 0 then
+                    TaskLeaveVehicle(driver, currentVeh, 0)
+                    Wait(2500)
+                end
+
+                DetachEntity(carEnt, true, true)
+
+                local dropPos = GetOffsetFromEntityInWorldCoords(trailer, 0.0, -12.0, 0.0)
+                SetEntityCoords(carEnt, dropPos.x, dropPos.y, dropPos.z, false, false, false, true)
+                SetVehicleOnGroundProperly(carEnt)
+                Wait(1000)
+
+                -- ★ FIX: 60 segundos de paciencia en la descarga también
+                TaskEnterVehicle(driver, carEnt, 60000, -1, 2.0, 1, 0)
+                local t2 = 0
+                while not IsPedInVehicle(driver, carEnt, false) and t2 < 60 do
+                    Wait(1000)
+                    t2 = t2 + 1
+                end
+                if not IsPedInVehicle(driver, carEnt, false) then
+                    TaskWarpPedIntoVehicle(driver, carEnt, -1)
+                end
+
+                TaskVehicleDriveToCoord(driver, carEnt, garageDropoff.x, garageDropoff.y, garageDropoff.z, 7.0, 0,
+                    GetEntityModel(carEnt), 786603, 3.0)
+                local t3 = 0
+                while #(GetEntityCoords(carEnt) - garageDropoff) > 5.0 and t3 < 300 do
+                    Wait(1000)
+                    t3 = t3 + 1
+                end
+
+                TaskVehicleTempAction(driver, carEnt, 27, 2000)
+                Wait(2000)
+
+                TaskLeaveVehicle(driver, carEnt, 0)
+                Wait(2500)
+                DeleteEntity(carEnt)
+            end
+        end
+
+        -- 6. VIAJE DE VUELTA AL CONCESIONARIO
+        print('^3[DP-LOGISTICA]^7 Vehículos entregados. Regresando a la base...')
+        -- ★ FIX: Últimos 60 segundos para el viaje de vuelta
+        TaskEnterVehicle(driver, truck, 60000, -1, 2.0, 1, 0)
+        timeout = 0
+        while not IsPedInVehicle(driver, truck, false) and timeout < 60 do
+            Wait(1000)
+            timeout = timeout + 1
+        end
+        if not IsPedInVehicle(driver, truck, false) then
+            TaskWarpPedIntoVehicle(driver, truck, -1)
+        end
+
+        TaskVehicleDriveToCoordLongrange(driver, truck, logis.truckSpawn.x, logis.truckSpawn.y, logis.truckSpawn.z,
+            20.0, 2883621, 10.0)
+
+        timeout = 0
+        while #(GetEntityCoords(truck) - vector3(logis.truckSpawn.x, logis.truckSpawn.y, logis.truckSpawn.z)) > 30.0 and
+            timeout < 1800 do
+            Wait(1000)
+            timeout = timeout + 1
+        end
+
+        -- 7. AUTO-LIMPIEZA FINAL
+        print('^2[DP-LOGISTICA]^7 Jornada completada. Fichando salida y guardando camión.')
+        isRouteActive = false
+        Wait(3000)
+
+        if DoesEntityExist(trailer) then
+            DeleteEntity(trailer)
+        end
+        if DoesEntityExist(truck) then
+            DeleteEntity(truck)
+        end
+        if DoesEntityExist(driver) then
+            DeleteEntity(driver)
+        end
+    end)
+end)
+
+-- Evento recibido del servidor: spawnear coche y arrancar timer
+RegisterNetEvent('DP-VehicleShop:client:beginTestDrive')
+AddEventHandler('DP-VehicleShop:client:beginTestDrive', function(dealerId, vehicleData, bucket)
+    local dealerConfig = Config.Dealerships[dealerId]
+    if not dealerConfig or not dealerConfig.ExitSpawnPoints then
+        return
+    end
+
+    -- 1. Cerramos el NUI del showroom (sin avisar al servidor, ya lo gestionamos aquí)
+    isMenuOpen = false
+    SendNUIMessage({
+        action = 'setVisible',
+        status = false
+    })
+    SendNUIMessage({
+        action = 'hideTestDriveHUD'
+    })
+    SetNuiFocus(false, false)
+
+    -- MOSTRAR HUD Y VOZ PARA CONDUCIR LA PRUEBA
+    exports['DP-Hud']:ToggleVisibility(true)
+    TriggerEvent('bcs-voice-ui:client:showVoice', true)
+
+    -- 2. Destruir cámara y restaurar jugador (igual que exitShowroomMode)
+    local ped = PlayerPedId()
+
+    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
+        DeleteEntity(previewVehicleEntity)
+        previewVehicleEntity = nil
+    end
+
+    if showroomCam then
+        RenderScriptCams(false, false, 0, true, true)
+        DestroyCam(showroomCam, false)
+        showroomCam = nil
+    end
+
+    if previousCoords then
+        SetEntityCoords(ped, previousCoords.x, previousCoords.y, previousCoords.z, false, false, false, false)
+        SetEntityHeading(ped, previousCoords.w)
+        previousCoords = nil
+    end
+
+    FreezeEntityPosition(ped, false)
+    SetEntityVisible(ped, true, true)
+    SetEntityCollision(ped, true, true)
+    SetPedCanRagdoll(ped, true)
+    TriggerEvent('chat:client:showChat', true)
+    DisplayRadar(true)
+
+    -- 3. Buscar spawn libre
+    local spawnPoint = dealerConfig.ExitSpawnPoints[1]
+    for _, point in ipairs(dealerConfig.ExitSpawnPoints) do
+        if not IsAnyVehicleNearPoint(point.x, point.y, point.z, 3.0) then
+            spawnPoint = point
+            break
+        end
+    end
+
+    -- 4. Spawnear el vehículo de prueba
+    local modelHash = GetHashKey(vehicleData.model)
+    RequestModel(modelHash)
+    local timeout = 0
+    while not HasModelLoaded(modelHash) and timeout < 2000 do
+        Wait(10)
+        timeout = timeout + 10
+    end
+    if not HasModelLoaded(modelHash) then
+        return
+    end
+
+    testDriveVehicle = CreateVehicle(modelHash, spawnPoint.x, spawnPoint.y, spawnPoint.z, spawnPoint.w, true, false)
+
+    -- 5. Personalización (color, matrícula, extras)
+    SetVehicleNumberPlateText(testDriveVehicle, vehicleData.plate or 'PRUEBA')
+
+    if type(vehicleData.color) == 'table' then
+        local r, g, b = tonumber(vehicleData.color.r), tonumber(vehicleData.color.g), tonumber(vehicleData.color.b)
+        SetVehicleCustomPrimaryColour(testDriveVehicle, r, g, b)
+        SetVehicleCustomSecondaryColour(testDriveVehicle, r, g, b)
+    else
+        local cId = tonumber(vehicleData.color) or 0
+        SetVehicleColours(testDriveVehicle, cId, cId)
+        SetVehicleExtraColours(testDriveVehicle, cId, cId)
+    end
+    SetVehicleModKit(testDriveVehicle, 0)
+    SetVehicleLivery(testDriveVehicle, -1)
+
+    -- Extras
+    for i = 1, 20 do
+        if DoesExtraExist(testDriveVehicle, i) then
+            SetVehicleExtra(testDriveVehicle, i, 1) -- Apagar todos
+        end
+    end
+    if vehicleData.extras and type(vehicleData.extras) == 'table' then
+        for _, extraId in ipairs(vehicleData.extras) do
+            if DoesExtraExist(testDriveVehicle, extraId) then
+                SetVehicleExtra(testDriveVehicle, extraId, 0)
+            end
+        end
+    end
+
+    -- 6. Sin colisión con otros jugadores (solo con el mundo)
+    SetEntityNoCollisionEntity(testDriveVehicle, ped, false)
+
+    SetVehicleOnGroundProperly(testDriveVehicle)
+
+    -- 7. Meter al jugador dentro como conductor
+    TaskWarpPedIntoVehicle(ped, testDriveVehicle, -1)
+
+    -- [NUEVO] MODO DIOS, ANTI-CAÍDAS Y GASOLINA AL 100%
+    SetEntityInvincible(testDriveVehicle, true) -- Vehículo indestructible
+    SetVehicleCanBeVisiblyDamaged(testDriveVehicle, false) -- Sin rasguños
+    SetVehicleEngineOn(testDriveVehicle, true, true, false)
+    SetVehicleFuelLevel(testDriveVehicle, 100.0)
+
+    -- Si usas LegacyFuel o similar, forzamos el 100% también
+    if exports['LegacyFuel'] then
+        exports['LegacyFuel']:SetFuel(testDriveVehicle, 100.0)
+    end
+
+    SetPlayerInvincible(PlayerId(), true) -- Jugador no recibe daño
+    SetPedCanBeKnockedOffVehicle(ped, 1) -- 1 = KNOCKOFFVEHICLE_NEVER (No se cae de las motos)
+
+    SetModelAsNoLongerNeeded(modelHash)
+
+    -- 8. Arrancar el HUD con el timer y el hilo de vigilancia
+    testDriveActive = true
+    testDriveTimer = Config.TestDrive.Duration
+
+    SendNUIMessage({
+        action = 'showTestDriveHUD',
+        duration = Config.TestDrive.Duration
+    })
+
+    -- 9. Hilo de vigilancia optimizado: countdown al segundo + detección al milisegundo
+    CreateThread(function()
+        local lastUpdate = GetGameTimer()
+
+        while testDriveActive and testDriveTimer > 0 do
+            Wait(0) -- Vigilancia al milisegundo para que sea instantáneo
+
+            local currentPed = PlayerPedId()
+
+            -- DETECCIÓN INSTANTÁNEA: ¿Está saliendo del coche (Task 2) o ya no está dentro?
+            if GetIsTaskActive(currentPed, 2) or GetVehiclePedIsIn(currentPed, false) == 0 then
+                -- Opcional: Avisar que se canceló
+                Framework.Core.Functions.Notify('Prueba de manejo finalizada.', 'primary')
+                break
+            end
+
+            -- ACTUALIZACIÓN DEL TIMER: Solo cada 1000ms (1 segundo)
+            if GetGameTimer() - lastUpdate >= 1000 then
+                testDriveTimer = testDriveTimer - 1
+
+                SendNUIMessage({
+                    action = 'updateTestDriveTimer',
+                    timeLeft = testDriveTimer
+                })
+
+                lastUpdate = GetGameTimer()
+            end
+        end
+
+        -- Tiempo agotado o se bajó: terminar prueba de golpe
+        if testDriveActive then
+            EndTestDrive()
+        end
+    end)
+end)
+
+-- Evento del servidor confirmando que ya está en bucket 0: reabrir showroom
+RegisterNetEvent('DP-VehicleShop:client:finishTestDrive')
+AddEventHandler('DP-VehicleShop:client:finishTestDrive', function()
+    -- Teletransportar de vuelta a donde estaba frente al NPC
+    if testDriveReturnCoords then
+        local ped = PlayerPedId()
+        SetEntityCoords(ped, testDriveReturnCoords.x, testDriveReturnCoords.y, testDriveReturnCoords.z, false, false,
+            false, false)
+        SetEntityHeading(ped, testDriveReturnCoords.w)
+        testDriveReturnCoords = nil
+    end
+
+    -- Reabrimos el showroom desde cero (el servidor nos mandará los datos de nuevo)
+    if currentShowroomDealerId then
+        TriggerServerEvent('DP-VehicleShop:server:requestShowroom', currentShowroomDealerId)
+    end
 end)
 
 -- =================================================================
@@ -1357,9 +1876,7 @@ end)
 
 RegisterNUICallback('buyVehicle', function(data, cb)
     if currentShowroomDealerId then
-        -- =================================================================
         -- ESCANEO DE EXTRAS ANTES DE COMPRAR
-        -- =================================================================
         local appliedExtras = {}
         if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
             for i = 1, 20 do
@@ -1375,20 +1892,12 @@ RegisterNUICallback('buyVehicle', function(data, cb)
 
         -- Le inyectamos la lista de extras al paquete de datos que va al servidor
         data.extras = appliedExtras
-        -- =================================================================
 
-        -- 1. Enviamos la orden de compra al servidor (con el método de pago, plazos y ahora EXTRAS)
+        -- 1. Enviamos la orden de compra al servidor (con el método de pago, plazos y EXTRAS)
         TriggerServerEvent('DP-VehicleShop:server:buyShowroomVehicle', currentShowroomDealerId, data)
 
-        -- 2. Cerramos el modo Showroom (restaura la cámara, quita la invisibilidad, etc.)
-        TriggerEvent('DP-VehicleShop:client:exitShowroomMode')
-
-        -- 3. Forzamos el cierre de la interfaz NUI y quitamos el cursor
-        isMenuOpen = false
-        SendNUIMessage({
-            action = 'setVisible',
-            status = false
-        })
+        -- ¡ELIMINADOS LOS PASOS 2 Y 3 (CIERRE DE UI Y CÁMARA)! 
+        -- Ahora la cámara, el TP y el menú se quedan exactamente donde están para que sigas viendo coches.
     end
     cb('ok')
 end)
@@ -1660,6 +2169,103 @@ RegisterNUICallback('verifyDiscountCode', function(data, cb)
     end, currentShowroomDealerId, data.code, data.model, data.category)
 end)
 
+-- Callback NUI que se activa cuando el administrador pulsa el botón "Create New"
+RegisterNUICallback('adminCreateDealer', function(data, cb)
+    cb('ok')
+end)
+
+-- Callback NUI: Obtener Coordenadas actuales del Administrador para el formulario
+RegisterNUICallback('adminGetCoords', function(data, cb)
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+
+    -- Devolvemos la posición exacta en formato JSON al JavaScript
+    cb({
+        x = coords.x,
+        y = coords.y,
+        z = coords.z,
+        h = heading
+    })
+end)
+
+-- Callback NUI: Enviar el formulario de creación de concesionario hacia el servidor
+RegisterNUICallback('adminSaveNewDealer', function(data, cb)
+    if data and data.id then
+        -- Pasamos el objeto con toda la información al sv_main.lua de forma segura
+        TriggerServerEvent('DP-VehicleShop:server:adminSaveNewDealer', data)
+    end
+    cb('ok')
+end)
+
+-- Callback NUI: Actualizar datos de un concesionario existente
+RegisterNUICallback('adminUpdateDealer', function(data, cb)
+    if data and data.id then
+        TriggerServerEvent('DP-VehicleShop:server:adminUpdateDealer', data)
+    end
+    cb('ok')
+end)
+
+-- Callback NUI: Eliminar un concesionario desde la tabla principal
+RegisterNUICallback('deleteAdminDealer', function(data, cb)
+    if data and data.id then
+        TriggerServerEvent('DP-VehicleShop:server:deleteAdminDealer', data.id)
+    end
+    cb('ok')
+end)
+
+-- Callback NUI: Marcar GPS del Concesionario en el mapa de ESC
+RegisterNUICallback('adminMarkGPS', function(data, cb)
+    if data and data.id then
+        local dealerConfig = Config.Dealerships[data.id]
+        if dealerConfig then
+            local x, y
+            -- Buscamos la coordenada más lógica para mandar al jugador
+            if dealerConfig.bossMenu then
+                x, y = dealerConfig.bossMenu.x, dealerConfig.bossMenu.y
+            elseif dealerConfig.blip and dealerConfig.blip.coords then
+                x, y = dealerConfig.blip.coords.x, dealerConfig.blip.coords.y
+            elseif dealerConfig.coords_npc then
+                x, y = dealerConfig.coords_npc.x, dealerConfig.coords_npc.y
+            end
+
+            if x and y then
+                SetNewWaypoint(x, y)
+                Framework.Core.Functions.Notify("Ruta marcada en el GPS hacia el concesionario.", "success")
+            else
+                Framework.Core.Functions.Notify("Este concesionario no tiene coordenadas válidas.", "error")
+            end
+        else
+            Framework.Core.Functions
+                .Notify("Aún no está en memoria. Reinicia el script para trazar la ruta.", "error")
+        end
+    end
+    cb('ok')
+end)
+
+-- Callback NUI: Activar o Desactivar Concesionario temporalmente
+RegisterNUICallback('adminToggleDealer', function(data, cb)
+    if data and data.id then
+        -- Mandamos la orden al servidor para que actualice la base de datos
+        TriggerServerEvent('DP-VehicleShop:server:adminToggleDealer', data.id)
+    end
+    cb('ok')
+end)
+
+-- Callback NUI: Importar Concesionario desde JSON
+RegisterNUICallback('adminImportDealer', function(data, cb)
+    -- Verificación básica: Nos aseguramos de que el JSON pegado tenga la estructura mínima
+    if data and data.id and data.name then
+        -- Enviamos el paquete completo al servidor para que lo procese en la Base de Datos
+        TriggerServerEvent('DP-VehicleShop:server:adminImportDealer', data)
+    else
+        -- Si pegan un JSON válido pero que no es de un concesionario (ej: {"hola": "mundo"})
+        Framework.Core.Functions.Notify("Error: El código JSON no pertenece a un concesionario válido.", "error")
+    end
+
+    cb('ok')
+end)
+
 -- =================================================================
 -- MÓDULO 14: HILOS DE EJECUCIÓN OPTIMIZADOS
 -- =================================================================
@@ -1816,27 +2422,33 @@ CreateThread(function()
         local zoneId = nil
         local zoneText = ""
 
+        -- 0. Comprobar puntos SHOWROOM desde la configuración de la BD
+        for dealerId, config in pairs(dealerConfigsFromDB) do
+            if config and type(config.showroomPoints) == 'table' then
+                for index, point in ipairs(config.showroomPoints) do
+                    if point and point.coords_npc and point.coords_npc.x and point.coords_npc.y and point.coords_npc.z then
+                        local pointCoords = vector3(tonumber(point.coords_npc.x) or 0.0, tonumber(point.coords_npc.y) or 0.0, tonumber(point.coords_npc.z) or 0.0)
+                        local distPoint = #(pos - pointCoords)
+
+                        if distPoint < 2.5 then
+                            sleep = 0
+                            inZone = true
+                            zoneId = "showroom_" .. dealerId .. "_" .. index
+                            zoneText = "Hablar con el Vendedor"
+
+                            if IsControlJustReleased(0, 38) then
+                                TriggerServerEvent('DP-VehicleShop:server:requestShowroom', dealerId)
+                            end
+                            break
+                        end
+                    end
+                end
+                if inZone then break end
+            end
+        end
+
         -- Recorremos todos los concesionarios configurados
         for dealerName, data in pairs(Config.Dealerships) do
-
-            -- 1. Comprobar distancia al NPC (Para gestionar los coches)
-            if data.coords_npc then
-                -- Usamos .xyz directo para no crear vectores nuevos cada frame (0 lag)
-                local distNPC = #(pos - data.coords_npc.xyz)
-
-                if distNPC < 2.5 then
-                    sleep = 0
-                    inZone = true
-                    zoneId = "npc_" .. dealerName
-                    zoneText = "Hablar con el Vendedor"
-
-                    -- Si presiona la E
-                    if IsControlJustReleased(0, 38) then
-                        TriggerServerEvent('DP-VehicleShop:server:requestShowroom', dealerName)
-                    end
-                    break -- Salimos del bucle para no procesar más zonas si ya estamos en una
-                end
-            end
 
             -- 2. Comprobar Boss Menu (SE OCULTA TOTALMENTE SI NO ERES DUEÑO O JEFE)
             if data.bossMenu then
@@ -1919,227 +2531,68 @@ CreateThread(function()
 end)
 
 -- =================================================================
--- MÓDULO 16: PRUEBA DE MANEJO (TEST DRIVE)
+-- MÓDULO 16: CREACIÓN DE BLIPS (ICONOS DEL MAPA) — DESDE BD
 -- =================================================================
 
-local testDriveVehicle = nil -- Entidad del coche de prueba
-local testDriveActive = false -- Flag para el hilo de vigilancia
-local testDriveTimer = 0 -- Segundos restantes
-
--- Evento recibido del servidor: spawnear coche y arrancar timer
-RegisterNetEvent('DP-VehicleShop:client:beginTestDrive')
-AddEventHandler('DP-VehicleShop:client:beginTestDrive', function(dealerId, vehicleData, bucket)
-    local dealerConfig = Config.Dealerships[dealerId]
-    if not dealerConfig or not dealerConfig.ExitSpawnPoints then
-        return
-    end
-
-    -- 1. Cerramos el NUI del showroom (sin avisar al servidor, ya lo gestionamos aquí)
-    isMenuOpen = false
-    SendNUIMessage({
-        action = 'setVisible',
-        status = false
-    })
-    SendNUIMessage({
-        action = 'hideTestDriveHUD'
-    })
-    SetNuiFocus(false, false)
-
-    -- MOSTRAR HUD Y VOZ PARA CONDUCIR LA PRUEBA
-    exports['DP-Hud']:ToggleVisibility(true)
-    TriggerEvent('bcs-voice-ui:client:showVoice', true)
-
-    -- 2. Destruir cámara y restaurar jugador (igual que exitShowroomMode)
-    local ped = PlayerPedId()
-
-    if previewVehicleEntity and DoesEntityExist(previewVehicleEntity) then
-        DeleteEntity(previewVehicleEntity)
-        previewVehicleEntity = nil
-    end
-
-    if showroomCam then
-        RenderScriptCams(false, false, 0, true, true)
-        DestroyCam(showroomCam, false)
-        showroomCam = nil
-    end
-
-    if previousCoords then
-        SetEntityCoords(ped, previousCoords.x, previousCoords.y, previousCoords.z, false, false, false, false)
-        SetEntityHeading(ped, previousCoords.w)
-        previousCoords = nil
-    end
-
-    FreezeEntityPosition(ped, false)
-    SetEntityVisible(ped, true, true)
-    SetEntityCollision(ped, true, true)
-    SetPedCanRagdoll(ped, true)
-    TriggerEvent('chat:client:showChat', true)
-    DisplayRadar(true)
-
-    -- 3. Buscar spawn libre
-    local spawnPoint = dealerConfig.ExitSpawnPoints[1]
-    for _, point in ipairs(dealerConfig.ExitSpawnPoints) do
-        if not IsAnyVehicleNearPoint(point.x, point.y, point.z, 3.0) then
-            spawnPoint = point
-            break
+-- Función interna: borra los blips activos y los recrea con los datos de BD
+local function RefreshDealerBlips()
+    -- 1. Borramos todos los blips anteriores del mapa
+    for _, blip in ipairs(dealerBlips) do
+        if DoesBlipExist(blip) then
+            RemoveBlip(blip)
         end
     end
+    dealerBlips = {}
 
-    -- 4. Spawnear el vehículo de prueba
-    local modelHash = GetHashKey(vehicleData.model)
-    RequestModel(modelHash)
-    local timeout = 0
-    while not HasModelLoaded(modelHash) and timeout < 2000 do
-        Wait(10)
-        timeout = timeout + 10
-    end
-    if not HasModelLoaded(modelHash) then
-        return
-    end
+    -- 2. Recorremos los concesionarios que vinieron de la BD
+    for _, dealer in ipairs(dealersFromDB) do
+        -- Solo creamos el blip si NO está desactivado
+        if dealer.coords and dealer.coords.x and dealer.name and not dealer.disabled then
 
-    testDriveVehicle = CreateVehicle(modelHash, spawnPoint.x, spawnPoint.y, spawnPoint.z, spawnPoint.w, true, false)
+            local blip = AddBlipForCoord(tonumber(dealer.coords.x), tonumber(dealer.coords.y),
+                tonumber(dealer.coords.z) or 0.0)
 
-    -- 5. Personalización (color, matrícula, extras)
-    SetVehicleNumberPlateText(testDriveVehicle, vehicleData.plate or 'PRUEBA')
+            -- Sprite/Icono del blip (default: 225 = icono coche)
+            SetBlipSprite(blip, tonumber(dealer.blip) or 225)
+            SetBlipDisplay(blip, 10)
+            SetBlipScale(blip, tonumber(dealer.scale) or 0.8)
 
-    if type(vehicleData.color) == 'table' then
-        local r, g, b = tonumber(vehicleData.color.r), tonumber(vehicleData.color.g), tonumber(vehicleData.color.b)
-        SetVehicleCustomPrimaryColour(testDriveVehicle, r, g, b)
-        SetVehicleCustomSecondaryColour(testDriveVehicle, r, g, b)
-    else
-        local cId = tonumber(vehicleData.color) or 0
-        SetVehicleColours(testDriveVehicle, cId, cId)
-        SetVehicleExtraColours(testDriveVehicle, cId, cId)
-    end
-    SetVehicleModKit(testDriveVehicle, 0)
-    SetVehicleLivery(testDriveVehicle, -1)
-
-    -- Extras
-    for i = 1, 20 do
-        if DoesExtraExist(testDriveVehicle, i) then
-            SetVehicleExtra(testDriveVehicle, i, 1) -- Apagar todos
-        end
-    end
-    if vehicleData.extras and type(vehicleData.extras) == 'table' then
-        for _, extraId in ipairs(vehicleData.extras) do
-            if DoesExtraExist(testDriveVehicle, extraId) then
-                SetVehicleExtra(testDriveVehicle, extraId, 0)
+            -- FIX: El color 0 a veces rompe el icono. El 4 es Blanco Puro oficial.
+            local blipColor = tonumber(dealer.color) or 4
+            if blipColor == 0 then
+                blipColor = 4
             end
+            SetBlipColour(blip, blipColor)
+
+            SetBlipAsShortRange(blip, true)
+            SetBlipCategory(blip, 10) -- Categoría Negocios: evita que capture el waypoint del jugador
+
+            -- Nombre visible en el mapa
+            BeginTextCommandSetBlipName("STRING")
+            AddTextComponentString(dealer.name)
+            EndTextCommandSetBlipName(blip)
+
+            table.insert(dealerBlips, blip)
         end
     end
-
-    -- 6. Sin colisión con otros jugadores (solo con el mundo)
-    SetEntityNoCollisionEntity(testDriveVehicle, ped, false)
-
-    SetVehicleOnGroundProperly(testDriveVehicle)
-
-    -- 7. Meter al jugador dentro como conductor
-    TaskWarpPedIntoVehicle(ped, testDriveVehicle, -1)
-
-    -- [NUEVO] MODO DIOS, ANTI-CAÍDAS Y GASOLINA AL 100%
-    SetEntityInvincible(testDriveVehicle, true) -- Vehículo indestructible
-    SetVehicleCanBeVisiblyDamaged(testDriveVehicle, false) -- Sin rasguños
-    SetVehicleEngineOn(testDriveVehicle, true, true, false)
-    SetVehicleFuelLevel(testDriveVehicle, 100.0)
-
-    -- Si usas LegacyFuel o similar, forzamos el 100% también
-    if exports['LegacyFuel'] then
-        exports['LegacyFuel']:SetFuel(testDriveVehicle, 100.0)
-    end
-
-    SetPlayerInvincible(PlayerId(), true) -- Jugador no recibe daño
-    SetPedCanBeKnockedOffVehicle(ped, 1) -- 1 = KNOCKOFFVEHICLE_NEVER (No se cae de las motos)
-
-    SetModelAsNoLongerNeeded(modelHash)
-
-    -- 8. Arrancar el HUD con el timer y el hilo de vigilancia
-    testDriveActive = true
-    testDriveTimer = Config.TestDrive.Duration
-
-    SendNUIMessage({
-        action = 'showTestDriveHUD',
-        duration = Config.TestDrive.Duration
-    })
-
-    -- 9. Hilo de vigilancia optimizado: countdown al segundo + detección al milisegundo
-    CreateThread(function()
-        local lastUpdate = GetGameTimer()
-
-        while testDriveActive and testDriveTimer > 0 do
-            Wait(0) -- Vigilancia al milisegundo para que sea instantáneo
-
-            local currentPed = PlayerPedId()
-
-            -- DETECCIÓN INSTANTÁNEA: ¿Está saliendo del coche (Task 2) o ya no está dentro?
-            if GetIsTaskActive(currentPed, 2) or GetVehiclePedIsIn(currentPed, false) == 0 then
-                -- Opcional: Avisar que se canceló
-                Framework.Core.Functions.Notify('Prueba de manejo finalizada.', 'primary')
-                break
-            end
-
-            -- ACTUALIZACIÓN DEL TIMER: Solo cada 1000ms (1 segundo)
-            if GetGameTimer() - lastUpdate >= 1000 then
-                testDriveTimer = testDriveTimer - 1
-
-                SendNUIMessage({
-                    action = 'updateTestDriveTimer',
-                    timeLeft = testDriveTimer
-                })
-
-                lastUpdate = GetGameTimer()
-            end
-        end
-
-        -- Tiempo agotado o se bajó: terminar prueba de golpe
-        if testDriveActive then
-            EndTestDrive()
-        end
-    end)
-end)
-
--- Función para limpiar y volver al showroom
-function EndTestDrive()
-    if not testDriveActive then
-        return
-    end
-    testDriveActive = false
-
-    local ped = PlayerPedId()
-
-    -- Restaurar vulnerabilidad del jugador al estado normal
-    SetPlayerInvincible(PlayerId(), false)
-    SetPedCanBeKnockedOffVehicle(ped, 0) -- 0 = Default (Se puede caer)
-
-    -- 1. Ocultar HUD
-    SendNUIMessage({
-        action = 'hideTestDriveHUD'
-    })
-
-    -- 2. Borrar coche de prueba al instante (Sin delays)
-    if testDriveVehicle and DoesEntityExist(testDriveVehicle) then
-        ClearPedTasksImmediately(ped) -- Cortamos en seco la animación de bajarse
-        DeleteEntity(testDriveVehicle)
-        testDriveVehicle = nil
-    end
-
-    -- 3. Avisar al servidor para que devuelva al jugador al bucket 0
-    TriggerServerEvent('DP-VehicleShop:server:endTestDrive')
 end
 
--- Evento del servidor confirmando que ya está en bucket 0: reabrir showroom
-RegisterNetEvent('DP-VehicleShop:client:finishTestDrive')
-AddEventHandler('DP-VehicleShop:client:finishTestDrive', function()
-    -- Teletransportar de vuelta a donde estaba frente al NPC
-    if testDriveReturnCoords then
-        local ped = PlayerPedId()
-        SetEntityCoords(ped, testDriveReturnCoords.x, testDriveReturnCoords.y, testDriveReturnCoords.z, false, false,
-            false, false)
-        SetEntityHeading(ped, testDriveReturnCoords.w)
-        testDriveReturnCoords = nil
+-- Recibe la lista de concesionarios desde el servidor y refresca los blips.
+-- El servidor llama a este evento:
+--   · Al arrancar el script (para todos los jugadores)
+--   · Después de crear, editar o borrar un concesionario (broadcast a todos)
+RegisterNetEvent('DP-VehicleShop:client:loadDealerBlips', function(dealers)
+    if not dealers or type(dealers) ~= 'table' then
+        return
     end
-
-    -- Reabrimos el showroom desde cero (el servidor nos mandará los datos de nuevo)
-    if currentShowroomDealerId then
-        TriggerServerEvent('DP-VehicleShop:server:requestShowroom', currentShowroomDealerId)
+    dealersFromDB = dealers
+    dealerConfigsFromDB = {}
+    for _, dealer in ipairs(dealers) do
+        if dealer.id then
+            dealerConfigsFromDB[dealer.id] = dealer.config or {}
+        end
     end
+    RefreshDealerBlips()
+    DeleteDealershipNPCs()
+    SpawnDealershipNPCs()
 end)

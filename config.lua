@@ -13,6 +13,10 @@ Config.PDM = 'pdmescaparate'
 -- Nombre del comando para generar el archivo SQL del vehicle.lua del qbcore por primera vez.
 Config.VehicleList = 'generarprimerstock'
 
+-- Comando EXCLUSIVO para Administradores para abrir el Configurador de Concesionarios.
+-- (La validación de permisos reales la haremos en el server para mayor seguridad).
+Config.AdminCommand = 'configdealer'
+
 -- =================================================================
 -- SECCIÓN 1.5: PRUEBA DE MANEJO
 -- =================================================================
@@ -45,40 +49,36 @@ Config.Dealerships = {
     ['cars'] = {
         label = 'Premium Deluxe Motorsport',
         job = 'cardealer',
-        blip = {
-            enabled = true,
-            id = 225,
-            color = 0,
-            scale = 0.55,
-            coords = vector3(-42.98, -1100.89, 26.44)
-        },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1234.39, -3379.61, 13.94, 48.1), -- vector4(-40.56, -1093.43, 26.44, 155.02)
+        coords_npc = vector4(-40.56, -1093.43, 26.44, 155.02),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1236.0, -3382.66, 13.94), -- vector3(-52.45, -1100.43, 26.44)
-        npc_buy = vector4(-1236.99, -3384.55, 13.94, 60.77), -- vector4(-59.99, -1096.89, 26.44, 298.13)
+        bossMenu = vector3(-52.45, -1100.43, 26.44),
+        npc_buy = vector4(-59.99, -1096.89, 26.44, 298.13),
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1238.27, -3340.5, 13.46, 330.57)} -- vector4(-38.34, -1078.26, 26.2, 70.56), vector4(-15.71, -1101.64, 26.22, 159.81)
+        ExitSpawnPoints = {vector4(-38.34, -1078.26, 26.2, 70.56), vector4(-15.71, -1101.64, 26.22, 159.81)},
+        Logistics = {
+            truckSpawn = vector4(-158.02, -1162.13, 24.07, 359.34),
+            loadingZone = vector4(-59.33, -1058.45, 27.71, 344.87),
+            carSpawn = vector4(-8.33, -1081.7, 26.25, 126.79)
+        }
     },
 
     -- 2. BIKES (Motos y Bicicletas)
     ['bikes'] = {
         label = 'Sanders Motorcycles',
         job = 'motorcycledealer',
-        blip = {
-            enabled = true,
-            id = 226,
-            color = 0,
-            scale = 0.55,
-            coords = vector3(287.0, -1146.0, 29.0)
-        },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1239.1, -3377.4, 13.94, 62.31), -- vector4(-873.92, -198.17, 37.84, 296.61)
+        coords_npc = vector4(-873.92, -198.17, 37.84, 296.61),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1240.64, -3380.26, 13.94), -- vector3(-873.11, -181.49, 37.84)
-        npc_buy = vector4(-1241.79, -3382.31, 13.94, 60.04), -- vector4(-863.75, -194.73, 37.84, 89.28)
+        bossMenu = vector3(-873.11, -181.49, 37.84),
+        npc_buy = vector4(-863.75, -194.73, 37.84, 89.28),
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1238.27, -3340.5, 13.46, 330.57)} -- vector4(-859.23, -210.42, 37.6, 273.44), vector4(-885.9, -194.75, 37.56, 25.88)
+        ExitSpawnPoints = {vector4(-859.23, -210.42, 37.6, 273.44), vector4(-885.9, -194.75, 37.56, 25.88)},
+        Logistics = {
+            truckSpawn = vector4(-1220.0, -3340.0, 13.5, 90.0), -- 1. Dónde nace el camión + remolque + NPC
+            loadingZone = vector4(-1263.32, -3297.05, 13.94, 45.63), -- 2. Hacia dónde avanza para prepararse a cargar
+            carSpawn = vector4(-1242.18, -3321.02, 13.53, 327.18) -- 3. Dónde aparecen los coches mágicamente para subirlos
+        }
     },
 
     -- 3. AIRE (Aviones y Helicópteros)
@@ -87,20 +87,18 @@ Config.Dealerships = {
         job = 'airdealer',
         preview_cam = vector4(-1151.87, -3363.92, 15.0, 240.0), -- Donde aparece el avión para mirarlo
         preview_spawn = vector4(-1135.0, -3375.0, 13.0, 60.0), -- Dónde se coloca tu cámara para verlo
-        blip = {
-            enabled = true,
-            id = 307,
-            color = 0,
-            scale = 0.55,
-            coords = vector3(-1130.0, -2565.0, 14.0)
-        },
         npc_model = 'a_m_y_business_02',
         coords_npc = vector4(-1242.5, -3375.83, 13.94, 59.94),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-1243.84, -3378.42, 13.94),
         npc_buy = vector4(-1245.16, -3380.55, 13.94, 61.38),
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1250.0, -3360.0, 13.94, 0.0), vector4(-1255.0, -3360.0, 13.94, 0.0)}
+        ExitSpawnPoints = {vector4(-1250.0, -3360.0, 13.94, 0.0), vector4(-1255.0, -3360.0, 13.94, 0.0)},
+        Logistics = {
+            truckSpawn = vector4(-1220.0, -3340.0, 13.5, 90.0), -- 1. Dónde nace el camión + remolque + NPC
+            loadingZone = vector4(-1263.32, -3297.05, 13.94, 45.63), -- 2. Hacia dónde avanza para prepararse a cargar
+            carSpawn = vector4(-1242.18, -3321.02, 13.53, 327.18) -- 3. Dónde aparecen los coches mágicamente para subirlos
+        }
     },
 
     -- 4. MAR (Barcos, Lanchas, Motos de agua)
@@ -109,60 +107,54 @@ Config.Dealerships = {
         job = 'boatdealer',
         preview_cam = vector4(-756.81, -1376.45, 4.38, 287.51), -- En el agua
         preview_spawn = vector4(-741.88, -1370.38, 0.0, 138.21), -- En el muelle mirándolo
-        blip = {
-            enabled = true,
-            id = 427,
-            color = 0,
-            scale = 0.55,
-            coords = vector3(-803.89, -1355.11, 5.2)
-        },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1246.0, -3374.16, 13.94, 59.71), -- vector4(-805.75, -1368.5, 5.18, 347.36)
+        coords_npc = vector4(-805.75, -1368.5, 5.18, 347.36),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1247.42, -3376.86, 13.94), -- vector3(-788.78, -1346.52, 5.18)
-        npc_buy = vector4(-1248.63, -3378.81, 13.94, 56.83), -- vector4(-813.0, -1345.81, 5.18, 230.36)
+        bossMenu = vector3(-788.78, -1346.52, 5.18),
+        npc_buy = vector4(-813.0, -1345.81, 5.18, 230.36),
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1260.0, -3350.0, 1.5, 0.0), vector4(-1265.0, -3350.0, 1.5, 0.0)} -- vector4(-855.63, -1396.55, 0.18, 196.16), vector4(-891.61, -1444.27, 0.12, 285.04)
+        ExitSpawnPoints = {vector4(-855.63, -1396.55, 0.18, 196.16), vector4(-891.61, -1444.27, 0.12, 285.04)},
+        Logistics = {
+            truckSpawn = vector4(-1220.0, -3340.0, 13.5, 90.0), -- 1. Dónde nace el camión + remolque + NPC
+            loadingZone = vector4(-1263.32, -3297.05, 13.94, 45.63), -- 2. Hacia dónde avanza para prepararse a cargar
+            carSpawn = vector4(-1242.18, -3321.02, 13.53, 327.18) -- 3. Dónde aparecen los coches mágicamente para subirlos
+        }
     },
 
     -- 5. VIP (Vehículos Custom / Importación)
     ['vip'] = {
         label = 'Luxury Autos (VIP)',
         job = 'vipdealer',
-        blip = {
-            enabled = true,
-            id = 523,
-            color = 0,
-            scale = 0.55,
-            coords = vector3(-3375.47, -1270.96, 24.07)
-        },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1249.64, -3372.49, 13.94, 59.62), -- vector4(-3373.43, -1257.97, 24.24, 169.68)
+        coords_npc = vector4(-3373.43, -1257.97, 24.24, 169.68),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1250.93, -3374.75, 13.94), -- vector3(-3380.07, -1254.74, 24.24)
-        npc_buy = vector4(-1252.07, -3377.0, 13.94, 58.87), -- vector4(-3378.38, -1277.74, 24.07, 286.38)
+        bossMenu = vector3(-3380.07, -1254.74, 24.24),
+        npc_buy = vector4(-3378.38, -1277.74, 24.07, 286.38),
         isUsedMarket = false,
-        ExitSpawnPoints = {vector4(-1238.27, -3340.5, 13.46, 330.57)} -- vector4(-3355.38, -1264.22, 23.87, 172.18), vector4(-3374.11, -1251.5, 23.85, 82.55)
+        ExitSpawnPoints = {vector4(-3355.38, -1264.22, 23.87, 172.18), vector4(-3374.11, -1251.5, 23.85, 82.55)},
+        Logistics = {
+            truckSpawn = vector4(-1220.0, -3340.0, 13.5, 90.0), -- 1. Dónde nace el camión + remolque + NPC
+            loadingZone = vector4(-1263.32, -3297.05, 13.94, 45.63), -- 2. Hacia dónde avanza para prepararse a cargar
+            carSpawn = vector4(-1242.18, -3321.02, 13.53, 327.18) -- 3. Dónde aparecen los coches mágicamente para subirlos
+        }
     },
 
     -- 6. COMPRA/VENTA (Jugador a Jugador)
     ['used'] = {
         label = 'Compra/Venta Automotriz',
         job = 'useddealer',
-        blip = {
-            enabled = true,
-            id = 524,
-            color = 0,
-            scale = 0.55,
-            coords = vector3(200.0, -200.0, 30.0)
-        },
         npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1253.02, -3371.05, 13.94, 60.06),
+        coords_npc = vector3(1223.54, 2734.54, 38.01),
         npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
-        bossMenu = vector3(-1254.34, -3373.04, 13.94),
-        npc_buy = vector4(-1255.59, -3375.23, 13.94, 60.19),
+        bossMenu = vector3(1227.86, 2739.41, 38.01),
+        npc_buy = vector4(1226.83, 2729.45, 38.01, 60.66),
         isUsedMarket = true,
-        ExitSpawnPoints = {vector4(-1260.0, -3380.0, 13.94, 90.0), vector4(-1260.0, -3385.0, 13.94, 90.0)}
+        ExitSpawnPoints = {vector4(-1260.0, -3380.0, 13.94, 90.0), vector4(-1260.0, -3385.0, 13.94, 90.0)},
+        Logistics = {
+            truckSpawn = vector4(-1220.0, -3340.0, 13.5, 90.0), -- 1. Dónde nace el camión + remolque + NPC
+            loadingZone = vector4(-1263.32, -3297.05, 13.94, 45.63), -- 2. Hacia dónde avanza para prepararse a cargar
+            carSpawn = vector4(-1242.18, -3321.02, 13.53, 327.18) -- 3. Dónde aparecen los coches mágicamente para subirlos
+        }
     }
 }
 

@@ -36,7 +36,9 @@ files {
     'ui/index.html',
     'ui/style.css',
     'ui/script.js',
-    'ui/Matricula.png',
+    'ui/img/*.png',
+    'ui/img/*.jpg',
+    'ui/img/*.webp',
     -- Cargamos todas las imágenes de la carpeta custom de forma masiva
     'ui/veh_custom/*.png',
     'ui/veh_custom/*.jpg',

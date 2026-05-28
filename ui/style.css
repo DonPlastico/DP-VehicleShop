@@ -150,13 +150,12 @@ input[type=number]::-webkit-outer-spin-button {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
-    margin-bottom: 15px;
 }
 
 h2 {
     font-weight: 600;
     font-size: 1.5rem;
+    margin: 7.5px;
     color: var(--primary-color);
 }
 
@@ -216,6 +215,107 @@ h2 {
 
 .btn-primary:hover {
     background-color: var(--secondary-color);
+}
+
+.btn-icon-square {
+    width: 2.4vw;
+    min-width: 2.4vw;
+    height: 2.4vw;
+    padding: 0;
+    border-radius: 10px;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.05vw;
+    display: inline-flex;
+    line-height: 1;
+}
+
+.btn-icon-square:hover {
+    background-color: var(--secondary-color);
+}
+
+/* ── PUNTO SHOWROOM — nuevo diseño tipo vehicle-row ── */
+.showroom-point-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0.8vw 1vw;
+    display: flex;
+    text-align: left;
+    gap: 1vw;
+}
+
+.showroom-point-card-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2vw;
+}
+
+.showroom-point-card-title {
+    font-size: 0.85vw;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.showroom-point-card-subtitle {
+    font-size: 0.65vw;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.showroom-point-card-coords {
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+    margin-top: 0.2vw;
+}
+
+.showroom-point-type-badge {
+    font-size: 0.55vw;
+    font-weight: 800;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.55);
+    padding: 0.15vw 0.45vw;
+    border-radius: 3px;
+    letter-spacing: 0.04vw;
+}
+
+.showroom-point-card-coords-text {
+    font-size: 0.65vw;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.showroom-point-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+    flex-shrink: 0;
+}
+
+.showroom-point-card-actions .btn-icon {
+    width: 2.2vw;
+    height: 2.2vw;
+    font-size: 0.75vw;
+}
+
+.showroom-point-card-actions .btn-icon.btn-danger {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(90, 17, 17, 0.7);
+    color: #fff;
+}
+
+.showroom-point-card-actions .btn-icon.btn-danger:hover {
+    background: rgba(139, 26, 26, 0.9);
+}
+
+.showroom-point-hint {
+    font-size: 0.68vw;
+    color: rgba(255, 255, 255, 0.42);
+    text-align: center;
+    margin-top: 0.7vw;
+    width: 100%;
 }
 
 /* Botones Secundarios (Cancelar) */
@@ -389,6 +489,99 @@ thead th.active-sort .sort-icon i.fa-sort {
 /* Filas del cuerpo */
 tbody tr:hover {
     background-color: var(--hover-color);
+}
+
+/* =================================================================
+   TABLA DE CONCESIONARIOS (ADMIN CONFIG)
+   ================================================================= */
+
+/* Celda del blip: círculo coloreado */
+.dealer-blip-cell {
+    margin-right: 150px;
+}
+
+.dealer-blip-circle {
+    width: 2vw;
+    height: 2vw;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.dealer-blip-circle img {
+    width: 1.2vw;
+    height: 1.2vw;
+    object-fit: contain;
+    image-rendering: pixelated;
+    filter: brightness(0) invert(1);
+    /* blanco puro para destacar sobre el color */
+}
+
+/* Celda del nombre */
+.dealer-name-cell {
+    padding-left: 0.8vw !important;
+    vertical-align: middle;
+}
+
+.dealer-name-cell strong {
+    font-size: 0.75vw;
+    color: var(--primary-color);
+    letter-spacing: 0.04vw;
+}
+
+/* Celda del ID */
+.dealer-id-cell {
+    vertical-align: middle;
+}
+
+.dealer-id-badge {
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.6vw;
+    color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 0.15vw 0.4vw;
+    letter-spacing: 0.05vw;
+}
+
+/* Botones de acción en la tabla de dealers */
+.dealer-actions-cell {
+    vertical-align: middle;
+    padding: 0.3vw 0.5vw !important;
+    max-width: 39px;
+}
+
+.dealer-actions-cell .btn-icon {
+    width: 1.5vw;
+    height: 1.5vw;
+    padding: 0;
+    font-size: 0.8vw;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.45);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.dealer-actions-cell .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.25);
+    color: white;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+/* Botón eliminar: rojo al hover */
+.dealer-actions-cell .btn-icon.delete-vehicle:hover {
+    background: rgba(220, 53, 53, 0.2) !important;
+    border-color: rgba(220, 53, 53, 0.5);
+    color: #ff6b6b;
+    box-shadow: 0 0 8px rgba(220, 53, 53, 0.2);
 }
 
 .centro {
@@ -1406,7 +1599,7 @@ select option {
     /* Un poco más de brillo para resaltar */
     letter-spacing: 2px;
     text-transform: uppercase;
-    margin: 0 0 10px 0;
+    margin: 10px 0;
     font-weight: 700;
     text-align: center;
 }
@@ -1635,6 +1828,11 @@ select option {
     gap: 0.4vw;
 }
 
+/* botones cuando hay financiación */
+#payment-method-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
 .selection-btn {
     display: flex;
     flex-direction: column;
@@ -1676,45 +1874,154 @@ select option {
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
-/* --- INPUT DE PLAZOS --- */
-.installments-section {
+/* --- PANEL DE FINANCIACIÓN --- */
+.finance-config-section {
+    gap: 0.5vw;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 6px;
+    padding: 0.7vw;
+    margin-top: 7.5px;
+    background: rgba(255, 255, 255, 0.02);
+    animation: modalAppear 0.2s ease-out;
+}
+
+.finance-config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5vw;
+}
+
+.finance-field {
+    display: flex;
+    flex-direction: column;
     gap: 0.3vw;
 }
 
-.installments-input-box {
+.finance-field-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.52vw;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    gap: 0.3vw;
+}
+
+.finance-field-label i {
+    font-size: 0.52vw;
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.finance-field-input-wrap {
+    display: flex;
+    align-items: center;
+    height: 35px;
+    /* La altura fija que querías */
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     overflow: hidden;
     transition: border-color 0.2s ease;
 }
 
-.installments-input-box:focus-within {
-    border-color: rgba(255, 255, 255, 0.6);
+.finance-field-input-wrap:focus-within {
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
-.installments-input-box input {
+.finance-field-input-wrap input {
     flex: 1;
+    height: 100%;
+    /* Ocupa todo el alto disponible */
     background: transparent;
     border: none;
     color: #fff;
-    padding: 0.6vw;
+    padding: 0 0.6vw;
+    /* ¡CRÍTICO! Quitamos el padding vertical para que no se descentre */
     font-family: 'Orbitron', sans-serif;
     font-size: 0.75vw;
     outline: none;
     text-align: right;
-    /* Alinea los números cerca del DÍAS */
+    min-width: 0;
+}
+
+.finance-field-input-wrap input::placeholder {
+    color: rgba(255, 255, 255, 0.15);
+}
+
+.input-prefix,
+.input-suffix {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 0.6vw;
+    font-size: 0.65vw;
+    color: rgba(255, 255, 255, 0.4);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.02);
+    /* Toque premium: un fondo minúsculamente más claro */
+}
+
+.input-prefix {
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .input-suffix {
-    padding: 0 0.8vw;
-    font-size: 0.6vw;
-    color: rgba(255, 255, 255, 0.5);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Resumen financiación */
+.finance-summary-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    padding: 0.4vw 0.7vw;
+    margin-top: 0.2vw;
+}
+
+.finance-summary-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1vw;
+    flex: 1;
+}
+
+.fs-label {
     font-family: 'Orbitron', sans-serif;
+    font-size: 0.45vw;
     font-weight: 700;
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fs-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.85);
+    transition: all 0.2s ease;
+}
+
+.finance-summary-sep {
+    width: 1px;
+    height: 1.5vw;
+    background: rgba(255, 255, 255, 0.07);
+    flex-shrink: 0;
+}
+
+/* Botones deshabilitados cuando hay financiación activa */
+.selection-btn.disabled-by-finance {
+    opacity: 0.25;
+    pointer-events: none;
+    filter: grayscale(1);
 }
 
 .installments-hint {
@@ -1949,11 +2256,6 @@ select option {
     border-radius: 0 0 0 5px;
 }
 
-#boss-container .menu-header {
-    margin-bottom: -10px;
-    padding-bottom: 0;
-}
-
 /* Layout dividido: (Ya no hay sidebar aquí adentro) */
 .boss-layout {
     position: relative;
@@ -2080,7 +2382,7 @@ select option {
     gap: 7.5px;
     flex-grow: 1;
     min-height: 0;
-    /* Evita desbordamiento */
+    margin-top: 1vw;
 }
 
 .boss-widget {
@@ -4332,7 +4634,7 @@ input:checked+.slider:before {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 6px;
-    padding: 0.8vw;
+    padding: 10px;
     transition: border-color 0.2s ease;
 }
 
@@ -5065,6 +5367,493 @@ input:checked+.slider:before {
     padding-right: 0;
 }
 
+/* =================================================================
+   TRACKER DE ENTREGA (SISTEMA DE LOGÍSTICA)
+   ================================================================= */
+.delivery-tracker-container {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 10px;
+    gap: 10px;
+}
+
+.delivery-tracker-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2vw;
+    color: white;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.6vw;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.truck-icon-pulse {
+    animation: truckPulse 2s infinite;
+}
+
+.delivery-tracker-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.delivery-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65vw;
+    font-weight: 900;
+    color: #fff;
+    margin: 0 0 0.1vw 0;
+    letter-spacing: 0.5px;
+}
+
+.delivery-desc {
+    font-size: 0.55vw;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0 0 0.5vw 0;
+}
+
+.delivery-timer-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 0.3vw;
+}
+
+.timer-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.5vw;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.timer-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85vw;
+    font-weight: 900;
+    color: white;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+.delivery-progress-bg {
+    width: 100%;
+    height: 0.3vw;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.delivery-progress-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, grey, white);
+    border-radius: 99px;
+    transition: width 1s linear, background-color 0.3s ease;
+}
+
+/* =================================================================
+   24. MENU ADMIN: CONFIGURADOR DE CONCESIONARIOS
+   ================================================================= */
+
+/* Contenedor de la barra de herramientas (Buscador + Botones) */
+.admin-toolbar {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Buscador del Admin */
+.admin-search-box {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+    padding: 0.6vh 0.8vw;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    width: 22vw;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-search-box:focus-within {
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.admin-search-box i {
+    opacity: 0.4;
+    font-size: 0.8vw;
+    color: #fff;
+}
+
+.admin-search-box input {
+    background: transparent !important;
+    border: none !important;
+    color: white !important;
+    width: 100%;
+    padding-left: 0.6vw !important;
+    outline: none !important;
+    font-size: 0.75vw !important;
+    font-family: 'Orbitron', sans-serif !important;
+    margin-bottom: 0 !important;
+    /* Sobrescribe el margen de los inputs globales */
+}
+
+.admin-search-box input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Grupo de botones a la derecha */
+.admin-toolbar-btns {
+    display: flex;
+    gap: 0.6vw;
+}
+
+/* Botón de Importar (Secundario) */
+#admin-import-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+    padding: 0.6vw 1.2vw;
+    margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7vw;
+    font-weight: 700;
+}
+
+/* Botón de Crear Nuevo (Primario - Blanco) */
+#admin-create-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4vw;
+    background: #fff;
+    color: #000;
+    padding: 0.6vw 1.2vw;
+    margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7vw;
+    font-weight: 900;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#admin-create-btn:hover {
+    background: #ccc;
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+/* Contenedor donde irán las tarjetas de los concesionarios (preparado para Grid) */
+#admin-config-content {
+    height: 100%;
+    overflow-y: auto;
+    padding-right: 0.5vw;
+    grid-template-columns: repeat(auto-fill, minmax(18vw, 1fr));
+    gap: 1vw;
+    align-content: start;
+}
+
+/* Ocultamos la barra de scroll nativa para el grid pero permitimos el scroll */
+#admin-config-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+#admin-config-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+#admin-map-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* =================================================================
+   25. MODAL: CREAR CONCESIONARIO (BLIPS Y COLORES)
+   ================================================================= */
+
+/* --- Cuadrícula de Iconos de Blip --- */
+.blip-item {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    aspect-ratio: 1 / 1;
+    /* Hace que sean cuadrados perfectos */
+}
+
+.blip-item img {
+    width: 65%;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: 0.3vw;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    transition: transform 0.2s ease;
+}
+
+.blip-item span {
+    font-size: 0.55vw;
+    color: rgba(255, 255, 255, 0.4);
+    font-family: 'Orbitron', sans-serif;
+    text-align: center;
+}
+
+.blip-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.blip-item:hover img {
+    transform: scale(1.1);
+}
+
+/* Estado Activo (Seleccionado) del Blip */
+.blip-item.active {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.blip-item.active span {
+    color: #fff;
+    font-weight: bold;
+}
+
+
+/* --- Cuadrícula de Colores de Blip --- */
+.color-item {
+    height: 4.5vw !important;
+    width: 3.2vw !important;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+}
+
+/* El circulito/cuadradito que muestra el color real */
+.color-item-inner {
+    width: 1.5vw;
+    height: 1.5vw;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 0.3vw;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    transition: transform 0.2s ease;
+}
+
+.color-item span {
+    font-size: 0.55vw;
+    color: rgba(255, 255, 255, 0.4);
+    font-family: 'Orbitron', sans-serif;
+}
+
+.color-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.color-item:hover .color-item-inner {
+    transform: scale(1.1);
+}
+
+/* Estado Activo (Seleccionado) del Color */
+.color-item.active {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.color-item.active span {
+    color: #fff;
+    font-weight: bold;
+}
+
+.color-item.active .color-item-inner {
+    border: 2px solid #fff;
+}
+
+/* Ajuste sutil para el botón de obtener coordenadas */
+#btn-dealer-get-coords {
+    transition: all 0.2s ease;
+}
+
+#btn-dealer-get-coords:hover {
+    background: #fff;
+    color: #000;
+    transform: scale(1.05);
+}
+
+/* =================================================================
+   MAPA INTERACTIVO - MARCADORES (BLIPS)
+   ================================================================= */
+.admin-map-marker {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 2px solid #000;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    pointer-events: auto;
+    /* CRÍTICO: Permite hacer clic en el punto aunque el mapa tenga pointer-events: none */
+    transition: all 0.2s ease;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+    z-index: 10;
+}
+
+.admin-map-marker:hover {
+    background-color: #fff;
+    transform: translate(-50%, -50%) scale(1.4);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    z-index: 20;
+}
+
+/* El concesionario que tenemos seleccionado actualmente en la lista */
+.admin-map-marker.active {
+    background-color: #00FA9A;
+    border-color: #fff;
+    transform: translate(-50%, -50%) scale(1.5);
+    box-shadow: 0 0 15px rgba(0, 250, 154, 0.6);
+    z-index: 30;
+    animation: markerPulse 1.5s infinite;
+}
+
+.map-zoom-controls button {
+    transition: all 0.12s ease-in-out;
+}
+
+.map-zoom-controls button:hover {
+    background-color: #fff !important;
+    color: #000 !important;
+    border-color: #fff !important;
+    transform: scale(1.08);
+}
+
+.map-zoom-controls button:active {
+    transform: scale(0.92);
+}
+
+/* ================================================================= */
+/* MODAL IMPORTAR/EXPORTAR (TEXTAREA JSON Y ESTADOS)                 */
+/* ================================================================= */
+
+/* Efecto focus brillante para el área de código JSON */
+#ie-textarea:focus {
+    border-color: white !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* Estado: JSON Inválido (Fallo de sintaxis) */
+.ie-invalid-json {
+    border-color: rgba(255, 71, 71, 0.5) !important;
+    color: #ff4747 !important;
+    background: rgba(255, 71, 71, 0.05) !important;
+}
+
+.ie-animate-icon {
+    animation: pulse-icon 2s infinite ease-in-out;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5159,5 +5948,54 @@ input:checked+.slider:before {
     to {
         opacity: 1;
         transform: translateX(0);
+    }
+}
+
+@keyframes truckPulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
+}
+
+@keyframes markerPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 250, 154, 0.6);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 250, 154, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 250, 154, 0);
+    }
+}
+
+/* Animación sutil para el icono gigante de la izquierda */
+@keyframes pulse-icon {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
     }
 }

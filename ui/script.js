@@ -102,6 +102,71 @@ let isCompareModeActive = false;
 let currentCompareVehicle = null;
 let currentPreviewVehicleData = null;
 
+// Variables del Admin Menu - Configuración de Concesionarios
+let isAdminMenuOpen = false;
+let originalAdminDealersList = [];
+let adminDealersWorkingList = [];
+let adminDealersCurrentPage = 1;
+const adminDealersItemsPerPage = 12; // Cantidad de concesionarios por página
+let currentMapZoomPercent = 250; // Variable global para mantener el nivel de escala activo
+
+// Mapa global de blip ID → slug (para mostrar imagen del blip en la tabla)
+const BLIP_SLUG_MAP = {
+    1: 'level', 4: 'wanted_radius', 5: 'area_blip', 6: 'centre', 7: 'north', 8: 'waypoint', 9: 'radius_blip',
+    10: 'radius_outline_blip', 16: 'police_plane_move', 27: 'mp_crew', 28: 'mp_friendlies', 36: 'cable_car',
+    37: 'activities', 38: 'raceflag', 40: 'safehouse', 43: 'police_heli', 47: 'snitch', 50: 'crim_carsteal',
+    51: 'crim_drugs', 52: 'crim_holdups', 56: 'cop_patrol', 57: 'cop_player', 58: 'crim_wanted', 59: 'heist',
+    60: 'police_station', 61: 'hospital', 64: 'helicopter', 66: 'random_character', 67: 'security_van',
+    68: 'tow_truck', 71: 'barber', 72: 'car_mod_shop', 73: 'clothes_store', 75: 'tattoo', 76: 'armenian_family',
+    77: 'lester_family', 78: 'michael_family', 79: 'trevor_family', 80: 'jewelry_heist', 84: 'rampage',
+    85: 'vinewood_tours', 88: 'franklin_family', 89: 'chinese_strand', 90: 'flight_school', 93: 'bar',
+    94: 'base_jump', 100: 'car_wash', 102: 'comedy_club', 103: 'darts', 106: 'fbi_officers_strand',
+    108: 'financier_strand', 110: 'garage', 112: 'golf', 114: 'gun_shop', 115: 'gun_store_simeon',
+    116: 'marina', 118: 'movie_theater', 121: 'music_venue', 123: 'offramp', 126: 'pay_n_spray',
+    128: 'port', 130: 'property_for_sale', 131: 'quarry', 132: 'race_circ', 133: 'race_dirt',
+    134: 'race_open_wheel', 135: 'race_sea', 136: 'race_standard', 137: 'race_street',
+    138: 'restaurant', 139: 'rob_armored_truck', 141: 'shooting_range', 142: 'skydiving',
+    143: 'strip_club', 144: 'swimming', 145: 'tennis', 146: 'waypoint', 147: 'weapon_asset',
+    148: 'weapon_pistol', 149: 'weapon_smg', 150: 'weapon_shotgun', 151: 'weapon_assault_rifle',
+    152: 'weapon_sniper', 153: 'weapon_heavy', 154: 'weapon_thrown', 155: 'sport_car',
+    156: 'hair_salon', 157: 'clothes_store_simeon', 158: 'taxi', 161: 'simeon_family',
+    162: 'link', 163: 'mini_sub', 166: 'freight_train', 167: 'drug_cash', 168: 'package_collected',
+    170: 'yacht', 173: 'race_air', 175: 'construction_heist', 176: 'police_station2',
+    177: 'police_station3', 178: 'race_bike', 179: 'race_bicycle', 180: 'property_for_sale2',
+    181: 'property_for_sale3', 182: 'property_for_sale4', 183: 'property_for_sale5',
+    184: 'property_for_sale6', 185: 'property_for_sale7', 186: 'property_for_sale8',
+    187: 'property_for_sale9', 188: 'property_for_sale10', 189: 'property_for_sale11',
+    195: 'mp_property_for_sale', 197: 'mp_garage_for_sale', 198: 'mp_appartment_for_sale',
+    199: 'mp_gangattack', 200: 'base_jump_heli', 205: 'steal_vehicle', 206: 'steal_boat',
+    207: 'steal_heli', 208: 'steal_plane', 209: 'steal_bike', 210: 'steal_dirt_bike',
+    211: 'steal_bicycle', 212: 'steal_jetski', 213: 'steal_submarine', 225: 'crim_carsteal2',
+    226: 'race_standard2', 227: 'race_dirt2', 228: 'race_air2', 229: 'race_sea2',
+    230: 'race_bike2', 231: 'race_bicycle2', 232: 'race_open_wheel2', 233: 'adversary_mode',
+    237: 'adversary_mode2', 245: 'triathlon', 272: 'freemode_armour', 273: 'freemode_cash',
+    274: 'freemode_kill', 275: 'freemode_money', 276: 'freemode_robbery', 277: 'freemode_shoot',
+    280: 'bounty', 281: 'package', 282: 'package_collected2', 283: 'jewels', 285: 'car_export',
+    286: 'cop_car', 303: 'casino', 308: 'penthouse', 309: 'nightclub', 310: 'agency', 311: 'arcade',
+    312: 'submarine', 313: 'kosatka', 314: 'terrorbyte', 315: 'facility', 316: 'hangar',
+    317: 'office', 318: 'biker_clubhouse', 319: 'warehouse', 320: 'vehicle_warehouse',
+    321: 'yacht2', 322: 'bunker', 323: 'moc', 326: 'shooting_range2', 327: 'scuba',
+    328: 'snitch2', 329: 'detonator', 330: 'golf2', 331: 'tennis2', 332: 'cinema',
+    333: 'strip_club2', 334: 'fight_club', 335: 'darts2', 336: 'arm_wrestling',
+    337: 'base_jump2', 338: 'rally', 339: 'stunt_race', 340: 'open_wheel_race'
+};
+
+// Mapa global de color ID → hex (para mostrar el color del blip en la tabla)
+const BLIP_COLOR_MAP = {
+    0: '#FFFFFF', 1: '#E03232', 2: '#71CB71', 3: '#5DB6E5', 4: '#FFFFFF', 5: '#F0C850',
+    6: '#C25050', 7: '#9C669F', 8: '#F28A8A', 9: '#F5A66E', 10: '#B48B69', 11: '#8CBF8C',
+    12: '#6EA3C2', 13: '#B0B0DA', 14: '#775A96', 15: '#5ECCC9', 16: '#D4C98A', 17: '#EB8E2D',
+    19: '#CF618C', 20: '#B2A066', 21: '#C47A5A', 22: '#A6A6A6', 23: '#E09BA5', 24: '#B6D46A',
+    25: '#3F7547', 26: '#66A3D4', 27: '#A352CC', 29: '#3B4D87', 30: '#3E8282', 36: '#EBE0B0',
+    39: '#B5B5B5', 40: '#4D4D4D', 41: '#EB7A8A', 46: '#EBEB46', 48: '#F55A9C', 50: '#8A6EBA',
+    51: '#EBA896', 52: '#426E42', 53: '#A0C8DE', 54: '#375F7A', 55: '#A3A3A3', 56: '#6B4E38',
+    58: '#474D70', 60: '#EBA347', 61: '#BD527A', 62: '#A8A8A8', 63: '#2E668F', 65: '#8C7873',
+    76: '#8F1F1F', 83: '#8C24A3'
+};
+
 // Paleta de Colores de GTA V (Solo Metálicos) - Ordenada por flujo cromático
 const GTA_COLORS = [
     // 1. MONOCROMÁTICOS (De Negro a Blanco)
@@ -303,6 +368,21 @@ function updateCoordsDisplay(coords) {
         document.getElementById('coord_z').value = coords.z.toFixed(2);
         document.getElementById('coord_h').value = coords.h.toFixed(2);
     }
+}
+
+/**
+ * Cierra el menú de configuración de administradores.
+ */
+function closeAdminMenu() {
+    isAdminMenuOpen = false;
+    const adminContainer = document.getElementById('admin-config-container');
+    if (adminContainer) adminContainer.style.display = 'none';
+
+    fetch(`https://${GetParentResourceName()}/closeMenu`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+        body: JSON.stringify({ message: 'Admin menu cerrado' })
+    }).catch(err => console.error('Error callback closeAdminMenu:', err));
 }
 
 // =================================================================
@@ -1584,18 +1664,40 @@ const mainBuyBtn = document.getElementById('buy-vehicle');
 
 if (mainBuyBtn) {
     mainBuyBtn.addEventListener('click', function () {
+        console.log("[DP-JS] 🛒 Clic en botón 'Comprar'. Abriendo panel...");
         const action = this.dataset.action;
 
         if (action === 'none' || this.disabled) return;
 
-        // Tanto COMPRA como RESERVA abren el panel de pago primero.
-        // ¡Obligatorio para que puedan escribir el puñetero cupón!
         const paymentPanel = document.getElementById('payment-selection-panel');
         if (paymentPanel) {
             paymentPanel.style.display = 'flex';
 
+            // RESET FINANCIACIÓN AL ABRIR
             const installmentsInput = document.getElementById('payment-installments');
             if (installmentsInput) installmentsInput.value = '';
+            const downpayInput = document.getElementById('payment-downpayment');
+            if (downpayInput) downpayInput.value = '';
+
+            // Volver a poner "Efectivo" por defecto
+            document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
+            const cashBtn = document.querySelector('.payment-method-btn[data-method="cash"]');
+            if (cashBtn) cashBtn.classList.add('active');
+
+            // Volver a poner "Sacar del Concesionario" por defecto
+            document.querySelectorAll('.delivery-method-btn').forEach(b => b.classList.remove('active'));
+            const driveBtn = document.querySelector('.delivery-method-btn[data-delivery="drive"]');
+            if (driveBtn) {
+                driveBtn.classList.add('active');
+                console.log("[DP-JS] 🔄 Opción de entrega forzada a: DRIVE (Por defecto)");
+            }
+
+            const fPanel = document.getElementById('finance-config-panel');
+            if (fPanel) fPanel.style.display = 'none';
+
+            financeInstallments = 0;
+            financeDownpayment = 0;
+            updateFinanceSummary();
         }
     });
 }
@@ -1604,20 +1706,66 @@ if (mainBuyBtn) {
 // LÓGICA DEL NUEVO PANEL DE PAGO Y ENTREGA (REDISEÑADO)
 // =================================================================
 
-// 1. Botones de Efectivo / Banco
+// --- ESTADO DE FINANCIACIÓN ---
+let financeInstallments = 0;
+let financeDownpayment = 0;
+
+// 1. Botones de Método de Pago (Efectivo / Banco / Financiación)
 document.querySelectorAll('.payment-method-btn').forEach(btn => {
     btn.addEventListener('click', function () {
-        // Quitamos la clase 'active' a todos (el CSS se encarga del color)
         document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
-
-        // Se la ponemos solo al que hemos clickeado
         this.classList.add('active');
+
+        const financePanel = document.getElementById('finance-config-panel');
+        const isFinance = this.dataset.method === 'finance';
+
+        // Mostrar/ocultar el panel de configuración de cuotas
+        if (financePanel) financePanel.style.display = isFinance ? 'flex' : 'none';
+
+        // Si se cambia a efectivo/banco, reseteamos los valores de financiación
+        if (!isFinance) {
+            const inp = document.getElementById('payment-installments');
+            const dp = document.getElementById('payment-downpayment');
+            if (inp) inp.value = '';
+            if (dp) dp.value = '';
+            financeInstallments = 0;
+            financeDownpayment = 0;
+            updateFinanceSummary();
+        }
     });
 });
+
+// 1.5 Lógica de cálculo en tiempo real para Financiación
+function updateFinanceSummary() {
+    const buyBtn = document.getElementById('buy-vehicle');
+    // Usamos el precio base del botón (el JS ya lo tiene actualizado con extras en tu lógica)
+    const basePrice = parseInt(buyBtn?.dataset.price) || 0;
+
+    const days = parseInt(document.getElementById('payment-installments')?.value) || 0;
+    const downpay = parseInt(document.getElementById('payment-downpayment')?.value) || 0;
+
+    financeInstallments = days;
+    financeDownpayment = downpay;
+
+    // Calculamos el total que queda por financiar tras la entrada
+    const toFinance = Math.max(0, basePrice - downpay);
+    const daily = days > 0 ? Math.ceil(toFinance / days) : 0;
+
+    const fmt = v => '$' + new Intl.NumberFormat('es-ES').format(v);
+
+    if (document.getElementById('fs-daily')) document.getElementById('fs-daily').innerText = days > 0 ? fmt(daily) : '—';
+    if (document.getElementById('fs-total')) document.getElementById('fs-total').innerText = days > 0 ? fmt(toFinance) : '—';
+    if (document.getElementById('fs-days')) document.getElementById('fs-days').innerText = days > 0 ? days + ' días' : '— días';
+}
+
+document.getElementById('payment-installments')?.addEventListener('input', updateFinanceSummary);
+document.getElementById('payment-downpayment')?.addEventListener('input', updateFinanceSummary);
 
 // 2. Botones de Entrega (Concesionario / Garaje)
 document.querySelectorAll('.delivery-method-btn').forEach(btn => {
     btn.addEventListener('click', function () {
+        console.log("[DP-JS] 👆 Has clicado en Entrega. Valor seleccionado: " + this.dataset.delivery);
+
         // Quitamos la clase 'active' a todos
         document.querySelectorAll('.delivery-method-btn').forEach(b => b.classList.remove('active'));
 
@@ -1705,7 +1853,10 @@ if (confirmFinalBuyBtn) {
         window.calculateFinalCheckoutPrice(); // Forzamos el cálculo perfecto
 
         const activeMethodBtn = document.querySelector('.payment-method-btn.active');
-        document.getElementById('conf-method-selected').innerText = activeMethodBtn && activeMethodBtn.dataset.method === 'bank' ? 'BANCO' : 'EFECTIVO';
+        const methodMap = { cash: 'EFECTIVO', bank: 'BANCO', finance: 'FINANCIACIÓN' };
+        const methodKey = activeMethodBtn ? activeMethodBtn.dataset.method : 'cash';
+
+        document.getElementById('conf-method-selected').innerText = methodMap[methodKey] || 'EFECTIVO';
 
         const activeDeliveryBtn = document.querySelector('.delivery-method-btn.active');
         document.getElementById('conf-delivery-selected').innerText = activeDeliveryBtn && activeDeliveryBtn.dataset.delivery === 'garage' ? 'GARAJE' : 'CONCES.';
@@ -1826,10 +1977,15 @@ if (acceptFinalPurchaseBtn) {
 
         const activeMethodBtn = document.querySelector('.payment-method-btn.active');
         const paymentMethod = activeMethodBtn ? activeMethodBtn.dataset.method : 'cash';
-        const activeDeliveryBtn = document.querySelector('.delivery-method-btn.active');
-        const deliveryMethod = activeDeliveryBtn ? activeDeliveryBtn.dataset.delivery : 'drive';
-        const installmentsVal = document.getElementById('payment-installments');
-        const installments = installmentsVal ? (parseInt(installmentsVal.value) || 0) : 0;
+        const isFinanceMethod = (paymentMethod === 'finance');
+
+        // const activeDeliveryBtn = document.querySelector('.delivery-method-btn.active');
+        // const deliveryMethod = activeDeliveryBtn ? activeDeliveryBtn.dataset.delivery : 'drive';
+
+        // FORZAMOS LA ENTREGA A 'DRIVE' PARA SALTARNOS LOS BUGS DEL HTML DURANTE LA PRUEBA
+        const deliveryMethod = 'drive';
+
+        console.log("[DP-JS] 📦 Delivery capturado de la UI FORZADO A: " + deliveryMethod);
 
         // Empaquetamos todo
         const finalVehicleData = {
@@ -1839,59 +1995,119 @@ if (acceptFinalPurchaseBtn) {
             name: buyBtn.dataset.name,
             color: currentPreviewColor,
             paymentType: paymentMethod,
-            installments: installments,
+            installments: isFinanceMethod ? financeInstallments : 0,
+            downpayment: isFinanceMethod ? financeDownpayment : 0,
             deliveryType: deliveryMethod,
             extras: currentActiveExtras,
             plate: currentCustomPlate,
-            discountCode: appliedDiscountData ? appliedDiscountData.code : null // ENVIAMOS EL CÓDIGO A LUA
+            discountCode: appliedDiscountData ? appliedDiscountData.code : null
         };
 
-        // 1. Ocultamos SOLO el panel de confirmación del ticket (Común para ambos)
-        const confirmPanel = document.getElementById('purchase-confirmation-panel');
-        if (confirmPanel) confirmPanel.style.display = 'none';
-
+        // 1. ENVIAMOS LA COMPRA AL SERVIDOR INMEDIATAMENTE PARA QUE COBRE
         if (action === 'reserve') {
-            // ==========================================
-            // LÓGICA DE RESERVA
-            // ==========================================
-            // NO cerramos el showroom entero, devolvemos al jugador a la vista del coche
-
             fetch(`https://${GetParentResourceName()}/reserveVehicle`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(finalVehicleData)
             });
-
             myPendingReservations.push(buyBtn.dataset.model);
-
-            // ¡Aquí aplicamos tu animación verde directamente en la pantalla de info!
-            buyBtn.innerText = '¡RESERVA ENVIADA!';
-            buyBtn.style.background = 'rgba(255, 255, 255, 0.05)';
-            buyBtn.style.color = 'rgba(255, 255, 255, 0.3)';
-            buyBtn.disabled = true;
-
-            setTimeout(() => {
-                buyBtn.innerText = 'YA RESERVADO';
-                buyBtn.style.background = 'rgba(255, 255, 255, 0.05)';
-                buyBtn.style.color = 'rgba(255, 255, 255, 0.3)';
-                buyBtn.style.cursor = 'not-allowed';
-            }, 2500);
-
         } else {
-            // ==========================================
-            // LÓGICA DE COMPRA NORMAL
-            // ==========================================
-            // Aquí SÍ cerramos todo porque el Lua nos va a quitar el foco del ratón
-            hideVehicleInfo();
-            document.getElementById('showroom-container').style.display = 'none';
-            isShowroomOpen = false;
-
             fetch(`https://${GetParentResourceName()}/buyVehicle`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(finalVehicleData)
             });
         }
+
+        // ==========================================================
+        // 2. MAGIA DE SINCRONIZACIÓN: CÁLCULO DEL CAMIÓN (BATCHING)
+        // ==========================================================
+        // Calculamos los segundos restantes hasta el próximo minuto exacto.
+        let secondsLeft = 60 - new Date().getSeconds();
+        // Si quedan menos de 5s, le sumamos 1 minuto para asegurar que entra en el siguiente envío y no hay bugs.
+        if (secondsLeft < 5) secondsLeft += 60;
+        const totalSeconds = secondsLeft;
+
+        // 3. PREPARAMOS LA UI PARA EL TRACKER
+        document.getElementById('cancel-final-purchase').style.display = 'none';
+        acceptFinalPurchaseBtn.style.display = 'none';
+
+        const discSection = document.querySelector('.discount-code-section');
+        if (discSection) discSection.style.display = 'none';
+
+        document.getElementById('delivery-tracker-panel').style.display = 'flex';
+
+        const timeText = document.getElementById('delivery-countdown-time');
+        const progressBar = document.getElementById('delivery-progress-bar');
+        const titleText = document.querySelector('.delivery-desc');
+
+        // 4. BUCLE DEL TEMPORIZADOR INMERSIVO
+        const timerInterval = setInterval(() => {
+            secondsLeft--;
+
+            // Formato 00:XX
+            const mins = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
+            const secs = (secondsLeft % 60).toString().padStart(2, '0');
+            if (timeText) timeText.innerText = `${mins}:${secs}`;
+
+            // Progreso de la barra (de 0% a 100%)
+            const progressPerc = ((totalSeconds - secondsLeft) / totalSeconds) * 100;
+            if (progressBar) progressBar.style.width = `${progressPerc}%`;
+
+            if (secondsLeft <= 0) {
+                clearInterval(timerInterval);
+
+                // Efecto de completado
+                if (titleText) titleText.innerText = "¡El camión ha salido hacia su destino!";
+                if (progressBar) progressBar.style.background = "rgba(255, 255, 255, 0.05)";
+
+                // Esperamos 2 segunditos para que el jugador lea que ha salido, y cerramos solo el panel de compra.
+                setTimeout(() => {
+                    const confirmPanel = document.getElementById('purchase-confirmation-panel');
+                    if (confirmPanel) confirmPanel.style.display = 'none';
+
+                    if (action === 'reserve') {
+                        buyBtn.innerText = '¡RESERVA ENVIADA!';
+                        buyBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+                        buyBtn.style.color = 'rgba(255, 255, 255, 0.3)';
+                        buyBtn.disabled = true;
+                        setTimeout(() => {
+                            buyBtn.innerText = 'YA RESERVADO';
+                            buyBtn.style.cursor = 'not-allowed';
+                        }, 2500);
+                    } else {
+                        // COMPRA: Marcamos el botón en verde pero NO cerramos el showroom
+                        buyBtn.innerText = '¡COMPRA FINALIZADA!';
+                        buyBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+                        buyBtn.style.color = 'rgba(255, 255, 255, 0.3)';
+                        buyBtn.disabled = true;
+
+                        setTimeout(() => {
+                            buyBtn.innerText = 'VEHÍCULO ADQUIRIDO';
+                            buyBtn.style.cursor = 'not-allowed';
+                        }, 2500);
+                    }
+
+                    // Restaurar el panel de confirmación (oculto en background) para la próxima compra
+                    document.getElementById('cancel-final-purchase').style.display = 'block';
+                    acceptFinalPurchaseBtn.style.display = 'block';
+                    document.getElementById('delivery-tracker-panel').style.display = 'none';
+                    if (discSection) discSection.style.display = 'block';
+                    if (progressBar) {
+                        progressBar.style.width = '0%';
+                        progressBar.style.background = 'linear-gradient(90deg, #e3be46, #fff4cc)';
+                    }
+                    if (titleText) titleText.innerText = "Asignando transporte y cargando vehículos en cola...";
+
+                }, 2000);
+            }
+        }, 1000);
+
+        // Inicializamos los textos en el segundo 0 para que no haya parpadeos
+        const initMins = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
+        const initSecs = (secondsLeft % 60).toString().padStart(2, '0');
+        if (timeText) timeText.innerText = `${initMins}:${initSecs}`;
+        if (progressBar) progressBar.style.width = `0%`;
     });
 }
 
@@ -2616,13 +2832,16 @@ function renderTransactionsTable() {
     }
 
     itemsToShow.forEach(tx => {
+        // Detectamos si es ingreso o gasto. (Como 'SUELDO' no está aquí, será isDeposit = false)
         const isDeposit = tx.action === 'DEPOSITO' || tx.action === 'VENTA_VEHICULO';
         const actionClass = isDeposit ? 'text-deposit' : 'text-withdraw';
 
-        // Si es una venta, cambiamos el texto feo por el nombre del modelo
+        // Formateamos el texto de la acción para que sea legible en la tabla
         let displayText = tx.action;
         if (tx.action === 'VENTA_VEHICULO') {
             displayText = `VENTA: ${tx.model || 'Vehículo'}`;
+        } else if (tx.action === 'SUELDO') {
+            displayText = 'PAGO DE NÓMINA';
         }
 
         // Formateamos la cantidad para que se vea bonita con comas
@@ -2632,7 +2851,7 @@ function renderTransactionsTable() {
             <tr>
                 <td><strong>${tx.employee}</strong></td>
                 <td class="${actionClass}">${displayText}</td>
-                <td style="color:#aaa;">${tx.rank}</td>
+                <td style="color:#aaa;">${tx.rank || '--'}</td>
                 <td class="${actionClass}">$ ${formattedAmount}</td>
                 <td style="font-size:0.8vw;">${tx.date}</td>
             </tr>
@@ -2767,6 +2986,245 @@ if (salesSearchInput) {
         renderSalesTable();
     });
 }
+
+// =================================================================
+// MÓDULO: TABLA DE CONCESIONARIOS (ADMINISTRADOR) Y MAPA INTERACTIVO
+// =================================================================
+
+function renderAdminDealersTable() {
+    const tbody = document.getElementById('admin-dealers-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    // === RECOLECCIÓN DE ELEMENTOS DE LA INTERFAZ ===
+    const markersContainer = document.getElementById('admin-map-markers');
+    const tooltip = document.getElementById('admin-map-tooltip');
+    const mapScrollContent = document.getElementById('admin-map-scroll-content');
+    const mapContainer = document.getElementById('admin-map-container');
+
+    if (markersContainer) {
+        markersContainer.innerHTML = ''; // Limpieza total de puntos previos
+    }
+
+    // Paginación y estadísticas
+    const totalPages = Math.ceil(adminDealersWorkingList.length / adminDealersItemsPerPage) || 1;
+    if (adminDealersCurrentPage > totalPages) adminDealersCurrentPage = totalPages;
+    if (adminDealersCurrentPage < 1) adminDealersCurrentPage = 1;
+
+    document.getElementById('admin-dealers-page-info').innerText = `${adminDealersCurrentPage} / ${totalPages}`;
+    const statTotal = document.getElementById('admin-stat-total');
+    if (statTotal) statTotal.innerText = originalAdminDealersList.length;
+
+    const paginationControls = document.querySelector('#admin-config-content .sales-pagination');
+    if (paginationControls) {
+        paginationControls.style.display = totalPages <= 1 ? 'none' : 'flex';
+    }
+
+    const startIndex = (adminDealersCurrentPage - 1) * adminDealersItemsPerPage;
+    const endIndex = startIndex + adminDealersItemsPerPage;
+    const itemsToShow = adminDealersWorkingList.slice(startIndex, endIndex);
+
+    if (itemsToShow.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="border:none;"><div class="empty-state"><iconify-icon icon="solar:buildings-bold-duotone" class="empty-state-icon"></iconify-icon><span class="empty-state-text"> Aún no hay concesionarios registrados </span></div></td></tr>`;
+        return;
+    }
+
+    // APLICAR ESCALA ACTUAL AL CONTENEDOR CONJUNTO
+    if (mapScrollContent) {
+        mapScrollContent.style.width = `${currentMapZoomPercent}%`;
+    }
+
+    // Renderizado de filas y generación de blips en el mapa
+    itemsToShow.forEach(dealer => {
+        // Icono del blip, colores y estado
+        const cfg = dealer.config || {};
+        const blipId = cfg.blip ?? 225; // 225 = Coche por defecto
+
+        // ¡NUEVO!: Verificamos si está desactivado
+        const isDisabled = cfg.disabled === true;
+
+        // Empezamos asumiendo un icono base que sabemos que existe en FiveM Docs
+        let blipSlug = 'crim_carsteal2';
+
+        if (typeof commonGtaBlips !== 'undefined') {
+            const foundBlip = commonGtaBlips.find(b => String(b.id) === String(blipId));
+            if (foundBlip && foundBlip.slug) {
+                blipSlug = foundBlip.slug;
+            }
+        }
+
+        const blipImg = `https://docs.fivem.net/blips/radar_${blipSlug}.png`;
+
+        // Renderizado de la fila (Con estilos dinámicos si está desactivado)
+        tbody.innerHTML += `
+            <tr id="admin-row-${dealer.id}" style="${isDisabled ? 'opacity: 0.5; background: rgba(255, 0, 0, 0.05);' : ''}">
+                <td class="dealer-blip-cell">
+                    <div class="dealer-blip-circle" style="display:flex; justify-content:center; align-items:center; width: 1.5vw; height: 1.5vw; background: rgba(255,255,255,0.05); border-radius: 50%;">
+                        <img src="${blipImg}" style="width:1.25vw; height:1.25vw; object-fit:contain; image-rendering:pixelated; ${isDisabled ? 'filter: grayscale(1);' : ''}" onerror="this.outerHTML='<i class=\\'fa-solid fa-location-dot\\' style=\\'color:#aaa; font-size: 0.9vw;\\'></i>'">
+                    </div>
+                </td>
+                <td class="dealer-name-cell">
+                    <strong>${dealer.name}</strong> 
+                    ${isDisabled ? '<span style="color: #ff4747;font-size: 0.4vw;display: flex;align-items: center;font-weight: 900;">[DESACTIVADO]</span>' : ''}
+                </td>
+                <td class="dealer-id-cell"><span class="dealer-id-badge">${dealer.id}</span></td>
+                <td class="dealer-actions-cell">
+                    <div style="display:flex; gap:4px; align-items:center;">
+                        <button class="btn-icon" onclick="editAdminDealer('${dealer.id}')" title="Editar Nombre/Tipo">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="btn-icon btn-config-dealer" id="btn-cfg-${dealer.id}" onclick="configureAdminDealer('${dealer.id}')" title="Configurar Spawns/Zonas">
+                            <i class="fa-solid fa-gear"></i>
+                        </button>
+                        <button class="btn-icon" onclick="markGPSAdminDealer('${dealer.id}')" title="Marcar en el GPS">
+                            <i class="fa-solid fa-location-dot"></i>
+                        </button>
+                        <button class="btn-icon" onclick="toggleAdminDealer('${dealer.id}')" title="${isDisabled ? 'Activar Concesionario' : 'Desactivar Concesionario'}">
+                            <i class="fa-solid fa-power-off"};"></i>
+                        </button>
+                        <button class="btn-icon" onclick="exportAdminDealer('${dealer.id}')" title="Exportar JSON">
+                            <i class="fa-solid fa-file-export"></i>
+                        </button>
+                        <button class="btn-icon delete-vehicle" onclick="deleteAdminDealer('${dealer.id}')" title="Eliminar">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        // === CALIBRACIÓN ULTRA PRECISA DE LOS BLIPS EN EL MAPA ===
+        // ¡NUEVO! Solo pintamos el blip en el mapa interactivo si NO está desactivado
+        if (markersContainer && cfg.coords && !isDisabled) {
+
+            // 1. Bordes del mapa de GTA V
+            const MAP_LEFT_X = -4700.0;   // EMPUJA A LA IZQUIERDA EL ANCHO DEL MAPA
+            const MAP_RIGHT_X = 6000.0;   // EMPUJA A LA DERECHA EL ANCHO DEL MAPA
+            const MAP_TOP_Y = 8500.0;     // EMPUJA HACIA ARRIBA EL ALTO DEL MAPA
+            const MAP_BOTTOM_Y = -4800.0; // EMPUJA HACIA ABAJO EL ALTO DEL MAPA
+
+            // 2. Cálculo automático del tamaño total del mapa
+            const MAP_WIDTH = MAP_RIGHT_X - MAP_LEFT_X;
+            const MAP_HEIGHT = MAP_TOP_Y - MAP_BOTTOM_Y;
+
+            // 3. Conversión de Coordenadas (X, Y) a Porcentajes (%) para el HTML
+            let mapXPercent = ((cfg.coords.x - MAP_LEFT_X) / MAP_WIDTH) * 100;
+            let mapYPercent = ((MAP_TOP_Y - cfg.coords.y) / MAP_HEIGHT) * 100;
+
+            const marker = document.createElement('div');
+            marker.className = 'admin-map-marker';
+            marker.dataset.id = dealer.id;
+            marker.style.left = `${mapXPercent}%`;
+            marker.style.top = `${mapYPercent}%`;
+
+            marker.addEventListener('mousemove', (e) => {
+                if (tooltip) {
+                    tooltip.innerText = dealer.name;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${e.clientX}px`;
+                    tooltip.style.top = `${e.clientY - 15}px`;
+                }
+            });
+
+            marker.addEventListener('mouseleave', () => {
+                if (tooltip) tooltip.style.display = 'none';
+            });
+
+            marker.addEventListener('click', () => {
+                document.querySelectorAll('.admin-map-marker').forEach(m => m.classList.remove('active'));
+                marker.classList.add('active');
+
+                const row = document.getElementById(`admin-row-${dealer.id}`);
+                if (row) {
+                    row.style.backgroundColor = 'rgba(0, 250, 154, 0.2)';
+                    setTimeout(() => { row.style.backgroundColor = 'transparent'; }, 1000);
+                }
+
+                const configBtn = document.getElementById(`btn-cfg-${dealer.id}`);
+                if (configBtn) configBtn.click();
+            });
+
+            markersContainer.appendChild(marker);
+        }
+    });
+
+    // VISTA POR DEFECTO AUTOMÁTICA EN LOS SANTOS (ABAJO A LA IZQUIERDA)
+    setTimeout(() => {
+        if (mapContainer) {
+            mapContainer.scrollLeft = 150;
+            mapContainer.scrollTop = mapContainer.scrollHeight;
+        }
+    }, 60);
+}
+
+// =================================================================
+// FUNCIONES DE ACCIÓN DE LA TABLA DE ADMINISTRADOR
+// =================================================================
+
+window.editAdminDealer = function (id) {
+    const dealer = originalAdminDealersList.find(d => d.id === id);
+    if (!dealer) return;
+
+    // Rellenar campos básicos
+    document.getElementById('edit-dealer-id').value = id;
+    document.getElementById('edit-dealer-name').value = dealer.name || '';
+    document.getElementById('edit-dealer-subtitle').innerText = `Editando: ${dealer.name} (ID: ${id})`;
+
+    // Config data (blip, color, coords, scale)
+    const cfg = dealer.config || {
+        coords: dealer.coords,
+        blip: dealer.blip,
+        color: dealer.color,
+        scale: dealer.scale
+    };
+    selectedEditBlip = cfg.blip ?? 225;
+    selectedEditColor = cfg.color ?? 0;
+
+    document.getElementById('edit-dealer-x').value = cfg.coords?.x ?? '';
+    document.getElementById('edit-dealer-y').value = cfg.coords?.y ?? '';
+    document.getElementById('edit-dealer-z').value = cfg.coords?.z ?? '';
+    document.getElementById('edit-dealer-scale').value = cfg.scale ?? 0.55;
+
+    // Renderizar blips y colores con valores actuales
+    renderEditBlips(true);
+    renderEditColors();
+
+    // Mostrar modal
+    document.getElementById('edit-dealer-modal').style.display = 'flex';
+};
+
+window.markGPSAdminDealer = function (id) {
+    console.log("[ADMIN] Marcar GPS concesionario:", id);
+    // TODO: Mandar fetch al cliente (cl_main.lua) para que ponga el waypoint en el mapa
+    fetch(`https://${GetParentResourceName()}/adminMarkGPS`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+    });
+};
+
+window.toggleAdminDealer = function (id) {
+    // TODO: Enviar fetch al servidor para cambiar el estado de abierto/cerrado
+    fetch(`https://${GetParentResourceName()}/adminToggleDealer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+    });
+};
+
+window.deleteAdminDealer = function (id) {
+    // Mandamos el ID al cl_main.lua para que procese el borrado en la BD
+    fetch(`https://${GetParentResourceName()}/deleteAdminDealer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+    });
+
+    // UX Limpísima: Lo borramos de la interfaz al instante sin esperar a recargar
+    adminDealersWorkingList = adminDealersWorkingList.filter(d => d.id !== id);
+    originalAdminDealersList = originalAdminDealersList.filter(d => d.id !== id);
+    renderAdminDealersTable();
+};
 
 // =================================================================
 // MÓDULO: GRÁFICA DE RENDIMIENTO DE EMPRESA (CHART.JS)
@@ -4871,6 +5329,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 break;
+            // Abre el nuevo UI del Configurador de Administradores
+            case 'openAdminConfigMenu':
+                isAdminMenuOpen = true;
+
+                // Ocultamos otros menús por seguridad
+                document.getElementById('boss-container').style.display = 'none';
+                document.getElementById('showroom-container').style.display = 'none';
+
+                const adminMenu = document.getElementById('admin-config-container');
+                if (adminMenu) {
+                    adminMenu.style.display = 'flex';
+                }
+
+                // Cargamos los datos reales que vienen desde el sv_main.lua -> cl_main.lua
+                originalAdminDealersList = data.dealers || [];
+                adminDealersWorkingList = [...originalAdminDealersList];
+                adminDealersCurrentPage = 1;
+                renderAdminDealersTable();
+                break;
         }
     });
 
@@ -4896,30 +5373,47 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' || event.keyCode === 27) {
 
-            // PRIORIDAD 1: Si el Showroom está abierto, cerrarlo
+            // PRIORIDAD 0: Cerrar el modal escapable más alto abierto (último en el DOM / overlay más alto)
+            const escapableModals = Array.from(document.querySelectorAll('[data-escapable="true"]'));
+            let anyModalClosed = false;
+
+            for (const modal of escapableModals.reverse()) {
+                if (window.getComputedStyle(modal).display === 'flex') {
+                    modal.style.display = 'none';
+                    anyModalClosed = true;
+                    break; // Solo cerramos uno por pulsación
+                }
+            }
+
+            // Si hay un modal abierto, salimos aquí (no cerramos nada más)
+            if (anyModalClosed) return;
+
+            // PRIORIDAD 1: Si el Menú de Admin está abierto, cerrarlo
+            if (isAdminMenuOpen) {
+                closeAdminMenu();
+                return;
+            }
+
+            // PRIORIDAD 2: Si el Showroom está abierto, cerrarlo
             if (isShowroomOpen) {
                 closeShowroom(); // Usamos la función de limpieza total
                 return;
             }
 
-            // PRIORIDAD 2: Si el Boss Menu está abierto, cerrarlo
+            // PRIORIDAD 3: Si el Boss Menu está abierto, cerrarlo
             if (isBossMenuOpen) {
                 closeBossMenu();
                 return;
             }
 
-            // PRIORIDAD 3: Si el Menú de Compra (Dynasty 8) está abierto, cerrarlo
+            // PRIORIDAD 4: Si el Menú de Compra (Dynasty 8) está abierto, cerrarlo
             if (document.getElementById('buy-container').style.display === 'flex') {
                 closeBuyMenu();
                 return;
             }
 
-            // PRIORIDAD 4: Lógica normal del menú de gestión
-            const modals = ['set-spawn-modal', 'assign-vehicle-modal', 'delete-confirm-modal', 'edit-vehicle-modal', 'deposit-modal', 'withdraw-modal'];
-            const activeModal = modals.find(id => document.getElementById(id).style.display === 'flex');
-
-            if (activeModal) toggleModal(activeModal, false);
-            else closeMenu();
+            // PRIORIDAD 5: Cerrar el menú de gestión
+            closeMenu();
         }
     });
 
@@ -5278,4 +5772,1057 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
+
+    // =================================================================
+    // EVENTOS DEL MENÚ DE ADMINISTRADOR (CONFIGURADOR)
+    // =================================================================
+
+    // Botón de Importar
+    const btnAdminImport = document.getElementById('admin-import-btn');
+    if (btnAdminImport) {
+        btnAdminImport.addEventListener('click', () => {
+            // Aquí mandaremos la señal a Lua para abrir un modal o ejecutar el import
+            fetch(`https://${GetParentResourceName()}/adminImportDealer`, {
+                method: 'POST',
+                body: JSON.stringify({})
+            });
+        });
+    }
+
+    // Botón de Crear Nuevo
+    const btnAdminCreate = document.getElementById('admin-create-btn');
+    if (btnAdminCreate) {
+        btnAdminCreate.addEventListener('click', () => {
+            // Aquí mandaremos la señal a Lua o abriremos el modal de creación
+            fetch(`https://${GetParentResourceName()}/adminCreateDealer`, {
+                method: 'POST',
+                body: JSON.stringify({})
+            });
+        });
+    }
+
+    // =================================================================
+    // EVENTOS DEL MENÚ DE ADMINISTRADOR (TABLA Y BUSCADOR)
+    // =================================================================
+
+    // Paginación: Anterior
+    const btnAdminPrev = document.getElementById('admin-dealers-prev');
+    if (btnAdminPrev) {
+        btnAdminPrev.addEventListener('click', () => {
+            if (adminDealersCurrentPage > 1) {
+                adminDealersCurrentPage--;
+                renderAdminDealersTable();
+            }
+        });
+    }
+
+    // Paginación: Siguiente
+    const btnAdminNext = document.getElementById('admin-dealers-next');
+    if (btnAdminNext) {
+        btnAdminNext.addEventListener('click', () => {
+            const totalPages = Math.ceil(adminDealersWorkingList.length / adminDealersItemsPerPage);
+            if (adminDealersCurrentPage < totalPages) {
+                adminDealersCurrentPage++;
+                renderAdminDealersTable();
+            }
+        });
+    }
+
+    // Buscador en vivo de concesionarios
+    const searchAdminDealersInput = document.getElementById('admin-dealers-search');
+    if (searchAdminDealersInput) {
+        searchAdminDealersInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+
+            adminDealersWorkingList = originalAdminDealersList.filter(d =>
+                (d.name && d.name.toLowerCase().includes(term)) ||
+                (d.id && d.id.toLowerCase().includes(term)) ||
+                (d.type && d.type.toLowerCase().includes(term))
+            );
+
+            adminDealersCurrentPage = 1; // Resetea a la página 1 al buscar
+            renderAdminDealersTable();
+        });
+    }
+
+    // =================================================================
+    // MODAL: CREAR NUEVO CONCESIONARIO (LÓGICA Y DATOS)
+    // =================================================================
+
+    let selectedAdminBlip = 225; // Default Coche
+    let selectedAdminColor = 0;  // Default Blanco
+    let selectedEditBlip = 225;
+    let selectedEditColor = 0;
+    let editBlipRenderOffset = 0;
+
+    // Lista de los iconos de blips (Ahora con FontAwesome para carga instantánea y estética premium)
+    const commonGtaBlips = [
+        { id: 1, slug: "level" },
+        { id: 4, slug: "wanted_radius" }, { id: 5, slug: "area_blip" }, { id: 6, slug: "centre" }, { id: 7, slug: "north" },
+        { id: 8, slug: "waypoint" }, { id: 9, slug: "radius_blip" }, { id: 10, slug: "radius_outline_blip" },
+        { id: 16, slug: "police_plane_move" }, { id: 27, slug: "mp_crew" }, { id: 28, slug: "mp_friendlies" }, { id: 36, slug: "cable_car" },
+        { id: 37, slug: "activities" }, { id: 38, slug: "raceflag" }, { id: 40, slug: "safehouse" },
+        { id: 43, slug: "police_heli" }, { id: 47, slug: "snitch" },
+        { id: 50, slug: "crim_carsteal" }, { id: 51, slug: "crim_drugs" }, { id: 52, slug: "crim_holdups" }, { id: 56, slug: "cop_patrol" },
+        { id: 57, slug: "cop_player" }, { id: 58, slug: "crim_wanted" }, { id: 59, slug: "heist" }, { id: 60, slug: "police_station" },
+        { id: 61, slug: "hospital" }, { id: 64, slug: "helicopter" },
+        { id: 66, slug: "random_character" }, { id: 67, slug: "security_van" }, { id: 68, slug: "tow_truck" },
+        { id: 71, slug: "barber" }, { id: 72, slug: "car_mod_shop" }, { id: 73, slug: "clothes_store" }, { id: 75, slug: "tattoo" },
+        { id: 76, slug: "armenian_family" }, { id: 77, slug: "lester_family" }, { id: 78, slug: "michael_family" },
+        { id: 79, slug: "trevor_family" }, { id: 80, slug: "jewelry_heist" }, { id: 84, slug: "rampage" },
+        { id: 85, slug: "vinewood_tours" }, { id: 88, slug: "franklin_family" },
+        { id: 89, slug: "chinese_strand" }, { id: 90, slug: "flight_school" },
+        { id: 93, slug: "bar" }, { id: 94, slug: "base_jump" }, { id: 100, slug: "car_wash" },
+        { id: 102, slug: "comedy_club" }, { id: 103, slug: "darts" },
+        { id: 106, slug: "fbi_officers_strand" }, { id: 108, slug: "financier_strand" },
+        { id: 109, slug: "golf" }, { id: 110, slug: "gun_shop" }, { id: 112, slug: "michael_family_exile" },
+        { id: 119, slug: "shooting_range" },
+        { id: 120, slug: "solomon_strand" }, { id: 121, slug: "strip_club" }, { id: 122, slug: "tennis" },
+        { id: 123, slug: "trevor_family_exile" }, { id: 124, slug: "michael_trevor_family" }, { id: 126, slug: "triathlon" },
+        { id: 127, slug: "off_road_racing" }, { id: 134, slug: "crim_cuff_keys" },
+        { id: 135, slug: "cinema" }, { id: 136, slug: "music_venue" }, { id: 137, slug: "police_station_blue" },
+        { id: 140, slug: "weed_stash" }, { id: 141, slug: "hunting" },
+        { id: 147, slug: "arms_dealing" }, { id: 148, slug: "mp_friend" }, { id: 149, slug: "celebrity_theft" },
+        { id: 150, slug: "weapon_assault_rifle" }, { id: 151, slug: "weapon_bat" }, { id: 152, slug: "weapon_grenade" },
+        { id: 153, slug: "weapon_health" }, { id: 154, slug: "weapon_knife" }, { id: 155, slug: "weapon_molotov" },
+        { id: 156, slug: "weapon_pistol" }, { id: 157, slug: "weapon_rocket" }, { id: 158, slug: "weapon_shotgun" },
+        { id: 159, slug: "weapon_smg" }, { id: 160, slug: "weapon_sniper" }, { id: 162, slug: "poi" }, { id: 163, slug: "passive" },
+        { id: 164, slug: "usingmenu" }, { id: 171, slug: "gang_cops_partner" }, { id: 173, slug: "weapon_minigun" },
+        { id: 175, slug: "weapon_armour" }, { id: 176, slug: "property_takeover" }, { id: 184, slug: "camera" },
+        { id: 185, slug: "centre_red" }, { id: 186, slug: "handcuff_keys_bikers" }, { id: 187, slug: "handcuff_keys_vagos" },
+        { id: 188, slug: "handcuffs_closed_bikers" }, { id: 189, slug: "handcuffs_closed_vagos" }, { id: 197, slug: "yoga" },
+        { id: 198, slug: "taxi" }, { id: 205, slug: "shrink" }, { id: 206, slug: "epsilon" }, { id: 207, slug: "financier_strand_grey" },
+        { id: 208, slug: "trevor_family_grey" }, { id: 225, slug: "gang_vehicle" }, { id: 226, slug: "gang_vehicle_bikers" },
+        { id: 229, slug: "guncar" }, { id: 237, slug: "custody_bikers" }, { id: 251, slug: "arms_dealing_air" },
+        { id: 252, slug: "playerstate_arrested" }, { id: 255, slug: "playerstate_keyholder" }, { id: 256, slug: "playerstate_partner" },
+        { id: 266, slug: "fairground" },
+        { id: 267, slug: "property" }, { id: 268, slug: "gang_highlight" }, { id: 269, slug: "altruist" }, { id: 270, slug: "ai" },
+        { id: 271, slug: "on_mission" }, { id: 272, slug: "cash_pickup" }, { id: 273, slug: "chop" }, { id: 274, slug: "dead" },
+        { id: 277, slug: "cash_vagos" }, { id: 278, slug: "cash_cops" }, { id: 279, slug: "hooker" }, { id: 280, slug: "friend" },
+        { id: 303, slug: "bounty_hit" }, { id: 304, slug: "ugc_mission" }, { id: 305, slug: "horde" },
+        { id: 306, slug: "cratedrop" }, { id: 307, slug: "plane_drop" }, { id: 308, slug: "sub" },
+        { id: 309, slug: "race" }, { id: 310, slug: "deathmatch" }, { id: 311, slug: "arm_wrestling" },
+        { id: 313, slug: "shootingrange_gunshop" }, { id: 314, slug: "race_air" }, { id: 315, slug: "race_land" },
+        { id: 316, slug: "race_sea" }, { id: 317, slug: "tow" }, { id: 318, slug: "garbage" }, { id: 326, slug: "getaway_car" },
+        { id: 348, slug: "gang_bike" }, { id: 350, slug: "property_for_sale" },
+        { id: 351, slug: "gang_attack_package" }, { id: 352, slug: "martin_madrazzo" },
+        { id: 354, slug: "boost" }, { id: 355, slug: "devin" }, { id: 356, slug: "dock" }, { id: 357, slug: "garage" },
+        { id: 358, slug: "golf_flag" }, { id: 359, slug: "hangar" }, { id: 360, slug: "helipad" }, { id: 361, slug: "jerry_can" },
+        { id: 362, slug: "mask" }, { id: 363, slug: "heist_prep" }, { id: 364, slug: "incapacitated" },
+        { id: 365, slug: "spawn_point_pickup" }, { id: 366, slug: "boilersuit" }, { id: 367, slug: "completed" },
+        { id: 368, slug: "rockets" }, { id: 369, slug: "garage_for_sale" }, { id: 370, slug: "helipad_for_sale" },
+        { id: 371, slug: "dock_for_sale" }, { id: 372, slug: "hangar_for_sale" }, { id: 373, slug: "placeholder_6" },
+        { id: 374, slug: "business" }, { id: 375, slug: "business_for_sale" }, { id: 376, slug: "race_bike" },
+        { id: 377, slug: "parachute" }, { id: 378, slug: "team_deathmatch" }, { id: 379, slug: "race_foot" },
+        { id: 380, slug: "vehicle_deathmatch" }, { id: 381, slug: "barry" }, { id: 382, slug: "dom" }, { id: 383, slug: "maryann" },
+        { id: 384, slug: "cletus" }, { id: 385, slug: "josh" }, { id: 386, slug: "minute" }, { id: 387, slug: "omega" },
+        { id: 388, slug: "tonya" }, { id: 389, slug: "paparazzo" }, { id: 390, slug: "aim" }, { id: 391, slug: "cratedrop_background" },
+        { id: 398, slug: "creator" }, { id: 399, slug: "creator_direction" },
+        { id: 400, slug: "abigail" }, { id: 401, slug: "blimp" }, { id: 402, slug: "repair" }, { id: 403, slug: "testosterone" },
+        { id: 404, slug: "dinghy" }, { id: 405, slug: "fanatic" }, { id: 407, slug: "info_icon" }, { id: 408, slug: "capture_the_flag" },
+        { id: 409, slug: "last_team_standing" }, { id: 410, slug: "boat" }, { id: 411, slug: "capture_the_flag_base" },
+        { id: 412, slug: "mp_crew" }, { id: 413, slug: "capture_the_flag_outline" }, { id: 414, slug: "capture_the_flag_base_nobag" },
+        { id: 415, slug: "weapon_jerrycan" }, { id: 416, slug: "rp" }, { id: 417, slug: "level_inside" },
+        { id: 418, slug: "bounty_hit_inside" }, { id: 419, slug: "capture_the_usaflag" }, { id: 420, slug: "capture_the_usaflag_outline" },
+        { id: 421, slug: "tank" }, { id: 423, slug: "player_plane" }, { id: 424, slug: "player_jet" },
+        { id: 425, slug: "centre_stroke" }, { id: 426, slug: "player_guncar" }, { id: 427, slug: "player_boat" },
+        { id: 428, slug: "mp_heist" }, { id: 429, slug: "temp_1" }, { id: 430, slug: "temp_2" }, { id: 431, slug: "temp_3" },
+        { id: 432, slug: "temp_4" }, { id: 433, slug: "temp_5" }, { id: 434, slug: "temp_6" }, { id: 435, slug: "race_stunt" },
+        { id: 436, slug: "hot_property" }, { id: 437, slug: "urbanwarfare_versus" }, { id: 438, slug: "king_of_the_castle" },
+        { id: 439, slug: "player_king" }, { id: 440, slug: "dead_drop" }, { id: 441, slug: "penned_in" }, { id: 442, slug: "beast" },
+        { id: 443, slug: "edge_pointer" }, { id: 444, slug: "edge_crosstheline" }, { id: 445, slug: "mp_lamar" },
+        { id: 446, slug: "bennys" }, { id: 447, slug: "corner_number_1" }, { id: 448, slug: "corner_number_2" },
+        { id: 449, slug: "corner_number_3" }, { id: 450, slug: "corner_number_4" }, { id: 451, slug: "corner_number_5" },
+        { id: 452, slug: "corner_number_6" }, { id: 453, slug: "corner_number_7" }, { id: 454, slug: "corner_number_8" },
+        { id: 455, slug: "yacht" }, { id: 456, slug: "finders_keepers" }, { id: 457, slug: "assault_package" },
+        { id: 458, slug: "hunt_the_boss" }, { id: 459, slug: "sightseer" }, { id: 460, slug: "turreted_limo" },
+        { id: 461, slug: "belly_of_the_beast" }, { id: 462, slug: "yacht_location" }, { id: 463, slug: "pickup_beast" },
+        { id: 464, slug: "pickup_zoned" }, { id: 465, slug: "pickup_random" }, { id: 466, slug: "pickup_slow_time" },
+        { id: 467, slug: "pickup_swap" }, { id: 468, slug: "pickup_thermal" }, { id: 469, slug: "pickup_weed" },
+        { id: 470, slug: "weapon_railgun" }, { id: 471, slug: "seashark" }, { id: 472, slug: "pickup_hidden" },
+        { id: 473, slug: "warehouse" }, { id: 474, slug: "warehouse_for_sale" }, { id: 475, slug: "office" },
+        { id: 476, slug: "office_for_sale" }, { id: 477, slug: "truck" }, { id: 478, slug: "contraband" }, { id: 479, slug: "trailer" },
+        { id: 480, slug: "vip" }, { id: 481, slug: "cargobob" }, { id: 482, slug: "area_outline_blip" },
+        { id: 483, slug: "pickup_accelerator" }, { id: 484, slug: "pickup_ghost" }, { id: 485, slug: "pickup_detonator" },
+        { id: 486, slug: "pickup_bomb" }, { id: 487, slug: "pickup_armoured" }, { id: 488, slug: "stunt" },
+        { id: 489, slug: "weapon_lives" }, { id: 490, slug: "stunt_premium" }, { id: 491, slug: "adversary" },
+        { id: 492, slug: "biker_clubhouse" }, { id: 493, slug: "biker_caged_in" }, { id: 494, slug: "biker_turf_war" },
+        { id: 495, slug: "biker_joust" }, { id: 496, slug: "production_weed" }, { id: 497, slug: "production_crack" },
+        { id: 498, slug: "production_fake_id" }, { id: 499, slug: "production_meth" }, { id: 500, slug: "production_money" },
+        { id: 501, slug: "package" }, { id: 512, slug: "quad" }, { id: 513, slug: "bus" }, { id: 514, slug: "drugs_package" },
+        { id: 521, slug: "laptop" }, { id: 523, slug: "sports_car" }, { id: 524, slug: "warehouse_vehicle" }, { id: 527, slug: "junkyard" },
+        { id: 543, slug: "jugg" }, { id: 545, slug: "steeringwheel" }, { id: 546, slug: "trophy" }, { id: 556, slug: "supplies" },
+        { id: 557, slug: "property_bunker" }, { id: 568, slug: "sm_cargo" }, { id: 569, slug: "sm_hangar" },
+        { id: 641, slug: "arena_series" }, { id: 642, slug: "arena_premium" }, { id: 643, slug: "arena_workshop" }, { id: 670, slug: "ap" },
+        { id: 671, slug: "comic_store" }, { id: 672, slug: "cop_car" }, { id: 674, slug: "king_of_the_hill" }, { id: 679, slug: "casino" },
+        { id: 680, slug: "casino_table_games" }, { id: 681, slug: "casino_wheel" }, { id: 682, slug: "casino_concierge" },
+        { id: 683, slug: "casino_chips" }, { id: 684, slug: "casino_horse_racing" }, { id: 724, slug: "limo" },
+        { id: 726, slug: "race_open_wheel" }, { id: 740, slug: "arcade" }, { id: 752, slug: "ufo" }, { id: 777, slug: "car_meet" },
+        { id: 779, slug: "auto_shop_property" }, { id: 795, slug: "train" }, { id: 796, slug: "heist_diamond" },
+        { id: 797, slug: "heist_doomsday" }, { id: 798, slug: "heist_island" }, { id: 810, slug: "vehicle_for_sale" },
+        { id: 813, slug: "security_contract" }, { id: 819, slug: "music_studio" }, { id: 826, slug: "agency" },
+        { id: 827, slug: "biker_bar" }, { id: 830, slug: "luxury_car_showroom" }, { id: 831, slug: "car_showroom" },
+        { id: 840, slug: "acid_lab" }, { id: 843, slug: "downtown_cab" }, { id: 844, slug: "gun_van" }, { id: 845, slug: "stash_house" },
+        { id: 856, slug: "multistorey_garage" }, { id: 859, slug: "bicycle" }, { id: 867, slug: "salvage_yard" },
+        { id: 872, slug: "vinewood_garage" }, { id: 876, slug: "race_drag" }, { id: 877, slug: "race_drift" },
+        { id: 886, slug: "daily_bounty" }, { id: 887, slug: "bounty_target" }, { id: 900, slug: "garment_factory" },
+        { id: 923, slug: "dog" }, { id: 942, slug: "fire_station" }, { id: 943, slug: "fire_truck" }, { id: 954, slug: "cat" },
+    ];
+
+    // Lista completa de los colores de GTA V
+    const commonGtaColors = [
+        { id: 0, hex: "#FFFFFF", name: "White" }, { id: 1, hex: "#E03232", name: "Red" },
+        { id: 2, hex: "#71CB71", name: "Green" }, { id: 3, hex: "#5DB6E5", name: "Blue" },
+        { id: 4, hex: "#FFFFFF", name: "White" }, { id: 5, hex: "#F0C850", name: "Yellow" },
+        { id: 6, hex: "#C25050", name: "Light Red" }, { id: 7, hex: "#9C669F", name: "Violet" },
+        { id: 8, hex: "#F28A8A", name: "Pink" }, { id: 9, hex: "#F5A66E", name: "Light Orange" },
+        { id: 10, hex: "#B48B69", name: "Light Brown" }, { id: 11, hex: "#8CBF8C", name: "Light Green" },
+        { id: 12, hex: "#6EA3C2", name: "Light Blue" }, { id: 13, hex: "#B0B0DA", name: "Light Purple" },
+        { id: 14, hex: "#775A96", name: "Dark Purple" }, { id: 15, hex: "#5ECCC9", name: "Cyan" },
+        { id: 16, hex: "#D4C98A", name: "Light Yellow" }, { id: 17, hex: "#EB8E2D", name: "Orange" },
+        { id: 19, hex: "#CF618C", name: "Dark Pink" }, { id: 20, hex: "#B2A066", name: "Dark Yellow" },
+        { id: 21, hex: "#C47A5A", name: "Dark Orange" }, { id: 22, hex: "#A6A6A6", name: "Light Gray" },
+        { id: 23, hex: "#E09BA5", name: "Light Pink" }, { id: 24, hex: "#B6D46A", name: "Lemon Green" },
+        { id: 25, hex: "#3F7547", name: "Forest Green" }, { id: 26, hex: "#66A3D4", name: "Electric Blue" },
+        { id: 27, hex: "#A352CC", name: "Bright Purple" }, { id: 29, hex: "#3B4D87", name: "Dark Blue" },
+        { id: 30, hex: "#3E8282", name: "Dark Cyan" }, { id: 36, hex: "#EBE0B0", name: "Beige" },
+        { id: 39, hex: "#B5B5B5", name: "Light Gray" }, { id: 40, hex: "#4D4D4D", name: "Dark Gray" },
+        { id: 41, hex: "#EB7A8A", name: "Pink Red" }, { id: 46, hex: "#EBEB46", name: "Gold" },
+        { id: 48, hex: "#F55A9C", name: "Brilliant Rose" }, { id: 50, hex: "#8A6EBA", name: "Medium Purple" },
+        { id: 51, hex: "#EBA896", name: "Salmon" }, { id: 52, hex: "#426E42", name: "Dark Green" },
+        { id: 53, hex: "#A0C8DE", name: "Blizzard Blue" }, { id: 54, hex: "#375F7A", name: "Oracle Blue" },
+        { id: 55, hex: "#A3A3A3", name: "Silver" }, { id: 56, hex: "#6B4E38", name: "Brown" },
+        { id: 58, hex: "#474D70", name: "East Bay" }, { id: 60, hex: "#EBA347", name: "Yellow Orange" },
+        { id: 61, hex: "#BD527A", name: "Mulberry Pink" }, { id: 62, hex: "#A8A8A8", name: "Alto Gray" },
+        { id: 63, hex: "#2E668F", name: "Jelly Bean Blue" }, { id: 65, hex: "#8C7873", name: "Mamba" },
+        { id: 72, hex: "rgba(0, 0, 0, 0.5)", name: "Transparent Black" }, { id: 76, hex: "#8F1F1F", name: "Deep Red" },
+        { id: 79, hex: "rgba(224, 50, 50, 0.5)", name: "Transparent Red" }, { id: 80, hex: "rgba(93, 182, 229, 0.5)", name: "Transparent Blue" },
+        { id: 83, hex: "#8C24A3", name: "Purple" }
+    ];
+
+    const BLIP_PAGE_SIZE = 60;
+    let blipRenderOffset = 0;
+    const blipImgCache = new Set();
+
+    function renderAdminBlips(reset = false) {
+        const blipContainer = document.getElementById('dealer-blip-list');
+        if (!blipContainer) return;
+
+        if (reset) {
+            blipContainer.innerHTML = '';
+            blipRenderOffset = 0;
+        }
+
+        const slice = commonGtaBlips.slice(blipRenderOffset, blipRenderOffset + BLIP_PAGE_SIZE);
+        if (slice.length === 0) return;
+
+        const fragment = document.createDocumentFragment();
+
+        slice.forEach(blip => {
+            const isActive = blip.id === selectedAdminBlip ? 'active' : '';
+            const imgUrl = `https://docs.fivem.net/blips/radar_${blip.slug}.png`;
+
+            const div = document.createElement('div');
+            div.className = `blip-item ${isActive}`;
+            div.dataset.blipId = blip.id;
+            div.title = `${blip.id}: ${blip.slug.replace(/_/g, ' ')}`;
+            div.onclick = () => selectAdminBlip(blip.id);
+
+            // Imagen con caché
+            const img = document.createElement('img');
+            img.alt = blip.slug;
+            img.style.cssText = 'width:1.25vw;height:1.25vw;object-fit:contain;image-rendering:pixelated;';
+
+            if (blipImgCache.has(imgUrl)) {
+                img.src = imgUrl;
+            } else {
+                img.src = imgUrl;
+                img.onload = () => blipImgCache.add(imgUrl);
+                img.onerror = () => { img.style.opacity = '0.15'; };
+            }
+
+            div.appendChild(img);
+            fragment.appendChild(div);
+        });
+
+        blipContainer.appendChild(fragment);
+        blipRenderOffset += slice.length;
+
+        // Sentinel de scroll infinito
+        setupBlipScrollSentinel(blipContainer);
+    }
+
+    let _blipSentinel = null;
+    function setupBlipScrollSentinel(container) {
+        // Solo un sentinel activo a la vez
+        if (_blipSentinel) _blipSentinel.disconnect();
+
+        if (blipRenderOffset >= commonGtaBlips.length) return;
+
+        const lastItem = container.lastElementChild;
+        if (!lastItem) return;
+
+        _blipSentinel = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                _blipSentinel.disconnect();
+                _blipSentinel = null;
+                renderAdminBlips(false); // cargar siguiente batch
+            }
+        }, { root: container, threshold: 0.1 });
+
+        _blipSentinel.observe(lastItem);
+    }
+
+    // 2. DIBUJAR LOS COLORES
+    function renderAdminColors() {
+        const colorContainer = document.getElementById('dealer-color-list');
+        if (!colorContainer) return;
+        colorContainer.innerHTML = '';
+
+        commonGtaColors.forEach(color => {
+            const isActive = color.id === selectedAdminColor ? 'active' : '';
+            colorContainer.innerHTML += `
+                <div class="color-item ${isActive}" onclick="selectAdminColor(${color.id})">
+                    <div class="color-item-inner" style="background-color: ${color.hex};"></div>
+                    <span>${color.name}</span>
+                </div>
+            `;
+        });
+    }
+
+    window.renderEditBlips = function (reset = false) {
+        const container = document.getElementById('edit-dealer-blip-list');
+        if (!container) return;
+
+        if (reset) { container.innerHTML = ''; editBlipRenderOffset = 0; }
+
+        const slice = commonGtaBlips.slice(editBlipRenderOffset, editBlipRenderOffset + BLIP_PAGE_SIZE);
+        if (slice.length === 0) return;
+
+        const fragment = document.createDocumentFragment();
+        slice.forEach(blip => {
+            const div = document.createElement('div');
+            div.className = `blip-item ${blip.id === selectedEditBlip ? 'active' : ''}`;
+            div.dataset.blipId = blip.id;
+            div.title = `${blip.id}: ${blip.slug.replace(/_/g, ' ')}`;
+            div.onclick = () => {
+                selectedEditBlip = blip.id;
+                container.querySelectorAll('.blip-item').forEach(el => {
+                    el.classList.toggle('active', parseInt(el.dataset.blipId) === blip.id);
+                });
+            };
+            const img = document.createElement('img');
+            img.alt = blip.slug;
+            img.style.cssText = 'width:1.25vw;height:1.25vw;object-fit:contain;image-rendering:pixelated;';
+            img.src = `https://docs.fivem.net/blips/radar_${blip.slug}.png`;
+            img.onerror = () => { img.style.opacity = '0.15'; };
+            div.appendChild(img);
+            fragment.appendChild(div);
+        });
+        container.appendChild(fragment);
+        editBlipRenderOffset += slice.length;
+
+        // Scroll infinito
+        if (editBlipRenderOffset < commonGtaBlips.length) {
+            const last = container.lastElementChild;
+            if (last) {
+                const obs = new IntersectionObserver((entries) => {
+                    if (entries[0].isIntersecting) {
+                        obs.disconnect();
+                        renderEditBlips(false);
+                    }
+                }, { root: container, threshold: 0.1 });
+                obs.observe(last);
+            }
+        }
+    }
+
+    window.renderEditColors = function () {
+        const container = document.getElementById('edit-dealer-color-list');
+        if (!container) return;
+        container.innerHTML = '';
+        commonGtaColors.forEach(color => {
+            const div = document.createElement('div');
+            div.className = `color-item ${color.id === selectedEditColor ? 'active' : ''}`;
+            div.onclick = () => {
+                selectedEditColor = color.id;
+                container.querySelectorAll('.color-item').forEach(el => el.classList.remove('active'));
+                div.classList.add('active');
+            };
+            div.innerHTML = `<div class="color-item-inner" style="background-color:${color.hex};"></div><span>${color.name}</span>`;
+            container.appendChild(div);
+        });
+    }
+
+    // Seleccionar Icono
+    window.selectAdminBlip = function (id) {
+        selectedAdminBlip = id;
+        const container = document.getElementById('dealer-blip-list');
+        if (!container) return;
+        container.querySelectorAll('.blip-item').forEach(el => {
+            el.classList.toggle('active', parseInt(el.dataset.blipId) === id);
+        });
+    };
+
+    // Seleccionar Color
+    window.selectAdminColor = function (id) {
+        selectedAdminColor = id;
+        renderAdminColors();
+    };
+
+    // 3. EVENTOS DE BOTONES DEL MODAL
+
+    // Abrir modal desde el menú admin
+    const btnCreateDealer = document.getElementById('admin-create-btn');
+    if (btnCreateDealer) {
+        btnCreateDealer.addEventListener('click', () => {
+            // Resetear valores
+            document.getElementById('input-dealer-name').value = '';
+            document.getElementById('input-dealer-x').value = '';
+            document.getElementById('input-dealer-y').value = '';
+            document.getElementById('input-dealer-z').value = '';
+            document.getElementById('input-dealer-scale').value = '0.55';
+
+            // Resetear el nuevo campo ID a su estado automático
+            const inputId = document.getElementById('input-dealer-id');
+            if (inputId) {
+                inputId.value = '';
+                inputId.readOnly = true;
+                inputId.dataset.manual = 'false';
+                inputId.style.opacity = '0.6';
+                inputId.style.border = '';
+            }
+
+            selectedAdminBlip = 225;
+            selectedAdminColor = 0;
+
+            renderAdminBlips(true);
+            renderAdminColors();
+
+            // Mostrar Modal
+            const modal = document.getElementById('create-dealer-modal');
+            modal.style.display = 'flex';
+        });
+    }
+
+    // LÓGICA DE AUTOGENERACIÓN DEL ID (Nombre -> ID)
+    const nameInput = document.getElementById('input-dealer-name');
+    const idInput = document.getElementById('input-dealer-id');
+
+    if (nameInput && idInput) {
+        // Cuando el usuario escribe el nombre, generamos el ID (si no está en modo manual)
+        nameInput.addEventListener('input', (e) => {
+            if (idInput.dataset.manual !== 'true') {
+                let generatedId = e.target.value.toLowerCase()
+                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quita acentos
+                    .replace(/[^a-z0-9\s_]/g, "") // Quita caracteres raros
+                    .replace(/\s+/g, "_"); // Cambia espacios por barra baja
+
+                idInput.value = generatedId;
+            }
+        });
+
+        // Al hacer clic en el ID, lo "desbloqueamos" para edición manual
+        idInput.addEventListener('click', () => {
+            if (idInput.readOnly) {
+                idInput.readOnly = false;
+                idInput.dataset.manual = 'true';
+                idInput.style.opacity = '1';
+                idInput.style.border = '1px solid #00FA9A'; // Feedback visual de que está desbloqueado
+                idInput.focus();
+            }
+        });
+
+        // Si el usuario borra todo el ID manual, lo volvemos a poner automático
+        idInput.addEventListener('input', (e) => {
+            if (e.target.value.trim() === '') {
+                idInput.dataset.manual = 'false';
+                idInput.readOnly = true;
+                idInput.style.opacity = '0.6';
+                idInput.style.border = '';
+                // Forzamos al input del nombre a reescribir el ID
+                nameInput.dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
+    // Botón: Obtener Coordenadas del Jugador
+    const btnGetCoords = document.getElementById('btn-dealer-get-coords');
+    if (btnGetCoords) {
+        btnGetCoords.addEventListener('click', () => {
+            // Le pedimos a Lua las coordenadas actuales del admin
+            fetch(`https://${GetParentResourceName()}/adminGetCoords`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            }).then(resp => resp.json()).then(data => {
+                if (data && data.x !== undefined) {
+                    document.getElementById('input-dealer-x').value = data.x.toFixed(2);
+                    document.getElementById('input-dealer-y').value = data.y.toFixed(2);
+                    document.getElementById('input-dealer-z').value = data.z.toFixed(2);
+                }
+            }).catch(e => console.log('Error obteniendo coordenadas:', e));
+        });
+    }
+
+    // Botón: Guardar Concesionario Nuevo (AHORA SOLO HAY UNO Y CORTA EL ID DE LA CAJA)
+    const btnSaveDealer = document.getElementById('btn-save-dealer');
+    if (btnSaveDealer) {
+        btnSaveDealer.addEventListener('click', () => {
+            const name = document.getElementById('input-dealer-name').value.trim();
+            const customId = idInput ? idInput.value.trim() : ''; // Cogemos el ID real
+            const x = parseFloat(document.getElementById('input-dealer-x').value);
+            const y = parseFloat(document.getElementById('input-dealer-y').value);
+            const z = parseFloat(document.getElementById('input-dealer-z').value);
+            const scale = parseFloat(document.getElementById('input-dealer-scale').value) || 0.55;
+
+            // Validación simple
+            if (!name) return alert("Por favor, introduce un nombre.");
+            if (!customId) return alert("El concesionario necesita un ID válido.");
+            if (isNaN(x) || isNaN(y) || isNaN(z)) return alert("Por favor, rellena las coordenadas o usa el botón de ubicación.");
+
+            const newDealerData = {
+                id: customId.toLowerCase(),
+                name: name,
+                coords: { x: x, y: y, z: z },
+                blip: selectedAdminBlip,
+                color: selectedAdminColor,
+                scale: scale
+            };
+
+            // Enviar al cliente para procesar la base de datos
+            fetch(`https://${GetParentResourceName()}/adminSaveNewDealer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newDealerData)
+            });
+
+            // Cerrar el modal
+            document.getElementById('create-dealer-modal').style.display = 'none';
+        });
+    }
+
+    // Botón: Obtener coordenadas (edit modal)
+    document.getElementById('btn-edit-dealer-get-coords')?.addEventListener('click', () => {
+        fetch(`https://${GetParentResourceName()}/adminGetCoords`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+        }).then(r => r.json()).then(data => {
+            if (data?.x !== undefined) {
+                document.getElementById('edit-dealer-x').value = data.x.toFixed(2);
+                document.getElementById('edit-dealer-y').value = data.y.toFixed(2);
+                document.getElementById('edit-dealer-z').value = data.z.toFixed(2);
+            }
+        });
+    });
+
+    // Botón: Guardar cambios del concesionario editado
+    document.getElementById('btn-update-dealer')?.addEventListener('click', () => {
+        const id = document.getElementById('edit-dealer-id').value.trim();
+        const name = document.getElementById('edit-dealer-name').value.trim();
+        const x = parseFloat(document.getElementById('edit-dealer-x').value);
+        const y = parseFloat(document.getElementById('edit-dealer-y').value);
+        const z = parseFloat(document.getElementById('edit-dealer-z').value);
+        const scale = parseFloat(document.getElementById('edit-dealer-scale').value) || 0.55;
+
+        if (!name) return alert('Introduce un nombre.');
+        if (isNaN(x) || isNaN(y) || isNaN(z)) return alert('Rellena las coordenadas.');
+
+        fetch(`https://${GetParentResourceName()}/adminUpdateDealer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id, name,
+                blip: selectedEditBlip,
+                color: selectedEditColor,
+                coords: { x, y, z },
+                scale
+            })
+        });
+
+        document.getElementById('edit-dealer-modal').style.display = 'none';
+    });
+
+    // =================================================================
+    // DRAG TO PAN: MAPA INTERACTIVO (ADMIN)
+    // =================================================================
+    const mapContainer = document.getElementById('admin-map-container');
+    if (mapContainer) {
+        let isDraggingMap = false;
+        let mapStartX, mapStartY, mapScrollLeft, mapScrollTop;
+
+        mapContainer.addEventListener('mousedown', (e) => {
+            isDraggingMap = true;
+            mapContainer.style.cursor = 'grabbing'; // Cambia el cursor a "mano cerrada"
+            mapStartX = e.pageX - mapContainer.offsetLeft;
+            mapStartY = e.pageY - mapContainer.offsetTop;
+            mapScrollLeft = mapContainer.scrollLeft;
+            mapScrollTop = mapContainer.scrollTop;
+        });
+
+        mapContainer.addEventListener('mouseleave', () => {
+            isDraggingMap = false;
+            mapContainer.style.cursor = 'grab';
+        });
+
+        mapContainer.addEventListener('mouseup', () => {
+            isDraggingMap = false;
+            mapContainer.style.cursor = 'grab';
+        });
+
+        mapContainer.addEventListener('mousemove', (e) => {
+            if (!isDraggingMap) return;
+            e.preventDefault(); // Evita que se seleccione texto o imágenes por accidente
+
+            const x = e.pageX - mapContainer.offsetLeft;
+            const y = e.pageY - mapContainer.offsetTop;
+
+            // Multiplicador 1.5 para que el movimiento sea un poco más rápido y natural
+            const walkX = (x - mapStartX) * 1.5;
+            const walkY = (y - mapStartY) * 1.5;
+
+            mapContainer.scrollLeft = mapScrollLeft - walkX;
+            mapContainer.scrollTop = mapScrollTop - walkY;
+        });
+    }
+
+    // =================================================================
+    // ACCIÓN DE LOS BOTONES DE ZOOM (+ / -) INDEPENDIENTES
+    // =================================================================
+    const zoomInBtn = document.getElementById('admin-map-zoom-in');
+    const zoomOutBtn = document.getElementById('admin-map-zoom-out');
+    const mapScrollContent = document.getElementById('admin-map-scroll-content');
+
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita arrastrar el mapa al hacer clic
+            if (currentMapZoomPercent < 450) { // Límite máximo de zoom (450%)
+                currentMapZoomPercent += 40;
+                if (mapScrollContent) mapScrollContent.style.width = `${currentMapZoomPercent}%`;
+            }
+        });
+    }
+
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentMapZoomPercent > 120) { // Límite mínimo de zoom (120%)
+                currentMapZoomPercent -= 40;
+                if (mapScrollContent) mapScrollContent.style.width = `${currentMapZoomPercent}%`;
+            }
+        });
+    }
+
+    // =================================================================
+    // LÓGICA DE IMPORTACIÓN Y EXPORTACIÓN (JSON)
+    // =================================================================
+    let currentIEMode = 'export'; // Estado global del modal ('export' o 'import')
+
+    // 1. ABRIR MODAL: EXPORTAR (Desde un botón de la tabla)
+    window.exportAdminDealer = function (dealerId) {
+        const dealer = adminDealersWorkingList.find(d => d.id === dealerId);
+        if (!dealer) return;
+
+        currentIEMode = 'export';
+
+        // Adaptar textos e iconos para EXPORTAR
+        document.getElementById('ie-header-icon').className = 'fa-solid fa-file-export';
+        document.getElementById('ie-header-title').innerText = 'EXPORTAR CONCESIONARIO';
+        document.getElementById('ie-header-desc').innerText = 'Visualiza o copia los datos en bruto del concesionario en formato JSON.';
+
+        document.getElementById('ie-panel-icon').className = 'fa-solid fa-file-code ie-animate-icon';
+        document.getElementById('ie-panel-title').innerText = 'DATOS EN BRUTO';
+        document.getElementById('ie-panel-title').style.color = 'white';
+        document.getElementById('ie-panel-text').innerText = 'Guarda este código de forma segura para no perder la configuración de este concesionario o pasárselo a otro servidor.';
+        document.getElementById('ie-panel-text').style.color = 'grey';
+
+        const actionBtn = document.getElementById('btn-ie-action');
+        document.getElementById('ie-btn-icon').className = 'fa-solid fa-copy';
+        document.getElementById('ie-btn-text').innerText = 'COPIAR AL PORTAPAPELES';
+        actionBtn.style.opacity = '1';
+        actionBtn.style.pointerEvents = 'auto';
+
+        // Rellenar textarea y bloquearlo
+        const textarea = document.getElementById('ie-textarea');
+        textarea.value = JSON.stringify(dealer, null, 4); // El '4' formatea el JSON bonito
+        textarea.readOnly = true;
+        textarea.className = 'modal-input disc-input'; // Reset de estilos
+
+        document.getElementById('ie-status-badge').style.display = 'none';
+
+        // Abrir Modal
+        document.getElementById('import-export-modal').style.display = 'flex';
+    };
+
+    // 2. ABRIR MODAL: IMPORTAR (Desde el botón general de arriba)
+    const btnImportDealer = document.getElementById('admin-import-btn');
+    if (btnImportDealer) {
+        btnImportDealer.addEventListener('click', () => {
+            currentIEMode = 'import';
+
+            // Adaptar textos e iconos para IMPORTAR
+            document.getElementById('ie-header-icon').className = 'fa-solid fa-file-import';
+            document.getElementById('ie-header-title').innerText = 'IMPORTAR CONCESIONARIO';
+            document.getElementById('ie-header-desc').innerText = 'Pega el código JSON con la configuración de un concesionario para instalarlo.';
+
+            document.getElementById('ie-panel-icon').className = 'fa-solid fa-file-import ie-animate-icon';
+            document.getElementById('ie-panel-title').innerText = 'PEGAR CÓDIGO';
+            document.getElementById('ie-panel-title').style.color = 'white';
+            document.getElementById('ie-panel-text').innerText = 'Asegúrate de que el código pegado sea un JSON válido. El sistema comprobará la sintaxis automáticamente.';
+            document.getElementById('ie-panel-text').style.color = 'grey';
+
+            const actionBtn = document.getElementById('btn-ie-action');
+            document.getElementById('ie-btn-icon').className = 'fa-solid fa-floppy-disk';
+            document.getElementById('ie-btn-text').innerText = 'GUARDAR CONCESIONARIO';
+            actionBtn.style.opacity = '0.5'; // Desactivado por defecto hasta que pegue algo válido
+            actionBtn.style.pointerEvents = 'none';
+
+            // Vaciar textarea y desbloquearlo
+            const textarea = document.getElementById('ie-textarea');
+            textarea.value = '';
+            textarea.readOnly = false;
+            textarea.className = 'modal-input disc-input'; // Reset de estilos
+
+            document.getElementById('ie-status-badge').style.display = 'none';
+
+            // Abrir Modal
+            document.getElementById('import-export-modal').style.display = 'flex';
+        });
+    }
+
+    // 3. DETECTOR EN TIEMPO REAL: Valida el JSON mientras escribes/pegas
+    const ieTextarea = document.getElementById('ie-textarea');
+    const ieBadge = document.getElementById('ie-status-badge');
+    const ieActionBtn = document.getElementById('btn-ie-action');
+
+    if (ieTextarea) {
+        ieTextarea.addEventListener('input', () => {
+            if (currentIEMode === 'import') {
+                const val = ieTextarea.value.trim();
+
+                if (val === '') {
+                    ieTextarea.className = 'modal-input disc-input';
+                    ieBadge.style.display = 'none';
+                    ieActionBtn.style.opacity = '0.5';
+                    ieActionBtn.style.pointerEvents = 'none';
+                    return;
+                }
+
+                try {
+                    JSON.parse(val);
+                    // Si llegamos aquí, el JSON es VÁLIDO
+                    ieTextarea.className = 'modal-input disc-input ie-valid-json';
+                    ieBadge.style.display = 'block';
+                    ieBadge.innerText = 'SINTAXIS VÁLIDA';
+                    ieBadge.style.color = '#00FA9A';
+                    ieBadge.style.borderColor = 'rgba(0, 250, 154, 0.5)';
+                    ieBadge.style.background = 'rgba(0, 250, 154, 0.15)';
+
+                    ieActionBtn.style.opacity = '1';
+                    ieActionBtn.style.pointerEvents = 'auto';
+                } catch (e) {
+                    // Si da error, el JSON está ROTO
+                    ieTextarea.className = 'modal-input disc-input ie-invalid-json';
+                    ieBadge.style.display = 'block';
+                    ieBadge.innerText = 'ERROR DE SINTAXIS';
+                    ieBadge.style.color = '#ff4747';
+                    ieBadge.style.borderColor = 'rgba(255, 71, 71, 0.5)';
+                    ieBadge.style.background = 'rgba(255, 71, 71, 0.15)';
+
+                    ieActionBtn.style.opacity = '0.5';
+                    ieActionBtn.style.pointerEvents = 'none';
+                }
+            }
+        });
+    }
+
+    // 4. ACCIÓN FINAL DEL BOTÓN INFERIOR (Copia o Guarda)
+    if (ieActionBtn) {
+        ieActionBtn.addEventListener('click', () => {
+            if (currentIEMode === 'export') {
+                // Acción: COPIAR
+                ieTextarea.select();
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(ieTextarea.value);
+                } else {
+                    document.execCommand("copy"); // Fallback
+                }
+
+                // Efecto visual de que se ha copiado correctamente
+                const originalText = document.getElementById('ie-btn-text').innerText;
+                document.getElementById('ie-btn-icon').className = 'fa-solid fa-check';
+                document.getElementById('ie-btn-text').innerText = '¡COPIADO!';
+                ieActionBtn.style.background = '#00FA9A';
+                ieActionBtn.style.color = '#000';
+
+                setTimeout(() => {
+                    document.getElementById('ie-btn-icon').className = 'fa-solid fa-copy';
+                    document.getElementById('ie-btn-text').innerText = originalText;
+                    ieActionBtn.style.background = '';
+                    ieActionBtn.style.color = '';
+                }, 2000);
+
+            } else if (currentIEMode === 'import') {
+                // Acción: GUARDAR / ENVIAR AL LUA
+                try {
+                    const parsedData = JSON.parse(ieTextarea.value.trim());
+
+                    // Enviar objeto al Cliente
+                    fetch(`https://${GetParentResourceName()}/adminImportDealer`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(parsedData)
+                    });
+
+                    document.getElementById('import-export-modal').style.display = 'none';
+                } catch (e) {
+                    console.error("Error al enviar el JSON de importación al servidor", e);
+                }
+            }
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FUNCIONES DE DEALERS - OPCIONES DE CONFIGURACIÓN
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.currentConfigDealerId = null;
+    window.currentShowroomPointIndex = null;
+
+    const getDealerConfig = (dealerId) => {
+        return adminDealersWorkingList.find(d => d.id === dealerId) || null;
+    };
+
+    const normalizeShowroomPoints = (dealer) => {
+        if (!dealer || !dealer.config) return [];
+        if (Array.isArray(dealer.config.showroomPoints)) {
+            return dealer.config.showroomPoints;
+        }
+        return [];
+    };
+
+    const closeShowroomPointModal = () => {
+        const modal = document.getElementById('dealer-showpoint-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        window.currentShowroomPointIndex = null;
+    };
+
+    const openShowroomPointModal = (dealerId, pointIndex) => {
+        const dealer = getDealerConfig(dealerId);
+        if (!dealer) return;
+
+        window.currentConfigDealerId = dealerId;
+        window.currentShowroomPointIndex = pointIndex;
+
+        const points = normalizeShowroomPoints(dealer);
+        const point = (pointIndex !== null && pointIndex >= 0 && pointIndex < points.length) ? points[pointIndex] : null;
+
+        document.getElementById('showpoint-modal-title').innerText = point ? `EDITAR PUNTO ${pointIndex + 1}` : `NUEVO PUNTO DE SHOWROOM`;
+        document.getElementById('showpoint-modal-desc').innerText = point ? `Modifica la ubicación, NPC y animación.` : `Completa las coordenadas, modelo de NPC y animación.`;
+
+        document.getElementById('input-showpoint-x').value = point?.coords_npc?.x ?? '';
+        document.getElementById('input-showpoint-y').value = point?.coords_npc?.y ?? '';
+        document.getElementById('input-showpoint-z').value = point?.coords_npc?.z ?? '';
+        document.getElementById('input-showpoint-h').value = point?.coords_npc?.h ?? '';
+        document.getElementById('input-showpoint-model').value = point?.npc_model ?? '';
+        document.getElementById('input-showpoint-scenario').value = point?.npc_scenario ?? '';
+
+        const modal = document.getElementById('dealer-showpoint-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    };
+
+    const renderDealerShowroomPoints = () => {
+        const container = document.getElementById('dealer-showroom-list');
+        if (!container) return;
+
+        const dealer = getDealerConfig(window.currentConfigDealerId);
+        if (!dealer) {
+            container.innerHTML = '<div class="dealer-showroom-placeholder" style="padding:1vw; border:1px dashed rgba(255,255,255,0.12); border-radius:8px; color:rgba(255,255,255,0.35); font-style:italic;">Selecciona un concesionario para ver sus puntos.</div>';
+            return;
+        }
+
+        const points = normalizeShowroomPoints(dealer);
+        container.innerHTML = '';
+
+        if (points.length === 0) {
+            const emptyBlock = document.createElement('div');
+            emptyBlock.className = 'dealer-showroom-placeholder';
+            emptyBlock.style.cssText = 'padding:1vw; border:1px dashed rgba(255,255,255,0.12); border-radius:8px; color:rgba(255,255,255,0.35); font-style:italic;';
+            emptyBlock.innerText = 'No hay puntos de SHOWROOM configurados todavía.';
+            container.appendChild(emptyBlock);
+        }
+
+        points.forEach((point, index) => {
+            const block = document.createElement('div');
+            block.className = 'showroom-point-card';
+
+            // Coords formateadas
+            const cx = point.coords_npc?.x ?? '--';
+            const cy = point.coords_npc?.y ?? '--';
+            const cz = point.coords_npc?.z ?? '--';
+
+            block.innerHTML = `
+        <div class="showroom-point-card-left">
+            <div class="showroom-point-card-title">Punto ${index + 1}</div>
+            <div class="showroom-point-card-subtitle">Modelo: ${point.npc_model || 'Sin modelo'}</div>
+            <div class="showroom-point-card-subtitle">Animación: ${point.npc_scenario || 'Sin animación'}</div>
+            <div class="showroom-point-card-coords">
+                <span class="showroom-point-type-badge">NPC</span>
+                <span class="showroom-point-card-coords-text">X: ${cx} | Y: ${cy} | Z: ${cz}</span>
+            </div>
+        </div>
+        <div class="showroom-point-card-actions">
+            <button class="btn-icon" title="Editar punto" id="edit-pt-${index}">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button class="btn-icon btn-danger" title="Eliminar punto" id="del-pt-${index}">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        </div>
+    `;
+
+            block.querySelector(`#edit-pt-${index}`).addEventListener('click', () => {
+                openShowroomPointModal(window.currentConfigDealerId, index);
+            });
+
+            block.querySelector(`#del-pt-${index}`).addEventListener('click', () => {
+                if (confirm(`¿Eliminar el punto ${index + 1} del showroom?`)) {
+                    const pointsList = normalizeShowroomPoints(dealer);
+                    pointsList.splice(index, 1);
+                    dealer.config.showroomPoints = pointsList;
+                    fetch(`https://${GetParentResourceName()}/adminUpdateDealer`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: dealer.id, showroomPoints: pointsList })
+                    }).then(() => renderDealerShowroomPoints()).catch(() => renderDealerShowroomPoints());
+                }
+            });
+
+            container.appendChild(block);
+        });
+
+        const addButton = document.getElementById('btn-add-showroom-point');
+        if (addButton) {
+            addButton.style.display = points.length < 5 ? 'inline-flex' : 'none';
+            addButton.innerText = '+';
+            addButton.title = points.length < 5 ? 'Agregar punto de SHOWROOM' : 'Máximo 5 puntos alcanzado';
+        }
+    };
+
+    const saveShowroomPoint = () => {
+        const dealerId = window.currentConfigDealerId;
+        if (!dealerId) return;
+
+        const x = parseFloat(document.getElementById('input-showpoint-x').value);
+        const y = parseFloat(document.getElementById('input-showpoint-y').value);
+        const z = parseFloat(document.getElementById('input-showpoint-z').value);
+        const h = parseFloat(document.getElementById('input-showpoint-h').value);
+        const model = document.getElementById('input-showpoint-model').value.trim();
+        const scenario = document.getElementById('input-showpoint-scenario').value.trim();
+
+        if (isNaN(x) || isNaN(y) || isNaN(z) || isNaN(h)) {
+            return alert('Rellena las coordenadas XYZH del punto de showroom.');
+        }
+        if (!model) {
+            return alert('Introduce el modelo del NPC.');
+        }
+        if (!scenario) {
+            return alert('Introduce la animación del NPC.');
+        }
+
+        const dealer = getDealerConfig(dealerId);
+        if (!dealer) return;
+
+        const points = normalizeShowroomPoints(dealer);
+        const newPoint = {
+            coords_npc: { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)), z: parseFloat(z.toFixed(2)), h: parseFloat(h.toFixed(2)) },
+            npc_model: model,
+            npc_scenario: scenario
+        };
+
+        if (window.currentShowroomPointIndex !== null && window.currentShowroomPointIndex >= 0 && window.currentShowroomPointIndex < points.length) {
+            points[window.currentShowroomPointIndex] = newPoint;
+        } else {
+            if (points.length >= 5) {
+                return alert('Ya has alcanzado el máximo de 5 puntos de showroom.');
+            }
+            points.push(newPoint);
+        }
+
+        dealer.config = dealer.config || {};
+        dealer.config.showroomPoints = points;
+
+        fetch(`https://${GetParentResourceName()}/adminUpdateDealer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: dealerId, showroomPoints: points })
+        }).then(() => {
+            closeShowroomPointModal();
+            renderDealerShowroomPoints();
+        }).catch((error) => {
+            console.error('Error guardando punto de showroom:', error);
+            closeShowroomPointModal();
+            renderDealerShowroomPoints();
+        });
+    };
+
+    const getShowroomCoordsFromServer = () => {
+        fetch(`https://${GetParentResourceName()}/adminGetCoords`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        }).then(resp => resp.json()).then(data => {
+            if (data && data.x !== undefined) {
+                document.getElementById('input-showpoint-x').value = data.x.toFixed(2);
+                document.getElementById('input-showpoint-y').value = data.y.toFixed(2);
+                document.getElementById('input-showpoint-z').value = data.z.toFixed(2);
+                if (data.h !== undefined) {
+                    document.getElementById('input-showpoint-h').value = data.h.toFixed(2);
+                }
+            }
+        }).catch(e => console.log('Error obteniendo coordenadas:', e));
+    };
+
+    document.getElementById('btn-add-showroom-point')?.addEventListener('click', () => {
+        openShowroomPointModal(window.currentConfigDealerId, null);
+    });
+
+    document.getElementById('btn-showpoint-get-coords')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        getShowroomCoordsFromServer();
+    });
+
+    document.getElementById('btn-showpoint-cancel')?.addEventListener('click', () => {
+        closeShowroomPointModal();
+    });
+
+    document.getElementById('btn-showpoint-save')?.addEventListener('click', () => {
+        saveShowroomPoint();
+    });
+
+    window.configureAdminDealer = function (dealerId) {
+        const dealer = adminDealersWorkingList.find(d => d.id === dealerId);
+        if (!dealer) {
+            console.error(`[configureAdminDealer] Dealer con ID ${dealerId} no encontrado`);
+            return;
+        }
+
+        // Actualizar los textos dinámicos del modal
+        document.getElementById('dealer-options-title').innerText = `OPCIONES DEL CONCESIONARIO`;
+        document.getElementById('dealer-options-desc').innerText = `Gestiona la configuración avanzada de ${dealer.name || 'este concesionario'}.`;
+        document.getElementById('dealer-options-panel-text').innerText = `Ajusta las opciones específicas de ${dealer.name || 'este concesionario'}.`;
+
+        // Guardar el ID actual del dealer siendo configurado (por si lo necesitas luego)
+        window.currentConfigDealerId = dealerId;
+        closeShowroomPointModal();
+        renderDealerShowroomPoints();
+
+        // Abrir el modal
+        const modal = document.getElementById('dealer-options-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    };
 }); // <--- RECUERDA: ESTA ES LA LLAVE DE CIERRE FINAL DE TU MÓDULO 16, NO LA BORRES.
