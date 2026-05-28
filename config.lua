@@ -47,11 +47,6 @@ Config.RealEstateNPC = 'a_m_y_business_03' -- Modelo del agente de Dynasty 8
 Config.Dealerships = {
     -- 1. COCHES (Vehículos de 4 ruedas estándar)
     ['cars'] = {
-        label = 'Premium Deluxe Motorsport',
-        job = 'cardealer',
-        npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-40.56, -1093.43, 26.44, 155.02),
-        npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-52.45, -1100.43, 26.44),
         npc_buy = vector4(-59.99, -1096.89, 26.44, 298.13),
         isUsedMarket = false,
@@ -65,11 +60,6 @@ Config.Dealerships = {
 
     -- 2. BIKES (Motos y Bicicletas)
     ['bikes'] = {
-        label = 'Sanders Motorcycles',
-        job = 'motorcycledealer',
-        npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-873.92, -198.17, 37.84, 296.61),
-        npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-873.11, -181.49, 37.84),
         npc_buy = vector4(-863.75, -194.73, 37.84, 89.28),
         isUsedMarket = false,
@@ -83,13 +73,8 @@ Config.Dealerships = {
 
     -- 3. AIRE (Aviones y Helicópteros)
     ['air'] = {
-        label = 'Los Santos Flight Sales',
-        job = 'airdealer',
         preview_cam = vector4(-1151.87, -3363.92, 15.0, 240.0), -- Donde aparece el avión para mirarlo
         preview_spawn = vector4(-1135.0, -3375.0, 13.0, 60.0), -- Dónde se coloca tu cámara para verlo
-        npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-1242.5, -3375.83, 13.94, 59.94),
-        npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-1243.84, -3378.42, 13.94),
         npc_buy = vector4(-1245.16, -3380.55, 13.94, 61.38),
         isUsedMarket = false,
@@ -103,13 +88,8 @@ Config.Dealerships = {
 
     -- 4. MAR (Barcos, Lanchas, Motos de agua)
     ['sea'] = {
-        label = 'Nautical Showroom',
-        job = 'boatdealer',
         preview_cam = vector4(-756.81, -1376.45, 4.38, 287.51), -- En el agua
         preview_spawn = vector4(-741.88, -1370.38, 0.0, 138.21), -- En el muelle mirándolo
-        npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-805.75, -1368.5, 5.18, 347.36),
-        npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-788.78, -1346.52, 5.18),
         npc_buy = vector4(-813.0, -1345.81, 5.18, 230.36),
         isUsedMarket = false,
@@ -123,11 +103,6 @@ Config.Dealerships = {
 
     -- 5. VIP (Vehículos Custom / Importación)
     ['vip'] = {
-        label = 'Luxury Autos (VIP)',
-        job = 'vipdealer',
-        npc_model = 'a_m_y_business_02',
-        coords_npc = vector4(-3373.43, -1257.97, 24.24, 169.68),
-        npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(-3380.07, -1254.74, 24.24),
         npc_buy = vector4(-3378.38, -1277.74, 24.07, 286.38),
         isUsedMarket = false,
@@ -141,11 +116,8 @@ Config.Dealerships = {
 
     -- 6. COMPRA/VENTA (Jugador a Jugador)
     ['used'] = {
-        label = 'Compra/Venta Automotriz',
+        label = "Larry's Compra/Venta Automotriz",
         job = 'useddealer',
-        npc_model = 'a_m_y_business_02',
-        coords_npc = vector3(1223.54, 2734.54, 38.01),
-        npc_scenario = 'WORLD_HUMAN_CLIPBOARD',
         bossMenu = vector3(1227.86, 2739.41, 38.01),
         npc_buy = vector4(1226.83, 2729.45, 38.01, 60.66),
         isUsedMarket = true,

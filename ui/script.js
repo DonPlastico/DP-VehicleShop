@@ -110,6 +110,8 @@ let adminDealersCurrentPage = 1;
 const adminDealersItemsPerPage = 12; // Cantidad de concesionarios por página
 let currentMapZoomPercent = 250; // Variable global para mantener el nivel de escala activo
 
+const originalConsoleError = console.error;
+
 // Mapa global de blip ID → slug (para mostrar imagen del blip en la tabla)
 const BLIP_SLUG_MAP = {
     1: 'level', 4: 'wanted_radius', 5: 'area_blip', 6: 'centre', 7: 'north', 8: 'waypoint', 9: 'radius_blip',
@@ -383,6 +385,87 @@ function closeAdminMenu() {
         headers: { 'Content-Type': 'application/json; charset=UTF-8' },
         body: JSON.stringify({ message: 'Admin menu cerrado' })
     }).catch(err => console.error('Error callback closeAdminMenu:', err));
+}
+
+// Override de alert para mostrar mensajes en un modal personalizado
+window.alert = function (message) {
+    const modalTitle = document.getElementById('generic-alert-title-text');
+    const modalText = document.getElementById('generic-alert-text');
+    const modalIcon = document.getElementById('generic-alert-icon');
+    const modalBtn = document.getElementById('generic-alert-btn');
+
+    if (modalTitle) modalTitle.innerText = "ALERTA";
+    if (modalIcon) {
+        modalIcon.className = "fa-solid fa-circle-exclamation";
+        modalIcon.style.color = "#f39c12"; // Naranja para alertas
+    }
+    if (modalText) modalText.innerText = message;
+    if (modalBtn) modalBtn.style.background = "#f39c12";
+
+    toggleModal('generic-alert-modal', true);
+};
+
+// Override de console.error para mostrar errores críticos en un modal
+console.error = function (...args) {
+    // 1. Mantenemos el error nativo en la consola F8/Inspect por si necesitas tracear
+    originalConsoleError.apply(console, args);
+
+    // 2. Formateamos los argumentos por si envías objetos u errores nativos
+    const message = args.map(arg => {
+        if (arg instanceof Error) return arg.message;
+        if (typeof arg === 'object') {
+            try { return JSON.stringify(arg); } catch (e) { return "[Objeto Complejo]"; }
+        }
+        return String(arg);
+    }).join(' ');
+
+    const modalTitle = document.getElementById('generic-alert-title-text');
+    const modalText = document.getElementById('generic-alert-text');
+    const modalIcon = document.getElementById('generic-alert-icon');
+    const modalBtn = document.getElementById('generic-alert-btn');
+
+    if (modalTitle) modalTitle.innerText = "ERROR INTERNO";
+    if (modalIcon) {
+        modalIcon.className = "fa-solid fa-triangle-exclamation";
+        modalIcon.style.color = "#e74c3c"; // Rojo para errores críticos
+    }
+    if (modalText) modalText.innerText = message;
+    if (modalBtn) modalBtn.style.background = "#e74c3c";
+
+    toggleModal('generic-alert-modal', true);
+};
+
+// FUNCIÓN PARA SUSTITUIR CONFIRM NATIVO (Basado en Promesas)
+function customConfirm(message, title = "CONFIRMAR ACCIÓN") {
+    return new Promise((resolve) => {
+        const modalTitle = document.getElementById('generic-confirm-title-text');
+        const modalText = document.getElementById('generic-confirm-text');
+        const btnOkOld = document.getElementById('generic-confirm-ok-btn');
+        const btnCancelOld = document.getElementById('generic-confirm-cancel-btn');
+
+        if (modalTitle) modalTitle.innerText = title;
+        if (modalText) modalText.innerText = message;
+
+        // TRUCO PRO: Clonamos los botones para destruir CUALQUIER event listener "fantasma"
+        // que se haya quedado atascado de confirmaciones anteriores.
+        const btnOk = btnOkOld.cloneNode(true);
+        const btnCancel = btnCancelOld.cloneNode(true);
+        btnOkOld.parentNode.replaceChild(btnOk, btnOkOld);
+        btnCancelOld.parentNode.replaceChild(btnCancel, btnCancelOld);
+
+        // Usamos { once: true } para que el evento se autodestruya tras un único clic
+        btnOk.addEventListener('click', () => {
+            toggleModal('generic-confirm-modal', false);
+            resolve(true);
+        }, { once: true });
+
+        btnCancel.addEventListener('click', () => {
+            toggleModal('generic-confirm-modal', false);
+            resolve(false);
+        }, { once: true });
+
+        toggleModal('generic-confirm-modal', true);
+    });
 }
 
 // =================================================================
@@ -1247,7 +1330,7 @@ function initColorPicker() {
         document.getElementById('in-g').value = color.rgb.g;
         document.getElementById('in-b').value = color.rgb.b;
 
-        // NUEVO: Enviar color al coche en TIEMPO REAL
+        // Enviar color al coche en TIEMPO REAL
         fetch(`https://${GetParentResourceName()}/updateVehicleColor`, {
             method: 'POST',
             body: JSON.stringify({ color: { r: color.rgb.r, g: color.rgb.g, b: color.rgb.b } })
@@ -1378,7 +1461,7 @@ if (btnBuyShowroom) {
         if (rgbPanel) rgbPanel.style.display = 'none';
         if (paymentPanel) paymentPanel.style.display = paymentPanel.style.display === 'none' ? 'flex' : 'none';
 
-        // 2. NUEVO: BLOQUEO DINÁMICO DE ENTREGAS
+        // 2. BLOQUEO DINÁMICO DE ENTREGAS
         // Leemos el texto del botón en ese milisegundo. Si dice "RESERV...", es una reserva.
         const isReservation = this.innerText.toUpperCase().includes('RESERV');
 
@@ -1703,7 +1786,7 @@ if (mainBuyBtn) {
 }
 
 // =================================================================
-// LÓGICA DEL NUEVO PANEL DE PAGO Y ENTREGA (REDISEÑADO)
+// LÓGICA DEL PANEL DE PAGO Y ENTREGA (REDISEÑADO)
 // =================================================================
 
 // --- ESTADO DE FINANCIACIÓN ---
@@ -1789,7 +1872,7 @@ if (cancelPaymentBtn) {
 let isCustomPlateApplied = false;
 let finalPurchasePrice = 0;
 const EXTRA_PRICE_UNIT = 125; // Precio por cada extra
-let appliedDiscountData = null; // NUEVO: Memoria del cupón aplicado
+let appliedDiscountData = null; // Memoria del cupón aplicado
 
 // FUNCIÓN MAESTRA: Calcula todo el ticket de golpe sin errores
 window.calculateFinalCheckoutPrice = function () {
@@ -3040,7 +3123,7 @@ function renderAdminDealersTable() {
         const cfg = dealer.config || {};
         const blipId = cfg.blip ?? 225; // 225 = Coche por defecto
 
-        // ¡NUEVO!: Verificamos si está desactivado
+        // Verificamos si está desactivado
         const isDisabled = cfg.disabled === true;
 
         // Empezamos asumiendo un icono base que sabemos que existe en FiveM Docs
@@ -3094,7 +3177,7 @@ function renderAdminDealersTable() {
         `;
 
         // === CALIBRACIÓN ULTRA PRECISA DE LOS BLIPS EN EL MAPA ===
-        // ¡NUEVO! Solo pintamos el blip en el mapa interactivo si NO está desactivado
+        // Solo pintamos el blip en el mapa interactivo si NO está desactivado
         if (markersContainer && cfg.coords && !isDisabled) {
 
             // 1. Bordes del mapa de GTA V
@@ -3184,6 +3267,7 @@ window.editAdminDealer = function (id) {
     document.getElementById('edit-dealer-y').value = cfg.coords?.y ?? '';
     document.getElementById('edit-dealer-z').value = cfg.coords?.z ?? '';
     document.getElementById('edit-dealer-scale').value = cfg.scale ?? 0.55;
+    document.getElementById('edit-dealer-job').value = cfg.job ?? '';
 
     // Renderizar blips y colores con valores actuales
     renderEditBlips(true);
@@ -3194,8 +3278,7 @@ window.editAdminDealer = function (id) {
 };
 
 window.markGPSAdminDealer = function (id) {
-    console.log("[ADMIN] Marcar GPS concesionario:", id);
-    // TODO: Mandar fetch al cliente (cl_main.lua) para que ponga el waypoint en el mapa
+    // Mandar fetch al cliente (cl_main.lua) para que ponga el waypoint en el mapa
     fetch(`https://${GetParentResourceName()}/adminMarkGPS`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3204,7 +3287,7 @@ window.markGPSAdminDealer = function (id) {
 };
 
 window.toggleAdminDealer = function (id) {
-    // TODO: Enviar fetch al servidor para cambiar el estado de abierto/cerrado
+    // Enviar fetch al servidor para cambiar el estado de abierto/cerrado
     fetch(`https://${GetParentResourceName()}/adminToggleDealer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -5777,30 +5860,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // EVENTOS DEL MENÚ DE ADMINISTRADOR (CONFIGURADOR)
     // =================================================================
 
-    // Botón de Importar
-    const btnAdminImport = document.getElementById('admin-import-btn');
-    if (btnAdminImport) {
-        btnAdminImport.addEventListener('click', () => {
-            // Aquí mandaremos la señal a Lua para abrir un modal o ejecutar el import
-            fetch(`https://${GetParentResourceName()}/adminImportDealer`, {
-                method: 'POST',
-                body: JSON.stringify({})
-            });
-        });
-    }
-
-    // Botón de Crear Nuevo
-    const btnAdminCreate = document.getElementById('admin-create-btn');
-    if (btnAdminCreate) {
-        btnAdminCreate.addEventListener('click', () => {
-            // Aquí mandaremos la señal a Lua o abriremos el modal de creación
-            fetch(`https://${GetParentResourceName()}/adminCreateDealer`, {
-                method: 'POST',
-                body: JSON.stringify({})
-            });
-        });
-    }
-
     // =================================================================
     // EVENTOS DEL MENÚ DE ADMINISTRADOR (TABLA Y BUSCADOR)
     // =================================================================
@@ -6178,6 +6237,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCreateDealer.addEventListener('click', () => {
             // Resetear valores
             document.getElementById('input-dealer-name').value = '';
+            document.getElementById('input-dealer-job').value = '';
             document.getElementById('input-dealer-x').value = '';
             document.getElementById('input-dealer-y').value = '';
             document.getElementById('input-dealer-z').value = '';
@@ -6270,6 +6330,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnSaveDealer) {
         btnSaveDealer.addEventListener('click', () => {
             const name = document.getElementById('input-dealer-name').value.trim();
+            const job = document.getElementById('input-dealer-job').value.trim();
             const customId = idInput ? idInput.value.trim() : ''; // Cogemos el ID real
             const x = parseFloat(document.getElementById('input-dealer-x').value);
             const y = parseFloat(document.getElementById('input-dealer-y').value);
@@ -6278,12 +6339,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Validación simple
             if (!name) return alert("Por favor, introduce un nombre.");
+            if (!job) return alert("Por favor, introduce el job del concesionario.");
             if (!customId) return alert("El concesionario necesita un ID válido.");
             if (isNaN(x) || isNaN(y) || isNaN(z)) return alert("Por favor, rellena las coordenadas o usa el botón de ubicación.");
 
             const newDealerData = {
                 id: customId.toLowerCase(),
                 name: name,
+                job: job.toLowerCase(),
                 coords: { x: x, y: y, z: z },
                 blip: selectedAdminBlip,
                 color: selectedAdminColor,
@@ -6319,19 +6382,21 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-update-dealer')?.addEventListener('click', () => {
         const id = document.getElementById('edit-dealer-id').value.trim();
         const name = document.getElementById('edit-dealer-name').value.trim();
+        const job = document.getElementById('edit-dealer-job').value.trim();
         const x = parseFloat(document.getElementById('edit-dealer-x').value);
         const y = parseFloat(document.getElementById('edit-dealer-y').value);
         const z = parseFloat(document.getElementById('edit-dealer-z').value);
         const scale = parseFloat(document.getElementById('edit-dealer-scale').value) || 0.55;
 
         if (!name) return alert('Introduce un nombre.');
+        if (!job) return alert('Introduce el job del concesionario.');
         if (isNaN(x) || isNaN(y) || isNaN(z)) return alert('Rellena las coordenadas.');
 
         fetch(`https://${GetParentResourceName()}/adminUpdateDealer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id, name,
+                id, name, job: job.toLowerCase(),
                 blip: selectedEditBlip,
                 color: selectedEditColor,
                 coords: { x, y, z },
@@ -6688,16 +6753,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             block.querySelector(`#del-pt-${index}`).addEventListener('click', () => {
-                if (confirm(`¿Eliminar el punto ${index + 1} del showroom?`)) {
-                    const pointsList = normalizeShowroomPoints(dealer);
-                    pointsList.splice(index, 1);
-                    dealer.config.showroomPoints = pointsList;
-                    fetch(`https://${GetParentResourceName()}/adminUpdateDealer`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: dealer.id, showroomPoints: pointsList })
-                    }).then(() => renderDealerShowroomPoints()).catch(() => renderDealerShowroomPoints());
-                }
+                // Llamamos a nuestro confirm personalizado y le pasamos el texto y un título opcional
+                customConfirm(`¿Eliminar el punto ${index + 1} del showroom?`, "ELIMINAR PUNTO").then((confirmed) => {
+                    if (confirmed) {
+                        const pointsList = normalizeShowroomPoints(dealer);
+                        pointsList.splice(index, 1);
+                        dealer.config.showroomPoints = pointsList;
+                        fetch(`https://${GetParentResourceName()}/adminUpdateDealer`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: dealer.id, showroomPoints: pointsList })
+                        }).then(() => renderDealerShowroomPoints()).catch(() => renderDealerShowroomPoints());
+                    }
+                });
             });
 
             container.appendChild(block);
@@ -6802,6 +6870,56 @@ document.addEventListener('DOMContentLoaded', () => {
         saveShowroomPoint();
     });
 
+    function setDealerOptionsPage(page) {
+        const pointsTab = document.querySelector('.dealer-options-tab[data-page="points"]');
+        const advancedTab = document.querySelector('.dealer-options-tab[data-page="advanced"]');
+        const sectionLabel = document.getElementById('dealer-options-section-label');
+        const addButton = document.getElementById('btn-add-showroom-point');
+        const showroomContainer = document.getElementById('dealer-showroom');
+        const advancedContainer = document.getElementById('dealer-advanced');
+        const defaultPanel = document.getElementById('dealer-options-default');
+        const sectionArea = document.getElementById('dealer-options-section-area');
+
+        if (!pointsTab || !advancedTab || !sectionLabel || !showroomContainer || !advancedContainer || !defaultPanel || !sectionArea) {
+            return;
+        }
+
+        pointsTab.classList.toggle('active', page === 'points');
+        advancedTab.classList.toggle('active', page === 'advanced');
+        window.currentDealerOptionsPage = page || null;
+
+        if (page === 'points') {
+            defaultPanel.style.display = 'none';
+            sectionArea.style.display = 'flex';
+            sectionLabel.innerHTML = '<i class="fa-solid fa-list-check"></i> PUNTOS DE VENTA';
+            addButton.style.display = 'inline-flex';
+            showroomContainer.style.display = 'flex';
+            advancedContainer.style.display = 'none';
+        } else if (page === 'advanced') {
+            defaultPanel.style.display = 'none';
+            sectionArea.style.display = 'flex';
+            sectionLabel.innerHTML = '<i class="fa-solid fa-list-check"></i> OPCIONES DISPONIBLES';
+            addButton.style.display = 'none';
+            showroomContainer.style.display = 'none';
+            advancedContainer.style.display = 'flex';
+        } else {
+            defaultPanel.style.display = 'flex';
+            sectionArea.style.display = 'none';
+            addButton.style.display = 'none';
+            showroomContainer.style.display = 'none';
+            advancedContainer.style.display = 'none';
+        }
+    }
+
+    document.querySelectorAll('.dealer-options-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const page = tab.dataset.page;
+            if (page) {
+                setDealerOptionsPage(page);
+            }
+        });
+    });
+
     window.configureAdminDealer = function (dealerId) {
         const dealer = adminDealersWorkingList.find(d => d.id === dealerId);
         if (!dealer) {
@@ -6812,12 +6930,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Actualizar los textos dinámicos del modal
         document.getElementById('dealer-options-title').innerText = `OPCIONES DEL CONCESIONARIO`;
         document.getElementById('dealer-options-desc').innerText = `Gestiona la configuración avanzada de ${dealer.name || 'este concesionario'}.`;
-        document.getElementById('dealer-options-panel-text').innerText = `Ajusta las opciones específicas de ${dealer.name || 'este concesionario'}.`;
+        const panelText = document.getElementById('dealer-options-panel-text');
+        if (panelText) {
+            panelText.innerText = `Ajusta las opciones específicas de ${dealer.name || 'este concesionario'}.`;
+        }
 
         // Guardar el ID actual del dealer siendo configurado (por si lo necesitas luego)
         window.currentConfigDealerId = dealerId;
         closeShowroomPointModal();
         renderDealerShowroomPoints();
+
+        // Por defecto no hay sección seleccionada
+        window.currentDealerOptionsPage = null;
+        setDealerOptionsPage(null);
 
         // Abrir el modal
         const modal = document.getElementById('dealer-options-modal');

@@ -13,6 +13,7 @@ local DealerOwners = {}
 local spawnedAgencyNPCs = {}
 local currentActiveZone = nil
 local currentActiveText = nil
+local allShowroomZoneIds = {} -- Tracking de TODOS los zoneIds de showroom mostrados
 local currentBossDealerId = nil
 local currentShowroomDealerId = nil
 local ShowroomVehicleData = {}
@@ -35,6 +36,7 @@ local testDriveTimer = 0 -- Segundos restantes
 local dealerBlips = {} -- Guardamos los blips en memoria para borrarlos al reiniciar
 local dealersFromDB = {} -- Concesionarios cargados desde la base de datos (para los blips)
 local dealerConfigsFromDB = {} -- Configuración completa de concesionarios desde la BD
+
 
 -- Posiciones relativas en el remolque tr2 (Capacidad 6 coches)
 local trailerOffsets = { -- PLANTA BAJA
@@ -85,7 +87,12 @@ local function IsPlayerAuthorized(dealerName, dealerConfig)
     if PlayerData and PlayerData.citizenid and DealerOwners[dealerName] == PlayerData.citizenid then
         isOwner = true
     end
-    if PlayerJob and PlayerJob.name == dealerConfig.job and PlayerJob.isboss then
+
+    local jobName = dealerConfig.job
+    if not jobName and dealerConfigsFromDB and dealerConfigsFromDB[dealerName] then
+        jobName = dealerConfigsFromDB[dealerName].job
+    end
+    if PlayerJob and jobName and PlayerJob.name == jobName and PlayerJob.isboss then
         isBoss = true
     end
 
@@ -1256,7 +1263,7 @@ AddEventHandler('DP-VehicleShop:client:beginTestDrive', function(dealerId, vehic
     -- 7. Meter al jugador dentro como conductor
     TaskWarpPedIntoVehicle(ped, testDriveVehicle, -1)
 
-    -- [NUEVO] MODO DIOS, ANTI-CAÍDAS Y GASOLINA AL 100%
+    -- MODO DIOS, ANTI-CAÍDAS Y GASOLINA AL 100%
     SetEntityInvincible(testDriveVehicle, true) -- Vehículo indestructible
     SetVehicleCanBeVisiblyDamaged(testDriveVehicle, false) -- Sin rasguños
     SetVehicleEngineOn(testDriveVehicle, true, true, false)
@@ -2427,7 +2434,8 @@ CreateThread(function()
             if config and type(config.showroomPoints) == 'table' then
                 for index, point in ipairs(config.showroomPoints) do
                     if point and point.coords_npc and point.coords_npc.x and point.coords_npc.y and point.coords_npc.z then
-                        local pointCoords = vector3(tonumber(point.coords_npc.x) or 0.0, tonumber(point.coords_npc.y) or 0.0, tonumber(point.coords_npc.z) or 0.0)
+                        local pointCoords = vector3(tonumber(point.coords_npc.x) or 0.0,
+                            tonumber(point.coords_npc.y) or 0.0, tonumber(point.coords_npc.z) or 0.0)
                         local distPoint = #(pos - pointCoords)
 
                         if distPoint < 2.5 then
@@ -2443,7 +2451,9 @@ CreateThread(function()
                         end
                     end
                 end
-                if inZone then break end
+                if inZone then
+                    break
+                end
             end
         end
 
@@ -2518,6 +2528,11 @@ CreateThread(function()
                 currentActiveZone = zoneId
                 currentActiveText = zoneText
                 exports['DP-TextUI']:MostrarUI(zoneId, zoneText, 'E', false)
+
+                -- Si es un punto de showroom, lo registramos en el tracking global
+                if string.find(zoneId, "showroom_") then
+                    allShowroomZoneIds[zoneId] = true
+                end
             end
         elseif not inZone and currentActiveZone then
             -- Si salimos de la zona, limpiamos todo
@@ -2578,13 +2593,19 @@ local function RefreshDealerBlips()
 end
 
 -- Recibe la lista de concesionarios desde el servidor y refresca los blips.
--- El servidor llama a este evento:
---   · Al arrancar el script (para todos los jugadores)
---   · Después de crear, editar o borrar un concesionario (broadcast a todos)
 RegisterNetEvent('DP-VehicleShop:client:loadDealerBlips', function(dealers)
     if not dealers or type(dealers) ~= 'table' then
         return
     end
+
+    -- Ocultar TODOS los TextUI de showroom que se hayan mostrado alguna vez, no solo el activo. DP-TextUI los ancla a coordenadas fijas.
+    for zoneId, _ in pairs(allShowroomZoneIds) do
+        exports['DP-TextUI']:OcultarUI(zoneId)
+    end
+    allShowroomZoneIds = {}
+    currentActiveZone = nil
+    currentActiveText = nil
+
     dealersFromDB = dealers
     dealerConfigsFromDB = {}
     for _, dealer in ipairs(dealers) do

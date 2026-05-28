@@ -234,7 +234,7 @@ h2 {
     background-color: var(--secondary-color);
 }
 
-/* ── PUNTO SHOWROOM — nuevo diseño tipo vehicle-row ── */
+/* ── PUNTO SHOWROOM ── */
 .showroom-point-card {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1336,7 +1336,6 @@ select option {
     box-shadow: 0 5px 20px rgba(255, 255, 255, 0.2);
 }
 
-/* Estilo base para los nuevos botones de la derecha */
 .toolbar-btn {
     width: 1.8vw;
     height: 1.8vw;
@@ -3703,7 +3702,6 @@ input:checked+.slider:before {
     gap: 1vw;
 }
 
-/* NUEVO DISEÑO PREMIUM: Píldora flotante */
 .preview-center {
     pointer-events: none;
     display: flex;
@@ -4640,6 +4638,36 @@ input:checked+.slider:before {
 
 .disc-block:hover {
     border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dealer-options-tab {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: transparent;
+    color: #fff;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.dealer-options-tab.active {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.dealer-options-tab:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.dealer-options-side .dealer-options-tab {
+    width: 100%;
+}
+
+.dealer-options-right-header h3 {
+    margin: 0;
+}
+
+.dealer-options-right-header p {
+    margin: 0;
 }
 
 .disc-block-grow {
