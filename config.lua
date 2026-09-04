@@ -46,9 +46,7 @@ Config.RealEstateNPC = 'a_m_y_business_03' -- Modelo del agente de Dynasty 8
 
 Config.Dealerships = {
     -- 1. COCHES (Vehículos de 4 ruedas estándar)
-    ['cars'] = {
-        bossMenu = vector3(-52.45, -1100.43, 26.44),
-        npc_buy = vector4(-59.99, -1096.89, 26.44, 298.13),
+    ['cars'] = {        
         isUsedMarket = false,
         ExitSpawnPoints = {vector4(-38.34, -1078.26, 26.2, 70.56), vector4(-15.71, -1101.64, 26.22, 159.81)},
         Logistics = {
@@ -60,8 +58,6 @@ Config.Dealerships = {
 
     -- 2. BIKES (Motos y Bicicletas)
     ['bikes'] = {
-        bossMenu = vector3(-873.11, -181.49, 37.84),
-        npc_buy = vector4(-863.75, -194.73, 37.84, 89.28),
         isUsedMarket = false,
         ExitSpawnPoints = {vector4(-859.23, -210.42, 37.6, 273.44), vector4(-885.9, -194.75, 37.56, 25.88)},
         Logistics = {
@@ -75,8 +71,6 @@ Config.Dealerships = {
     ['air'] = {
         preview_cam = vector4(-1151.87, -3363.92, 15.0, 240.0), -- Donde aparece el avión para mirarlo
         preview_spawn = vector4(-1135.0, -3375.0, 13.0, 60.0), -- Dónde se coloca tu cámara para verlo
-        bossMenu = vector3(-1243.84, -3378.42, 13.94),
-        npc_buy = vector4(-1245.16, -3380.55, 13.94, 61.38),
         isUsedMarket = false,
         ExitSpawnPoints = {vector4(-1250.0, -3360.0, 13.94, 0.0), vector4(-1255.0, -3360.0, 13.94, 0.0)},
         Logistics = {
@@ -90,8 +84,6 @@ Config.Dealerships = {
     ['sea'] = {
         preview_cam = vector4(-756.81, -1376.45, 4.38, 287.51), -- En el agua
         preview_spawn = vector4(-741.88, -1370.38, 0.0, 138.21), -- En el muelle mirándolo
-        bossMenu = vector3(-788.78, -1346.52, 5.18),
-        npc_buy = vector4(-813.0, -1345.81, 5.18, 230.36),
         isUsedMarket = false,
         ExitSpawnPoints = {vector4(-855.63, -1396.55, 0.18, 196.16), vector4(-891.61, -1444.27, 0.12, 285.04)},
         Logistics = {
@@ -103,8 +95,6 @@ Config.Dealerships = {
 
     -- 5. VIP (Vehículos Custom / Importación)
     ['vip'] = {
-        bossMenu = vector3(-3380.07, -1254.74, 24.24),
-        npc_buy = vector4(-3378.38, -1277.74, 24.07, 286.38),
         isUsedMarket = false,
         ExitSpawnPoints = {vector4(-3355.38, -1264.22, 23.87, 172.18), vector4(-3374.11, -1251.5, 23.85, 82.55)},
         Logistics = {
@@ -118,8 +108,6 @@ Config.Dealerships = {
     ['used'] = {
         label = "Larry's Compra/Venta Automotriz",
         job = 'useddealer',
-        bossMenu = vector3(1227.86, 2739.41, 38.01),
-        npc_buy = vector4(1226.83, 2729.45, 38.01, 60.66),
         isUsedMarket = true,
         ExitSpawnPoints = {vector4(-1260.0, -3380.0, 13.94, 90.0), vector4(-1260.0, -3385.0, 13.94, 90.0)},
         Logistics = {

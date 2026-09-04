@@ -842,7 +842,6 @@ function populateSpawnSelector(spawnList) {
     });
 }
 
-
 // =================================================================
 // MÓDULO 7: SHOWROOM (CARRUSEL DE CLIENTES)
 // =================================================================
@@ -2765,7 +2764,6 @@ document.getElementById('btn-confirm-order')?.addEventListener('click', () => {
     toggleModal('order-stock-modal', false);
 });
 
-
 // =================================================================
 // MÓDULO 11: BOSS MENU - RESERVAS
 // =================================================================
@@ -2883,7 +2881,6 @@ function checkEmptyReservations(container) {
         `;
     }
 }
-
 
 // =================================================================
 // MÓDULO 12: BOSS MENU - FINANZAS (BALANCE, TRANSACCIONES Y VENTAS)
@@ -5857,10 +5854,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // =================================================================
-    // EVENTOS DEL MENÚ DE ADMINISTRADOR (CONFIGURADOR)
-    // =================================================================
-
-    // =================================================================
     // EVENTOS DEL MENÚ DE ADMINISTRADOR (TABLA Y BUSCADOR)
     // =================================================================
 
@@ -6651,6 +6644,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ═══════════════════════════════════════════════════════════════════════════
     window.currentConfigDealerId = null;
     window.currentShowroomPointIndex = null;
+    let currentShowpointType = 'npc'; // npc, prop, marker
 
     const getDealerConfig = (dealerId) => {
         return adminDealersWorkingList.find(d => d.id === dealerId) || null;
@@ -6663,6 +6657,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return [];
     };
+
+    // 1. Lógica dinámica de los botones (Marker, Prop, NPC)
+    const selectShowpointType = (type) => {
+        currentShowpointType = type;
+        const btnTypeMarker = document.getElementById('btn-showpoint-type-marker');
+        const btnTypeProp = document.getElementById('btn-showpoint-type-prop');
+        const btnTypeNpc = document.getElementById('btn-showpoint-type-npc');
+        const contMarker = document.getElementById('showpoint-container-marker');
+        const contProp = document.getElementById('showpoint-container-prop');
+        const contNpc = document.getElementById('showpoint-container-npc');
+
+        if (btnTypeMarker) btnTypeMarker.classList.remove('active');
+        if (btnTypeProp) btnTypeProp.classList.remove('active');
+        if (btnTypeNpc) btnTypeNpc.classList.remove('active');
+
+        if (contMarker) contMarker.style.display = 'none';
+        if (contProp) contProp.style.display = 'none';
+        if (contNpc) contNpc.style.display = 'none';
+
+        if (type === 'marker') {
+            if (btnTypeMarker) btnTypeMarker.classList.add('active');
+            if (contMarker) contMarker.style.display = 'flex';
+        } else if (type === 'prop') {
+            if (btnTypeProp) btnTypeProp.classList.add('active');
+            if (contProp) contProp.style.display = 'flex';
+        } else if (type === 'npc') {
+            if (btnTypeNpc) btnTypeNpc.classList.add('active');
+            if (contNpc) contNpc.style.display = 'flex';
+        }
+    };
+
+    // Asignar listeners a los 3 botones superiores
+    document.getElementById('btn-showpoint-type-marker')?.addEventListener('click', (e) => { e.preventDefault(); selectShowpointType('marker'); });
+    document.getElementById('btn-showpoint-type-prop')?.addEventListener('click', (e) => { e.preventDefault(); selectShowpointType('prop'); });
+    document.getElementById('btn-showpoint-type-npc')?.addEventListener('click', (e) => { e.preventDefault(); selectShowpointType('npc'); });
+
 
     const closeShowroomPointModal = () => {
         const modal = document.getElementById('dealer-showpoint-modal');
@@ -6683,14 +6713,87 @@ document.addEventListener('DOMContentLoaded', () => {
         const point = (pointIndex !== null && pointIndex >= 0 && pointIndex < points.length) ? points[pointIndex] : null;
 
         document.getElementById('showpoint-modal-title').innerText = point ? `EDITAR PUNTO ${pointIndex + 1}` : `NUEVO PUNTO DE SHOWROOM`;
-        document.getElementById('showpoint-modal-desc').innerText = point ? `Modifica la ubicación, NPC y animación.` : `Completa las coordenadas, modelo de NPC y animación.`;
+        document.getElementById('showpoint-modal-desc').innerText = point ? `Modifica la ubicación y propiedades.` : `Define el punto y elige qué tipo de entidad se mostrará.`;
 
-        document.getElementById('input-showpoint-x').value = point?.coords_npc?.x ?? '';
-        document.getElementById('input-showpoint-y').value = point?.coords_npc?.y ?? '';
-        document.getElementById('input-showpoint-z').value = point?.coords_npc?.z ?? '';
-        document.getElementById('input-showpoint-h').value = point?.coords_npc?.h ?? '';
-        document.getElementById('input-showpoint-model').value = point?.npc_model ?? '';
-        document.getElementById('input-showpoint-scenario').value = point?.npc_scenario ?? '';
+        // Resetear Campos Base (NUEVO INPUT INCLUIDO)
+        document.getElementById('input-showpoint-label').value = '';
+        document.getElementById('input-showpoint-x').value = '';
+        document.getElementById('input-showpoint-y').value = '';
+        document.getElementById('input-showpoint-z').value = '';
+        document.getElementById('input-showpoint-h').value = '';
+
+        // Resetear Prop y NPC
+        document.getElementById('input-showpoint-prop-model').value = '';
+        document.getElementById('input-showpoint-npc-model').value = '';
+        document.getElementById('input-showpoint-npc-scenario').value = '';
+
+        // Resetear Marker
+        document.getElementById('input-marker-type').value = '1';
+        document.getElementById('input-marker-sx').value = '1.5';
+        document.getElementById('input-marker-sy').value = '1.5';
+        document.getElementById('input-marker-sz').value = '0.5';
+        document.getElementById('input-marker-dx').value = '0.0';
+        document.getElementById('input-marker-dy').value = '0.0';
+        document.getElementById('input-marker-dz').value = '0.0';
+        document.getElementById('input-marker-r').value = '255';
+        document.getElementById('input-marker-g').value = '255';
+        document.getElementById('input-marker-b').value = '255';
+        document.getElementById('input-marker-a').value = '150';
+        document.getElementById('input-marker-rx').value = '0.0';
+        document.getElementById('input-marker-ry').value = '0.0';
+        document.getElementById('input-marker-rz').value = '0.0';
+        document.getElementById('input-marker-tdict').value = '';
+        document.getElementById('input-marker-tname').value = '';
+        document.getElementById('input-marker-bob').checked = false;
+        document.getElementById('input-marker-face').checked = false;
+        document.getElementById('input-marker-rotate').checked = false;
+        document.getElementById('input-marker-drawents').checked = false;
+
+        // Rellenar si estamos EDITANDO
+        if (point) {
+            // Cargar el texto personalizado si lo tiene
+            document.getElementById('input-showpoint-label').value = point.label || '';
+
+            if (point.coords_npc) {
+                document.getElementById('input-showpoint-x').value = point.coords_npc.x ?? '';
+                document.getElementById('input-showpoint-y').value = point.coords_npc.y ?? '';
+                document.getElementById('input-showpoint-z').value = point.coords_npc.z ?? '';
+                document.getElementById('input-showpoint-h').value = point.coords_npc.h ?? '';
+            }
+
+            const pType = point.type || 'npc';
+            selectShowpointType(pType);
+
+            if (pType === 'npc') {
+                document.getElementById('input-showpoint-npc-model').value = point.npc_model || '';
+                document.getElementById('input-showpoint-npc-scenario').value = point.npc_scenario || '';
+            } else if (pType === 'prop') {
+                document.getElementById('input-showpoint-prop-model').value = point.prop_model || '';
+            } else if (pType === 'marker' && point.marker) {
+                document.getElementById('input-marker-type').value = point.marker.type ?? '1';
+                document.getElementById('input-marker-sx').value = point.marker.scale?.x ?? '1.5';
+                document.getElementById('input-marker-sy').value = point.marker.scale?.y ?? '1.5';
+                document.getElementById('input-marker-sz').value = point.marker.scale?.z ?? '0.5';
+                document.getElementById('input-marker-dx').value = point.marker.dir?.x ?? '0.0';
+                document.getElementById('input-marker-dy').value = point.marker.dir?.y ?? '0.0';
+                document.getElementById('input-marker-dz').value = point.marker.dir?.z ?? '0.0';
+                document.getElementById('input-marker-r').value = point.marker.color?.r ?? '255';
+                document.getElementById('input-marker-g').value = point.marker.color?.g ?? '255';
+                document.getElementById('input-marker-b').value = point.marker.color?.b ?? '255';
+                document.getElementById('input-marker-a').value = point.marker.color?.a ?? '150';
+                document.getElementById('input-marker-rx').value = point.marker.rot?.x ?? '0.0';
+                document.getElementById('input-marker-ry').value = point.marker.rot?.y ?? '0.0';
+                document.getElementById('input-marker-rz').value = point.marker.rot?.z ?? '0.0';
+                document.getElementById('input-marker-tdict').value = point.marker.textureDict || '';
+                document.getElementById('input-marker-tname').value = point.marker.textureName || '';
+                document.getElementById('input-marker-bob').checked = point.marker.bob || false;
+                document.getElementById('input-marker-face').checked = point.marker.faceCamera || false;
+                document.getElementById('input-marker-rotate').checked = point.marker.rotate || false;
+                document.getElementById('input-marker-drawents').checked = point.marker.drawOnEnts || false;
+            }
+        } else {
+            selectShowpointType('npc');
+        }
 
         const modal = document.getElementById('dealer-showpoint-modal');
         if (modal) {
@@ -6723,37 +6826,53 @@ document.addEventListener('DOMContentLoaded', () => {
             const block = document.createElement('div');
             block.className = 'showroom-point-card';
 
-            // Coords formateadas
             const cx = point.coords_npc?.x ?? '--';
             const cy = point.coords_npc?.y ?? '--';
             const cz = point.coords_npc?.z ?? '--';
 
+            const pType = point.type || 'npc';
+            let detailHtml = '';
+            let typeBadge = '';
+
+            // Añadimos indicador del texto personalizado si existe
+            const customLabelHtml = point.label ? `<span style="font-size: 0.6vw; color: #f39c12; margin-left: 0.5vw;"><i class="fa-solid fa-font"></i> "${point.label}"</span>` : '';
+
+            if (pType === 'npc') {
+                typeBadge = 'NPC';
+                detailHtml = `<div class="showroom-point-card-subtitle">Modelo: ${point.npc_model || 'Sin modelo'}</div>
+                              <div class="showroom-point-card-subtitle">Animación: ${point.npc_scenario || 'Sin animación'}</div>`;
+            } else if (pType === 'prop') {
+                typeBadge = 'OBJETO';
+                detailHtml = `<div class="showroom-point-card-subtitle">Objeto: ${point.prop_model || 'Desconocido'}</div>`;
+            } else if (pType === 'marker') {
+                typeBadge = 'MARCADOR';
+                detailHtml = `<div class="showroom-point-card-subtitle">Tipo: ${point.marker?.type || 1} | Color: ${point.marker?.color?.r},${point.marker?.color?.g},${point.marker?.color?.b}</div>`;
+            }
+
             block.innerHTML = `
-        <div class="showroom-point-card-left">
-            <div class="showroom-point-card-title">Punto ${index + 1}</div>
-            <div class="showroom-point-card-subtitle">Modelo: ${point.npc_model || 'Sin modelo'}</div>
-            <div class="showroom-point-card-subtitle">Animación: ${point.npc_scenario || 'Sin animación'}</div>
-            <div class="showroom-point-card-coords">
-                <span class="showroom-point-type-badge">NPC</span>
-                <span class="showroom-point-card-coords-text">X: ${cx} | Y: ${cy} | Z: ${cz}</span>
-            </div>
-        </div>
-        <div class="showroom-point-card-actions">
-            <button class="btn-icon" title="Editar punto" id="edit-pt-${index}">
-                <i class="fa-solid fa-pen-to-square"></i>
-            </button>
-            <button class="btn-icon btn-danger" title="Eliminar punto" id="del-pt-${index}">
-                <i class="fa-solid fa-trash-can"></i>
-            </button>
-        </div>
-    `;
+                <div class="showroom-point-card-left">
+                    <div class="showroom-point-card-title">Punto ${index + 1} ${customLabelHtml}</div>
+                    ${detailHtml}
+                    <div class="showroom-point-card-coords">
+                        <span class="showroom-point-type-badge">${typeBadge}</span>
+                        <span class="showroom-point-card-coords-text">X: ${cx} | Y: ${cy} | Z: ${cz}</span>
+                    </div>
+                </div>
+                <div class="showroom-point-card-actions">
+                    <button class="btn-icon" title="Editar punto" id="edit-pt-${index}">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button class="btn-icon btn-danger" title="Eliminar punto" id="del-pt-${index}">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `;
 
             block.querySelector(`#edit-pt-${index}`).addEventListener('click', () => {
                 openShowroomPointModal(window.currentConfigDealerId, index);
             });
 
             block.querySelector(`#del-pt-${index}`).addEventListener('click', () => {
-                // Llamamos a nuestro confirm personalizado y le pasamos el texto y un título opcional
                 customConfirm(`¿Eliminar el punto ${index + 1} del showroom?`, "ELIMINAR PUNTO").then((confirmed) => {
                     if (confirmed) {
                         const pointsList = normalizeShowroomPoints(dealer);
@@ -6787,36 +6906,78 @@ document.addEventListener('DOMContentLoaded', () => {
         const y = parseFloat(document.getElementById('input-showpoint-y').value);
         const z = parseFloat(document.getElementById('input-showpoint-z').value);
         const h = parseFloat(document.getElementById('input-showpoint-h').value);
-        const model = document.getElementById('input-showpoint-model').value.trim();
-        const scenario = document.getElementById('input-showpoint-scenario').value.trim();
 
-        if (isNaN(x) || isNaN(y) || isNaN(z) || isNaN(h)) {
-            return alert('Rellena las coordenadas XYZH del punto de showroom.');
-        }
-        if (!model) {
-            return alert('Introduce el modelo del NPC.');
-        }
-        if (!scenario) {
-            return alert('Introduce la animación del NPC.');
+        // CAPTURAR EL TEXTO DEL TEXTUI
+        const customLabel = document.getElementById('input-showpoint-label').value.trim();
+
+        if (isNaN(x) || isNaN(y) || isNaN(z)) {
+            return alert('Las coordenadas X, Y, Z son obligatorias.');
         }
 
         const dealer = getDealerConfig(dealerId);
         if (!dealer) return;
 
-        const points = normalizeShowroomPoints(dealer);
-        const newPoint = {
-            coords_npc: { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)), z: parseFloat(z.toFixed(2)), h: parseFloat(h.toFixed(2)) },
-            npc_model: model,
-            npc_scenario: scenario
+        // Construir la base del punto, AÑADIENDO EL LABEL
+        const pt = {
+            type: currentShowpointType,
+            label: customLabel !== "" ? customLabel : null,
+            coords_npc: { x, y, z, h: isNaN(h) ? 0 : h }
         };
 
+        // Empaquetar datos según el tipo
+        if (currentShowpointType === 'npc') {
+            const npcModel = document.getElementById('input-showpoint-npc-model').value.trim();
+            if (!npcModel) { alert('El modelo del NPC es obligatorio.'); return; }
+            pt.npc_model = npcModel;
+            pt.npc_scenario = document.getElementById('input-showpoint-npc-scenario').value.trim();
+
+        } else if (currentShowpointType === 'prop') {
+            const propModel = document.getElementById('input-showpoint-prop-model').value.trim();
+            if (!propModel) { alert('El modelo del OBJETO es obligatorio.'); return; }
+            pt.prop_model = propModel;
+
+        } else if (currentShowpointType === 'marker') {
+            pt.marker = {
+                type: parseInt(document.getElementById('input-marker-type').value) || 1,
+                scale: {
+                    x: parseFloat(document.getElementById('input-marker-sx').value) || 1.5,
+                    y: parseFloat(document.getElementById('input-marker-sy').value) || 1.5,
+                    z: parseFloat(document.getElementById('input-marker-sz').value) || 0.5
+                },
+                dir: {
+                    x: parseFloat(document.getElementById('input-marker-dx').value) || 0.0,
+                    y: parseFloat(document.getElementById('input-marker-dy').value) || 0.0,
+                    z: parseFloat(document.getElementById('input-marker-dz').value) || 0.0
+                },
+                color: {
+                    r: parseInt(document.getElementById('input-marker-r').value) || 255,
+                    g: parseInt(document.getElementById('input-marker-g').value) || 255,
+                    b: parseInt(document.getElementById('input-marker-b').value) || 255,
+                    a: parseInt(document.getElementById('input-marker-a').value) || 150
+                },
+                rot: {
+                    x: parseFloat(document.getElementById('input-marker-rx').value) || 0.0,
+                    y: parseFloat(document.getElementById('input-marker-ry').value) || 0.0,
+                    z: parseFloat(document.getElementById('input-marker-rz').value) || 0.0
+                },
+                textureDict: document.getElementById('input-marker-tdict').value.trim(),
+                textureName: document.getElementById('input-marker-tname').value.trim(),
+                bob: document.getElementById('input-marker-bob').checked,
+                faceCamera: document.getElementById('input-marker-face').checked,
+                rotate: document.getElementById('input-marker-rotate').checked,
+                drawOnEnts: document.getElementById('input-marker-drawents').checked
+            };
+        }
+
+        const points = normalizeShowroomPoints(dealer);
+
         if (window.currentShowroomPointIndex !== null && window.currentShowroomPointIndex >= 0 && window.currentShowroomPointIndex < points.length) {
-            points[window.currentShowroomPointIndex] = newPoint;
+            points[window.currentShowroomPointIndex] = pt;
         } else {
             if (points.length >= 5) {
                 return alert('Ya has alcanzado el máximo de 5 puntos de showroom.');
             }
-            points.push(newPoint);
+            points.push(pt);
         }
 
         dealer.config = dealer.config || {};
@@ -6869,6 +7030,224 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-showpoint-save')?.addEventListener('click', () => {
         saveShowroomPoint();
     });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LÓGICA DE OPCIONES AVANZADAS (MÉTODOS DE PAGO, STOCK Y PUNTO DE VENTA)
+    // ═══════════════════════════════════════════════════════════════════════════
+    let currentAdvBuyType = 'npc';
+
+    const selectAdvBuyType = (type) => {
+        currentAdvBuyType = type;
+        const btnMarker = document.getElementById('btn-advbuy-type-marker');
+        const btnProp = document.getElementById('btn-advbuy-type-prop');
+        const btnNpc = document.getElementById('btn-advbuy-type-npc');
+
+        const contMarker = document.getElementById('advbuy-container-marker');
+        const contProp = document.getElementById('advbuy-container-prop');
+        const contNpc = document.getElementById('advbuy-container-npc');
+
+        if (btnMarker) btnMarker.classList.remove('active');
+        if (btnProp) btnProp.classList.remove('active');
+        if (btnNpc) btnNpc.classList.remove('active');
+
+        if (contMarker) contMarker.style.display = 'none';
+        if (contProp) contProp.style.display = 'none';
+        if (contNpc) contNpc.style.display = 'none';
+
+        if (type === 'marker') {
+            if (btnMarker) btnMarker.classList.add('active');
+            if (contMarker) contMarker.style.display = 'flex';
+        } else if (type === 'prop') {
+            if (btnProp) btnProp.classList.add('active');
+            if (contProp) contProp.style.display = 'flex';
+        } else if (type === 'npc') {
+            if (btnNpc) btnNpc.classList.add('active');
+            if (contNpc) contNpc.style.display = 'grid'; // Grid por las 2 columnas
+        }
+    };
+
+    // Listeners del selector de tipos
+    document.getElementById('btn-advbuy-type-marker')?.addEventListener('click', (e) => { e.preventDefault(); selectAdvBuyType('marker'); });
+    document.getElementById('btn-advbuy-type-prop')?.addEventListener('click', (e) => { e.preventDefault(); selectAdvBuyType('prop'); });
+    document.getElementById('btn-advbuy-type-npc')?.addEventListener('click', (e) => { e.preventDefault(); selectAdvBuyType('npc'); });
+
+    // Mostrar/Ocultar la caja de configuración cuando se marca la casilla "Permitir Comprar Empresa"
+    document.getElementById('check-advanced-buyable')?.addEventListener('change', (e) => {
+        const box = document.getElementById('advanced-buyable-config-box');
+        if (box) box.style.display = e.target.checked ? 'flex' : 'none';
+    });
+
+    // Obtener Coordenadas para el punto de compra
+    document.getElementById('btn-advbuy-get-coords')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetch(`https://${GetParentResourceName()}/adminGetCoords`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+        }).then(resp => resp.json()).then(data => {
+            if (data && data.x !== undefined) {
+                document.getElementById('input-advbuy-x').value = data.x.toFixed(2);
+                document.getElementById('input-advbuy-y').value = data.y.toFixed(2);
+                document.getElementById('input-advbuy-z').value = data.z.toFixed(2);
+                if (data.h !== undefined) document.getElementById('input-advbuy-h').value = data.h.toFixed(2);
+            }
+        });
+    });
+
+    // Cargar datos al abrir el menú de configuración de un concesionario
+    const loadAdvancedOptions = (dealerId) => {
+        const dealer = getDealerConfig(dealerId);
+        if (!dealer) return;
+        const cfg = dealer.config || {};
+
+        // Por defecto asumimos TRUE a menos que esté explícitamente en false en la base de datos
+        document.getElementById('check-advanced-cash').checked = cfg.payment_cash !== false;
+        document.getElementById('check-advanced-bank').checked = cfg.payment_bank !== false;
+        document.getElementById('check-advanced-finance').checked = cfg.payment_finance !== false;
+        document.getElementById('check-advanced-stock').checked = cfg.stock_enabled !== false;
+        document.getElementById('check-advanced-reservations').checked = cfg.reservations_enabled !== false;
+        document.getElementById('check-advanced-management').checked = cfg.management_enabled !== false;
+
+        // El punto de compra si es null, asumimos que no es comprable
+        const isBuyable = cfg.npc_buy !== undefined && cfg.npc_buy !== null;
+        document.getElementById('check-advanced-buyable').checked = isBuyable;
+
+        const box = document.getElementById('advanced-buyable-config-box');
+        if (box) box.style.display = isBuyable ? 'flex' : 'none';
+
+        if (isBuyable) {
+            const bp = cfg.npc_buy;
+            document.getElementById('input-advbuy-label').value = bp.label || '';
+            document.getElementById('input-advbuy-x').value = bp.x || '';
+            document.getElementById('input-advbuy-y').value = bp.y || '';
+            document.getElementById('input-advbuy-z').value = bp.z || '';
+            document.getElementById('input-advbuy-h').value = bp.w || '';
+
+            const bType = bp.type || 'npc';
+            selectAdvBuyType(bType);
+
+            if (bType === 'npc') {
+                document.getElementById('input-advbuy-npc-model').value = bp.npc_model || '';
+                document.getElementById('input-advbuy-npc-scenario').value = bp.npc_scenario || '';
+            } else if (bType === 'prop') {
+                document.getElementById('input-advbuy-prop-model').value = bp.prop_model || '';
+            } else if (bType === 'marker' && bp.marker) {
+                document.getElementById('input-advbuy-marker-type').value = bp.marker.type || '2';
+                document.getElementById('input-advbuy-marker-sx').value = bp.marker.scale?.x || '0.2';
+                document.getElementById('input-advbuy-marker-sy').value = bp.marker.scale?.y || '0.2';
+                document.getElementById('input-advbuy-marker-sz').value = bp.marker.scale?.z || '0.2';
+                document.getElementById('input-advbuy-marker-r').value = bp.marker.color?.r || '0';
+                document.getElementById('input-advbuy-marker-g').value = bp.marker.color?.g || '255';
+                document.getElementById('input-advbuy-marker-b').value = bp.marker.color?.b || '0';
+                document.getElementById('input-advbuy-marker-a').value = bp.marker.color?.a || '200';
+                document.getElementById('input-advbuy-marker-bob').checked = bp.marker.bob !== false;
+                document.getElementById('input-advbuy-marker-rotate').checked = bp.marker.rotate !== false;
+            }
+        } else {
+            // Resetear por defecto si no existía
+            document.getElementById('input-advbuy-label').value = '';
+            document.getElementById('input-advbuy-x').value = '';
+            document.getElementById('input-advbuy-y').value = '';
+            document.getElementById('input-advbuy-z').value = '';
+            document.getElementById('input-advbuy-h').value = '';
+            selectAdvBuyType('npc');
+        }
+    };
+
+    // Guardar Opciones Avanzadas
+    const saveAdvancedOptions = () => {
+        const dealerId = window.currentConfigDealerId;
+        if (!dealerId) return;
+        const dealer = getDealerConfig(dealerId);
+        if (!dealer) return;
+
+        dealer.config = dealer.config || {};
+
+        // Recogemos todos los checks
+        dealer.config.payment_cash = document.getElementById('check-advanced-cash').checked;
+        dealer.config.payment_bank = document.getElementById('check-advanced-bank').checked;
+        dealer.config.payment_finance = document.getElementById('check-advanced-finance').checked;
+        dealer.config.stock_enabled = document.getElementById('check-advanced-stock').checked;
+        dealer.config.reservations_enabled = document.getElementById('check-advanced-reservations').checked;
+        dealer.config.management_enabled = document.getElementById('check-advanced-management').checked;
+
+        // Recogemos los datos del punto de compra si está habilitado
+        const isBuyable = document.getElementById('check-advanced-buyable').checked;
+
+        if (isBuyable) {
+            const x = parseFloat(document.getElementById('input-advbuy-x').value);
+            const y = parseFloat(document.getElementById('input-advbuy-y').value);
+            const z = parseFloat(document.getElementById('input-advbuy-z').value);
+            const h = parseFloat(document.getElementById('input-advbuy-h').value);
+
+            if (isNaN(x) || isNaN(y) || isNaN(z)) {
+                return alert('Si activas la compra de empresa, debes indicar las coordenadas X, Y, Z del punto de venta.');
+            }
+
+            let buyPoint = {
+                type: currentAdvBuyType,
+                label: document.getElementById('input-advbuy-label').value.trim(),
+                x: x, y: y, z: z, w: isNaN(h) ? 0 : h
+            };
+
+            if (currentAdvBuyType === 'npc') {
+                buyPoint.npc_model = document.getElementById('input-advbuy-npc-model').value.trim() || 'a_m_y_business_03';
+                buyPoint.npc_scenario = document.getElementById('input-advbuy-npc-scenario').value.trim() || 'WORLD_HUMAN_CLIPBOARD';
+            } else if (currentAdvBuyType === 'prop') {
+                buyPoint.prop_model = document.getElementById('input-advbuy-prop-model').value.trim();
+                if (!buyPoint.prop_model) return alert('Debes indicar el modelo del objeto/cartel.');
+            } else if (currentAdvBuyType === 'marker') {
+                buyPoint.marker = {
+                    type: parseInt(document.getElementById('input-advbuy-marker-type').value) || 2,
+                    scale: {
+                        x: parseFloat(document.getElementById('input-advbuy-marker-sx').value) || 0.2,
+                        y: parseFloat(document.getElementById('input-advbuy-marker-sy').value) || 0.2,
+                        z: parseFloat(document.getElementById('input-advbuy-marker-sz').value) || 0.2
+                    },
+                    color: {
+                        r: parseInt(document.getElementById('input-advbuy-marker-r').value) || 0,
+                        g: parseInt(document.getElementById('input-advbuy-marker-g').value) || 255,
+                        b: parseInt(document.getElementById('input-advbuy-marker-b').value) || 0,
+                        a: parseInt(document.getElementById('input-advbuy-marker-a').value) || 200
+                    },
+                    bob: document.getElementById('input-advbuy-marker-bob').checked,
+                    rotate: document.getElementById('input-advbuy-marker-rotate').checked
+                };
+            }
+            // Mantenemos el nombre "npc_buy" para que sea retrocompatible con la BD antigua, pero ahora soporta más tipos.
+            dealer.config.npc_buy = buyPoint;
+        } else {
+            dealer.config.npc_buy = null;
+        }
+
+        // Enviamos todo el configObj modificado al servidor
+        fetch(`https://${GetParentResourceName()}/adminUpdateDealer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: dealerId,
+                config_update_only: true, // Avisamos al Lua que es una actualización directa de JSON
+                configData: dealer.config
+            })
+        }).then(() => {
+            alert('Opciones Avanzadas guardadas correctamente.');
+        }).catch(() => {
+            console.error('Error al guardar opciones avanzadas');
+        });
+    };
+
+    // Inyectar el botón de Guardar dinámicamente si no existe
+    setTimeout(() => {
+        const advContainer = document.getElementById('dealer-advanced');
+        if (advContainer && !document.getElementById('btn-save-advanced')) {
+            advContainer.insertAdjacentHTML('beforeend', `
+                <div class="disc-modal-footer" style="display:flex;justify-content: center;">
+                    <button id="btn-save-advanced" class="action-btn confirm-btn" style="flex:0.5;">
+                        GUARDAR OPCIONES AVANZADAS
+                    </button>
+                </div>
+            `);
+            document.getElementById('btn-save-advanced').addEventListener('click', saveAdvancedOptions);
+        }
+    }, 500);
 
     function setDealerOptionsPage(page) {
         const pointsTab = document.querySelector('.dealer-options-tab[data-page="points"]');
@@ -6939,6 +7318,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.currentConfigDealerId = dealerId;
         closeShowroomPointModal();
         renderDealerShowroomPoints();
+        
+        // CARGAMOS LOS DATOS DEL PANEL AVANZADO
+        loadAdvancedOptions(dealerId);
 
         // Por defecto no hay sección seleccionada
         window.currentDealerOptionsPage = null;

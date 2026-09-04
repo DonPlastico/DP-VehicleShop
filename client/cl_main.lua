@@ -7,6 +7,7 @@ local spawnedShowroomVehicles = {}
 local nearbyVehicles = {}
 local isHudActive = false
 local spawnedNPCs = {}
+local spawnedProps = {} -- Para almacenar los Objetos (Props) que se spawneen
 local showroomCam = nil
 local previewVehicleEntity = nil
 local DealerOwners = {}
@@ -36,7 +37,6 @@ local testDriveTimer = 0 -- Segundos restantes
 local dealerBlips = {} -- Guardamos los blips en memoria para borrarlos al reiniciar
 local dealersFromDB = {} -- Concesionarios cargados desde la base de datos (para los blips)
 local dealerConfigsFromDB = {} -- Configuración completa de concesionarios desde la BD
-
 
 -- Posiciones relativas en el remolque tr2 (Capacidad 6 coches)
 local trailerOffsets = { -- PLANTA BAJA
@@ -206,74 +206,138 @@ local function DeleteSpecificShowroomVehicle(vehicleId)
 end
 
 -- =================================================================
--- MÓDULO 6: GESTIÓN DE NPCs (VENDEDORES Y AGENCIA)
+-- MÓDULO 6: GESTIÓN DE ENTIDADES ESTATÍCAS (NPCs Y OBJETOS)
 -- =================================================================
 
-local function SpawnDealershipNPCs()
+local function SpawnDealershipEntities()
     -- 1. Spawn dinámico desde la configuración de la BD para puntos de showroom
     for dealerId, config in pairs(dealerConfigsFromDB) do
         if config and type(config.showroomPoints) == 'table' and #config.showroomPoints > 0 then
             for index, point in ipairs(config.showroomPoints) do
                 local key = dealerId .. '_showroom_' .. index
-                if not spawnedNPCs[key] and point.coords_npc and point.npc_model then
-                    local model = GetHashKey(point.npc_model)
-                    RequestModel(model)
-                    while not HasModelLoaded(model) do
-                        Wait(10)
-                    end
+                local pType = point.type or 'npc'
 
+                if point.coords_npc then
                     local x = tonumber(point.coords_npc.x) or 0.0
                     local y = tonumber(point.coords_npc.y) or 0.0
                     local z = tonumber(point.coords_npc.z) or 0.0
                     local h = tonumber(point.coords_npc.h) or 0.0
 
-                    local ped = CreatePed(0, model, x, y, z - 1.0, h, false, false)
-                    SetEntityHeading(ped, h)
-                    FreezeEntityPosition(ped, true)
-                    SetEntityInvincible(ped, true)
-                    SetBlockingOfNonTemporaryEvents(ped, true)
-                    if point.npc_scenario then
-                        TaskStartScenarioInPlace(ped, point.npc_scenario, 0, true)
+                    -- TIPO: NPC
+                    if pType == 'npc' and point.npc_model and not spawnedNPCs[key] then
+                        local model = GetHashKey(point.npc_model)
+                        if IsModelInCdimage(model) and IsModelValid(model) then
+                            RequestModel(model)
+                            local timeout = 0
+                            while not HasModelLoaded(model) and timeout < 1500 do
+                                Wait(10)
+                                timeout = timeout + 1
+                            end
+                            if HasModelLoaded(model) then
+                                local ped = CreatePed(0, model, x, y, z - 1.0, h, false, false)
+                                SetEntityHeading(ped, h)
+                                FreezeEntityPosition(ped, true)
+                                SetEntityInvincible(ped, true)
+                                SetBlockingOfNonTemporaryEvents(ped, true)
+                                if point.npc_scenario and point.npc_scenario ~= "" then
+                                    TaskStartScenarioInPlace(ped, point.npc_scenario, 0, true)
+                                end
+                                spawnedNPCs[key] = ped
+                                SetModelAsNoLongerNeeded(model)
+                            end
+                        end
+                        -- TIPO: OBJETO (PROP)
+                    elseif pType == 'prop' and point.prop_model and not spawnedProps[key] then
+                        local model = GetHashKey(point.prop_model)
+                        if IsModelInCdimage(model) and IsModelValid(model) then
+                            RequestModel(model)
+                            local timeout = 0
+                            while not HasModelLoaded(model) and timeout < 1500 do
+                                Wait(10)
+                                timeout = timeout + 1
+                            end
+                            if HasModelLoaded(model) then
+                                local prop = CreateObject(model, x, y, z, false, false, false)
+                                SetEntityHeading(prop, h)
+                                FreezeEntityPosition(prop, true)
+                                spawnedProps[key] = prop
+                                SetModelAsNoLongerNeeded(model)
+                            end
+                        end
                     end
-                    spawnedNPCs[key] = ped
                 end
             end
         end
     end
 
-    -- 2. NPC Agencia (Agente inmobiliario para COMPRAR la empresa. Solo si NO hay dueño)
-    for dealerKey, data in pairs(Config.Dealerships) do
-        if not DealerOwners[dealerKey] and data.npc_buy then
-            if not spawnedAgencyNPCs[dealerKey] then
-                local model = GetHashKey(Config.RealEstateNPC or 'a_m_y_business_03')
-                RequestModel(model)
-                while not HasModelLoaded(model) do
-                    Wait(10)
+    -- 2. Entidad Agencia (Agente inmobiliario o Prop para COMPRAR la empresa)
+    for dealerKey, config in pairs(dealerConfigsFromDB) do
+        -- Si no tiene dueño y en la DB está configurado el npc_buy
+        if not DealerOwners[dealerKey] and config.npc_buy then
+            local bp = config.npc_buy
+            local bType = bp.type or 'npc'
+            local x = tonumber(bp.x) or 0.0
+            local y = tonumber(bp.y) or 0.0
+            local z = tonumber(bp.z) or 0.0
+            local h = tonumber(bp.w) or 0.0
+
+            if bType == 'npc' and not spawnedAgencyNPCs[dealerKey] then
+                local model = GetHashKey(bp.npc_model or 'a_m_y_business_03')
+                if IsModelInCdimage(model) and IsModelValid(model) then
+                    RequestModel(model)
+                    local timeout = 0
+                    while not HasModelLoaded(model) and timeout < 1500 do
+                        Wait(10)
+                        timeout = timeout + 1
+                    end
+                    if HasModelLoaded(model) then
+                        local ped = CreatePed(0, model, x, y, z - 1.0, h, false, false)
+                        SetEntityHeading(ped, h)
+                        FreezeEntityPosition(ped, true)
+                        SetEntityInvincible(ped, true)
+                        SetBlockingOfNonTemporaryEvents(ped, true)
+                        TaskStartScenarioInPlace(ped, bp.npc_scenario or "WORLD_HUMAN_CLIPBOARD", 0, true)
+                        spawnedAgencyNPCs[dealerKey] = ped
+                        SetModelAsNoLongerNeeded(model)
+                    end
                 end
-
-                local ped = CreatePed(0, model, data.npc_buy.x, data.npc_buy.y, data.npc_buy.z - 1.0, data.npc_buy.w,
-                    false, false)
-
-                FreezeEntityPosition(ped, true)
-                SetEntityInvincible(ped, true)
-                SetBlockingOfNonTemporaryEvents(ped, true)
-                TaskStartScenarioInPlace(ped, "WORLD_HUMAN_CLIPBOARD", 0, true)
-
-                spawnedAgencyNPCs[dealerKey] = ped -- Guardamos con su clave
+            elseif bType == 'prop' and bp.prop_model and not spawnedProps[dealerKey .. '_buy'] then
+                local model = GetHashKey(bp.prop_model)
+                if IsModelInCdimage(model) and IsModelValid(model) then
+                    RequestModel(model)
+                    local timeout = 0
+                    while not HasModelLoaded(model) and timeout < 1500 do
+                        Wait(10)
+                        timeout = timeout + 1
+                    end
+                    if HasModelLoaded(model) then
+                        local prop = CreateObject(model, x, y, z, false, false, false)
+                        SetEntityHeading(prop, h)
+                        FreezeEntityPosition(prop, true)
+                        spawnedProps[dealerKey .. '_buy'] = prop
+                        SetModelAsNoLongerNeeded(model)
+                    end
+                end
             end
         end
     end
 end
 
--- Función para borrar NPCs de forma segura
-local function DeleteDealershipNPCs()
-    -- Usamos pairs porque ahora son tablas asociativas (con nombres, no solo números)
+-- Función para borrar entidades de forma segura
+local function DeleteDealershipEntities()
     for k, ped in pairs(spawnedNPCs) do
         if DoesEntityExist(ped) then
             DeleteEntity(ped)
         end
     end
     spawnedNPCs = {}
+
+    for k, prop in pairs(spawnedProps) do
+        if DoesEntityExist(prop) then
+            DeleteEntity(prop)
+        end
+    end
+    spawnedProps = {}
 
     for k, ped in pairs(spawnedAgencyNPCs) do
         if DoesEntityExist(ped) then
@@ -384,8 +448,10 @@ end)
 AddEventHandler('onResourceStart', function(resourceName)
     if GetCurrentResourceName() == resourceName then
         CreateThread(function()
-            Wait(1000)
+            Wait(2000) -- Esperamos a que la base de datos responda
             InitializeClientLoad()
+            -- Forzamos spawn si el servidor ya envió los datos
+            SpawnDealershipEntities()
         end)
     end
 end)
@@ -411,7 +477,7 @@ AddEventHandler('onResourceStop', function(resourceName)
     if GetCurrentResourceName() == resourceName then
         -- 1. Limpiamos NPCs y coches de exposición del mundo
         ClearShowroomVehicles()
-        DeleteDealershipNPCs()
+        DeleteDealershipEntities()
 
         -- ==========================================
         -- 2. SALVAVIDAS: Si el jugador estaba en el Showroom
@@ -838,7 +904,7 @@ RegisterNetEvent('DP-VehicleShop:client:updateOwners', function(data)
     DealerOwners = data
 
     -- Volvemos a generar NPCs por si acaso
-    SpawnDealershipNPCs()
+    SpawnDealershipEntities()
 end)
 
 -- Este evento recibe las categorías actualizadas del servidor y refresca el UI al instante
@@ -2417,7 +2483,7 @@ CreateThread(function()
 end)
 
 -- =================================================================
--- MÓDULO 15: ZONAS DE INTERACCIÓN (TEXTUI Y TECLAS) - OPTIMIZADA
+-- MÓDULO 15: ZONAS DE INTERACCIÓN (TEXTUI, MARCADORES Y TECLAS)
 -- =================================================================
 
 CreateThread(function()
@@ -2429,113 +2495,126 @@ CreateThread(function()
         local zoneId = nil
         local zoneText = ""
 
-        -- 0. Comprobar puntos SHOWROOM desde la configuración de la BD
+        -- 1. Comprobar puntos SHOWROOM desde la configuración de la BD
         for dealerId, config in pairs(dealerConfigsFromDB) do
             if config and type(config.showroomPoints) == 'table' then
                 for index, point in ipairs(config.showroomPoints) do
-                    if point and point.coords_npc and point.coords_npc.x and point.coords_npc.y and point.coords_npc.z then
+                    if point and point.coords_npc and point.coords_npc.x then
                         local pointCoords = vector3(tonumber(point.coords_npc.x) or 0.0,
                             tonumber(point.coords_npc.y) or 0.0, tonumber(point.coords_npc.z) or 0.0)
                         local distPoint = #(pos - pointCoords)
+                        local pType = point.type or 'npc'
 
-                        if distPoint < 2.5 then
+                        -- RENDERIZAR MARCADOR (Showroom)
+                        if pType == 'marker' and point.marker and distPoint < 25.0 then
+                            sleep = 0
+                            local m = point.marker
+                            local mType = tonumber(m.type) or 1
+                            local sx, sy, sz = tonumber(m.scale.x) or 1.5, tonumber(m.scale.y) or 1.5,
+                                tonumber(m.scale.z) or 0.5
+                            local dx, dy, dz = tonumber(m.dir.x) or 0.0, tonumber(m.dir.y) or 0.0,
+                                tonumber(m.dir.z) or 0.0
+                            local rx, ry, rz = tonumber(m.rot.x) or 0.0, tonumber(m.rot.y) or 0.0,
+                                tonumber(m.rot.z) or 0.0
+                            local r, g, b, a = tonumber(m.color.r) or 255, tonumber(m.color.g) or 255,
+                                tonumber(m.color.b) or 255, tonumber(m.color.a) or 150
+
+                            local tDict = (m.textureDict and m.textureDict ~= "") and m.textureDict or nil
+                            local tName = (m.textureName and m.textureName ~= "") and m.textureName or nil
+
+                            DrawMarker(mType, pointCoords.x, pointCoords.y, pointCoords.z, dx, dy, dz, rx, ry, rz, sx,
+                                sy, sz, r, g, b, a, m.bob, m.faceCamera, 2, m.rotate, tDict, tName, m.drawOnEnts)
+                        end
+
+                        -- ZONA INTERACCIÓN SHOWROOM
+                        if distPoint < 2.5 and not inZone then
                             sleep = 0
                             inZone = true
                             zoneId = "showroom_" .. dealerId .. "_" .. index
-                            zoneText = "Hablar con el Vendedor"
+
+                            if point.label and point.label ~= "" then
+                                zoneText = point.label
+                            else
+                                zoneText = (pType == 'npc') and "Hablar con el Vendedor" or
+                                               "Ver Catálogo de Vehículos"
+                            end
 
                             if IsControlJustReleased(0, 38) then
                                 TriggerServerEvent('DP-VehicleShop:server:requestShowroom', dealerId)
                             end
-                            break
                         end
                     end
-                end
-                if inZone then
-                    break
                 end
             end
         end
 
-        -- Recorremos todos los concesionarios configurados
-        for dealerName, data in pairs(Config.Dealerships) do
+        -- 2. Comprobar Punto de Compra de Empresa (DINÁMICO DESDE BD)
+        for dealerId, config in pairs(dealerConfigsFromDB) do
+            if not DealerOwners[dealerId] and config.npc_buy then
+                local bp = config.npc_buy
+                local bType = bp.type or 'npc'
+                local bpCoords = vector3(tonumber(bp.x) or 0.0, tonumber(bp.y) or 0.0, tonumber(bp.z) or 0.0)
+                local distBuy = #(pos - bpCoords)
 
-            -- 2. Comprobar Boss Menu (SE OCULTA TOTALMENTE SI NO ERES DUEÑO O JEFE)
-            if data.bossMenu then
-                -- Calculamos distancia PRIMERO
-                local distBoss = #(pos - data.bossMenu.xyz)
-
-                -- SOLO si estamos a menos de 10 metros, comprobamos si eres jefe
-                if distBoss < 10.0 then
-                    if IsPlayerAuthorized(dealerName, data) then
-                        sleep = 0
-                        -- Marker Verde
-                        DrawMarker(2, data.bossMenu.x, data.bossMenu.y, data.bossMenu.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                            0.2, 0.2, 0.2, 0, 0, 0, 255, false, false, 2, true, nil, nil, false)
-
-                        if distBoss < 1.5 then
-                            inZone = true
-                            zoneId = "boss_" .. dealerName
-                            zoneText = "Gestión de Empresa"
-
-                            if IsControlJustReleased(0, 38) then
-                                TriggerServerEvent('DP-VehicleShop:server:requestBossMenu', dealerName)
-                            end
-                            break
-                        end
-                    end
+                -- RENDERIZAR MARCADOR (Punto de Compra)
+                if bType == 'marker' and bp.marker and distBuy < 25.0 then
+                    sleep = 0
+                    local m = bp.marker
+                    local mType = tonumber(m.type) or 2
+                    local sx, sy, sz = tonumber(m.scale.x) or 0.2, tonumber(m.scale.y) or 0.2,
+                        tonumber(m.scale.z) or 0.2
+                    local r, g, b, a = tonumber(m.color.r) or 0, tonumber(m.color.g) or 255, tonumber(m.color.b) or 0,
+                        tonumber(m.color.a) or 200
+                    DrawMarker(mType, bpCoords.x, bpCoords.y, bpCoords.z, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, sx, sy, sz, r,
+                        g, b, a, m.bob, m.faceCamera, 2, m.rotate, nil, nil, false)
                 end
-            end
 
-            -- 3. Comprobar NPC de Compra (SOLO APARECE TEXTUI SI NO TIENE DUEÑO)
-            if data.npc_buy and not DealerOwners[dealerName] then
-                local distBuy = #(pos - data.npc_buy.xyz)
-
-                if distBuy < 2.5 then
+                -- ZONA INTERACCIÓN COMPRAR EMPRESA
+                if distBuy < 2.5 and not inZone then
                     sleep = 0
                     inZone = true
-                    zoneId = "buy_" .. dealerName
-                    zoneText = "Comprar Empresa (" .. data.label .. ")"
+                    zoneId = "buy_" .. dealerId
+
+                    -- Texto personalizado
+                    if bp.label and bp.label ~= "" then
+                        zoneText = bp.label
+                    else
+                        local dLabel = Config.Dealerships[dealerId] and Config.Dealerships[dealerId].label or dealerId
+                        zoneText = "Comprar Empresa (" .. dLabel .. ")"
+                    end
 
                     if IsControlJustReleased(0, 38) then
                         isMenuOpen = true
+                        local dLabel = Config.Dealerships[dealerId] and Config.Dealerships[dealerId].label or dealerId
                         SendNUIMessage({
                             action = 'openBuyMenu',
-                            dealerId = dealerName,
-                            dealerLabel = data.label,
+                            dealerId = dealerId,
+                            dealerLabel = dLabel,
                             price = Config.DefaultDealershipPrice
                         })
                         SetNuiFocus(true, true)
                     end
-                    break
                 end
             end
         end
 
         -- =================================================================
-        -- LÓGICA DE MOSTRAR/OCULTAR DP-TextUI (SIN BUCLES)
+        -- LÓGICA DE MOSTRAR/OCULTAR DP-TextUI
         -- =================================================================
         if inZone then
-            -- Si la zona ha cambiado O el texto ha cambiado (por una compra)
             if currentActiveZone ~= zoneId or currentActiveText ~= zoneText then
-
-                -- Si ya había algo mostrándose, lo borramos primero
                 if currentActiveZone then
                     exports['DP-TextUI']:OcultarUI(currentActiveZone)
                 end
-
-                -- Guardamos el nuevo estado y mostramos
                 currentActiveZone = zoneId
                 currentActiveText = zoneText
                 exports['DP-TextUI']:MostrarUI(zoneId, zoneText, 'E', false)
 
-                -- Si es un punto de showroom, lo registramos en el tracking global
                 if string.find(zoneId, "showroom_") then
                     allShowroomZoneIds[zoneId] = true
                 end
             end
         elseif not inZone and currentActiveZone then
-            -- Si salimos de la zona, limpiamos todo
             exports['DP-TextUI']:OcultarUI(currentActiveZone)
             currentActiveZone = nil
             currentActiveText = nil
@@ -2598,7 +2677,7 @@ RegisterNetEvent('DP-VehicleShop:client:loadDealerBlips', function(dealers)
         return
     end
 
-    -- Ocultar TODOS los TextUI de showroom que se hayan mostrado alguna vez, no solo el activo. DP-TextUI los ancla a coordenadas fijas.
+    -- 1. Limpieza de UI previa
     for zoneId, _ in pairs(allShowroomZoneIds) do
         exports['DP-TextUI']:OcultarUI(zoneId)
     end
@@ -2606,6 +2685,7 @@ RegisterNetEvent('DP-VehicleShop:client:loadDealerBlips', function(dealers)
     currentActiveZone = nil
     currentActiveText = nil
 
+    -- 2. Guardar en caché global
     dealersFromDB = dealers
     dealerConfigsFromDB = {}
     for _, dealer in ipairs(dealers) do
@@ -2613,7 +2693,69 @@ RegisterNetEvent('DP-VehicleShop:client:loadDealerBlips', function(dealers)
             dealerConfigsFromDB[dealer.id] = dealer.config or {}
         end
     end
+
+    -- 3. Acciones críticas
     RefreshDealerBlips()
-    DeleteDealershipNPCs()
-    SpawnDealershipNPCs()
+    DeleteDealershipEntities() -- Borra antiguos
+    SpawnDealershipEntities() -- Crea los nuevos
+end)
+
+-- =================================================================
+-- MÓDULO 17: EXPORTS EXTERNOS (INTEGRACIÓN CON OTROS SCRIPTS)
+-- =================================================================
+
+-- Export para abrir el Boss Menu desde cualquier lugar (ej: qb-jobmenu con F7)
+exports('OpenBossMenu', function()
+    UpdateLocalPlayerData() -- Nos aseguramos de tener el trabajo actualizado
+
+    if not PlayerJob or not PlayerJob.name then
+        Framework.Core.Functions.Notify('No tienes ningún trabajo.', 'error')
+        return false
+    end
+
+    local myJobName = PlayerJob.name
+    local isBoss = PlayerJob.isboss
+    local dealerIdFound = nil
+
+    -- 1. BUSCAMOS A QUÉ CONCESIONARIO PERTENECE EL TRABAJO DEL JUGADOR
+    for dId, config in pairs(dealerConfigsFromDB) do
+        -- Leemos el job de la base de datos (y como respaldo del config.lua)
+        local requiredJob = config.job or (Config.Dealerships[dId] and Config.Dealerships[dId].job)
+
+        if requiredJob == myJobName then
+            dealerIdFound = dId
+            break
+        end
+    end
+
+    -- 2. VALIDACIONES
+    if not dealerIdFound then
+        Framework.Core.Functions.Notify('Tu trabajo no está vinculado a ningún concesionario.', 'error')
+        return false
+    end
+
+    -- ¿La gestión de empresa está habilitada en la BD para este concesionario?
+    local dealerConfig = dealerConfigsFromDB[dealerIdFound] or {}
+    if dealerConfig.management_enabled == false then
+        Framework.Core.Functions.Notify('La gestión corporativa de esta empresa está deshabilitada.', 'error')
+        return false
+    end
+
+    -- ¿Tiene permisos de jefe o es el dueño por base de datos?
+    local isAuthorized = false
+    if isBoss then
+        isAuthorized = true
+    end
+    if PlayerData and PlayerData.citizenid and DealerOwners[dealerIdFound] == PlayerData.citizenid then
+        isAuthorized = true
+    end
+
+    if not isAuthorized then
+        Framework.Core.Functions.Notify('Solo el dueño o los gerentes pueden acceder al panel.', 'error')
+        return false
+    end
+
+    -- 3. ABRIR EL MENÚ (Disparamos al servidor para que recoja los datos frescos)
+    TriggerServerEvent('DP-VehicleShop:server:requestBossMenu', dealerIdFound)
+    return true
 end)

@@ -55,7 +55,9 @@ local function BroadcastDealerBlips()
                     end
                 end
             end
-            TriggerClientEvent('DP-VehicleShop:client:loadDealerBlips', -1, blipList)
+            
+            -- Asegúrate de que el trigger sea así para que el cliente tenga los datos:
+TriggerClientEvent('DP-VehicleShop:client:loadDealerBlips', -1, blipList)
         end)
 end
 
@@ -2651,7 +2653,7 @@ local JobToDealer = {}
 CreateThread(function()
     for dealerId, data in pairs(Config.Dealerships) do
         -- Validación de seguridad: solo mapea si el concesionario tiene un trabajo asignado
-        if data.job then 
+        if data.job then
             JobToDealer[data.job] = dealerId
         end
     end
@@ -2869,40 +2871,49 @@ RegisterNetEvent('DP-VehicleShop:server:adminUpdateDealer', function(data)
                 end
             end
 
-            -- 2. Sobrescribimos SOLO los datos que vienen del formulario
-            if data.job then
-                configObj.job = data.job
-            end
-            if data.coords then
-                configObj.coords = data.coords
-            end
-            if data.blip then
-                configObj.blip = data.blip
-            end
-            if data.color then
-                configObj.color = data.color
-            end
-            if data.scale then
-                configObj.scale = data.scale
-            end
-
-            if data.showroomPoints and type(data.showroomPoints) == 'table' then
-                local showroomPoints = {}
-                for _, point in ipairs(data.showroomPoints) do
-                    if point and point.coords_npc and point.npc_model then
-                        table.insert(showroomPoints, {
-                            coords_npc = {
-                                x = tonumber(point.coords_npc.x) or 0,
-                                y = tonumber(point.coords_npc.y) or 0,
-                                z = tonumber(point.coords_npc.z) or 0,
-                                h = tonumber(point.coords_npc.h) or 0
-                            },
-                            npc_model = tostring(point.npc_model),
-                            npc_scenario = tostring(point.npc_scenario or '')
-                        })
-                    end
+            -- 🟢 NUEVA LÓGICA: Si es un guardado de Opciones Avanzadas (Inyección directa)
+            if data.config_update_only and data.configData then
+                for k, v in pairs(data.configData) do
+                    configObj[k] = v
                 end
-                configObj.showroomPoints = showroomPoints
+            else
+                -- LÓGICA CLÁSICA: Sobrescribimos SOLO los datos que vienen del formulario normal
+                if data.job then configObj.job = data.job end
+                if data.coords then configObj.coords = data.coords end
+                if data.blip then configObj.blip = data.blip end
+                if data.color then configObj.color = data.color end
+                if data.scale then configObj.scale = data.scale end
+
+                if data.showroomPoints and type(data.showroomPoints) == 'table' then
+                    local showroomPoints = {}
+                    for _, point in ipairs(data.showroomPoints) do
+                        if point and point.coords_npc then
+                            local pType = point.type or 'npc'
+                            local newPoint = {
+                                type = pType,
+                                label = point.label,
+                                coords_npc = {
+                                    x = tonumber(point.coords_npc.x) or 0,
+                                    y = tonumber(point.coords_npc.y) or 0,
+                                    z = tonumber(point.coords_npc.z) or 0,
+                                    h = tonumber(point.coords_npc.h) or 0
+                                }
+                            }
+
+                            if pType == 'npc' and point.npc_model then
+                                newPoint.npc_model = tostring(point.npc_model)
+                                newPoint.npc_scenario = tostring(point.npc_scenario or '')
+                            elseif pType == 'prop' and point.prop_model then
+                                newPoint.prop_model = tostring(point.prop_model)
+                            elseif pType == 'marker' and point.marker then
+                                newPoint.marker = point.marker
+                            end
+
+                            table.insert(showroomPoints, newPoint)
+                        end
+                    end
+                    configObj.showroomPoints = showroomPoints
+                end
             end
 
             local configJSON = json.encode(configObj)
@@ -2915,10 +2926,12 @@ RegisterNetEvent('DP-VehicleShop:server:adminUpdateDealer', function(data)
                     if rows and rows > 0 then
                         TriggerClientEvent('QBCore:Notify', src, 'Concesionario actualizado correctamente.', 'success')
                         RefreshDealerCache()
-                        BroadcastDealerBlips() -- Actualiza los blips en el mapa de TODOS los jugadores
-                        exports['oxmysql']:execute('SELECT * FROM dp_vehicleshop_dealerships', {}, function(results)
-                            TriggerClientEvent('DP-VehicleShop:client:openAdminMenu', src,
-                                buildAdminDealersList(results))
+                        
+                        -- Esto mandará las nuevas coordenadas y entidades a todos los jugadores al instante
+                        BroadcastDealerBlips() 
+
+                        exports['oxmysql']:execute('SELECT * FROM dp_vehicleshop_dealerships', {}, function(res)
+                            TriggerClientEvent('DP-VehicleShop:client:openAdminMenu', src, buildAdminDealersList(res))
                         end)
                     else
                         TriggerClientEvent('QBCore:Notify', src, 'Error al actualizar el concesionario.', 'error')

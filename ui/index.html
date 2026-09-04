@@ -1960,7 +1960,7 @@
                     </div>
 
                     <!-- BLOQUE 3: Objetivo (Vehículos / Categorías) -->
-                    <div class="disc-block disc-block-grow" style="display: flex; flex-direction: column; gap: 0.8vw;">
+                    <div class="disc-block disc-block-grow" style="display: flex;flex-direction: column;gap: 7.5px;">
                         <div class="disc-block-label">
                             <i class="fa-solid fa-bullseye"></i>
                             APLICAR A
@@ -2409,40 +2409,33 @@
                 <!-- Panel izquierdo de páginas/pestañas -->
                 <div class="disc-block dealer-options-side"
                     style="flex: 1; margin-bottom: 0; display: flex; flex-direction: column; gap: 1vw; align-items: stretch; justify-content: flex-start; text-align: left; background: rgba(0,0,0,0.3); border: 1px dashed rgba(255,255,255,0.05); border-radius: 8px; padding: 1.1vw 1vw;">
-                    <div style="display:flex; align-items:center; gap:0.75vw;">
-                        <div
-                            style="width:3.8vw; height:3.8vw; border-radius:12px; background: rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center;">
-                            <i class="fa-solid fa-layer-group" style="font-size:1.6vw; color:#fff;"></i>
+                    <div class="dealer-side-header">
+                        <div class="dealer-side-header-icon">
+                            <i class="fa-solid fa-layer-group"></i>
                         </div>
-                        <div>
-                            <h3 style="margin:0; font-size:1.05vw;">Secciones</h3>
-                            <p style="margin:0.35vw 0 0; font-size:0.75vw; color:#bbb; line-height:1.5;">Selecciona una
-                                página para configurar este concesionario.</p>
+                        <div class="dealer-side-header-text">
+                            <span class="dealer-side-header-title">SECCIONES</span>
+                            <span class="dealer-side-header-desc">Selecciona una sección para configurar.</span>
                         </div>
                     </div>
-
-                    <div class="dealer-options-tab-list" style="display:flex; flex-direction:column; gap:0.7vw;">
-                        <button class="dealer-options-tab" type="button" data-page="points"
-                            style="display:flex; align-items:flex-start; gap:0.75vw; width:100%; padding:1vw; border:1px solid rgba(255,255,255,0.08); border-radius:8px; background:transparent; color:#fff; text-align:left; cursor:pointer; transition:all 0.2s ease;">
-                            <div
-                                style="width:2.2vw; min-height:2.2vw; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(255,255,255,0.08);">
-                                <i class="fa-solid fa-map-pin" style="font-size:1vw;"></i>
+                    <div class="dealer-options-tab-list" style="display:flex; flex-direction:column;gap: 7.5px;">
+                        <button class="dealer-options-tab" type="button" data-page="points">
+                            <div class="dealer-tab-icon">
+                                <i class="fa-solid fa-map-pin"></i>
                             </div>
-                            <div style="flex:1;">
-                                <strong style="display:block; font-size:0.95vw;">Puntos de Venta</strong>
-                                <span style="font-size:0.72vw; color:#aaa;">Ver los puntos de venta configurados.</span>
+                            <div class="dealer-tab-text">
+                                <span class="dealer-tab-label">Puntos de Venta</span>
+                                <span class="dealer-tab-desc">Zonas y spawns configurados.</span>
                             </div>
                         </button>
-                        <button class="dealer-options-tab" type="button" data-page="advanced"
-                            style="display:flex; align-items:flex-start; gap:0.75vw; width:100%; padding:1vw; border:1px solid rgba(255,255,255,0.08); border-radius:8px; background:transparent; color:#fff; text-align:left; cursor:pointer; transition:all 0.2s ease;">
-                            <div
-                                style="width:2.2vw; min-height:2.2vw; display:flex; align-items:center; justify-content:center; border-radius:8px; background:rgba(255,255,255,0.08);">
-                                <i class="fa-solid fa-sliders-h" style="font-size:1vw;"></i>
+
+                        <button class="dealer-options-tab" type="button" data-page="advanced">
+                            <div class="dealer-tab-icon">
+                                <i class="fa-solid fa-sliders"></i>
                             </div>
-                            <div style="flex:1;">
-                                <strong style="display:block; font-size:0.95vw;">Opciones Avanzadas</strong>
-                                <span style="font-size:0.72vw; color:#aaa;">Configurar parámetros avanzados del
-                                    concesionario.</span>
+                            <div class="dealer-tab-text">
+                                <span class="dealer-tab-label">Opciones Avanzadas</span>
+                                <span class="dealer-tab-desc">Parámetros del concesionario.</span>
                             </div>
                         </button>
                     </div>
@@ -2493,20 +2486,296 @@
                             </div>
                         </div>
 
-                        <div id="dealer-advanced"
-                            style="display:none; flex:1; min-height:6.5vh; flex-direction:column; gap:0.75vw;">
-                            <div
-                                style="padding:1.2vw; border:1px dashed rgba(255,255,255,0.12); border-radius:8px; color:rgba(255,255,255,0.85); display:flex; flex-direction:column; gap:0.85vw;">
-                                <h3 style="margin:0; font-size:1.05vw;">Opciones Avanzadas</h3>
-                                <p style="margin:0; color:#bbb; line-height:1.7; font-size:0.88vw;">Selecciona Opciones
-                                    Avanzadas para configurar cosas avanzadas del concesionario y ajustar su
-                                    comportamiento.</p>
-                                <ul
-                                    style="margin:0; padding-left:1.2rem; color:#ccc; font-size:0.85vw; line-height:1.7;">
-                                    <li>Gestionar rangos y permisos del jefe.</li>
-                                    <li>Configurar stock y categorías.</li>
-                                    <li>Ajustar parámetros del showroom y NPCs.</li>
-                                </ul>
+                        <div id="dealer-advanced" class="options-panel-page"
+                            style="display:none; flex-direction: column; gap: 7.5px;">
+
+                            <div class="disc-block"
+                                style="margin-bottom: 0;background: rgba(0,0,0,0.15);border: 1px solid rgba(255,255,255,0.05);padding: 10px;display: flex;flex-direction: column;gap: 7.5px;">
+                                <div class="disc-block-label" style="margin-bottom: 0.2vw;">
+                                    <i class="fa-solid fa-credit-card"></i> MÉTODOS DE PAGO PERMITIDOS
+                                    <span class="disc-block-hint">Controla cómo pueden los clientes abonar el importe de
+                                        los vehículos.</span>
+                                </div>
+
+                                <div style="display: grid;grid-template-columns: repeat(2, 1fr);gap: 7.5px;">
+                                    <div
+                                        style="background: rgba(255,255,255,0.02);border: 1px solid rgba(255,255,255,0.03);padding: 10px;border-radius: 6px;display: flex;align-items: center;justify-content: space-between;gap: 7.5px;">
+                                        <div style="display: flex; flex-direction: column; gap: 0.2vw; flex: 1;">
+                                            <span
+                                                style="font-size: 0.75vw; color: #fff; font-weight: bold; text-transform: uppercase;">Permitir
+                                                Efectivo</span>
+                                            <span style="font-size: 0.6vw; color: #aaa;">Habilita la compra directa
+                                                utilizando dinero físico en mano.</span>
+                                        </div>
+                                        <label class="switch-container"
+                                            style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="check-advanced-cash"
+                                                style="width: 1.1vw; height: 1.1vw; accent-color: #3498db; cursor: pointer;">
+                                        </label>
+                                    </div>
+
+                                    <div
+                                        style="background: rgba(255,255,255,0.02);border: 1px solid rgba(255,255,255,0.03);padding: 10px;border-radius: 6px;display: flex;align-items: center;justify-content: space-between;gap: 7.5px;">
+                                        <div style="display: flex; flex-direction: column; gap: 0.2vw; flex: 1;">
+                                            <span
+                                                style="font-size: 0.75vw; color: #fff; font-weight: bold; text-transform: uppercase;">Permitir
+                                                Tarjeta</span>
+                                            <span style="font-size: 0.6vw; color: #aaa;">Habilita transacciones directas
+                                                desde la cuenta bancaria del cliente.</span>
+                                        </div>
+                                        <label class="switch-container"
+                                            style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="check-advanced-bank"
+                                                style="width: 1.1vw; height: 1.1vw; accent-color: #3498db; cursor: pointer;">
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div
+                                    style="background: rgba(255,255,255,0.02);border: 1px solid rgba(255,255,255,0.03);padding: 10px;border-radius: 6px;display: flex;align-items: center;justify-content: space-between;gap: 7.5px;width: 100%;">
+                                    <div style="display: flex; flex-direction: column; gap: 0.2vw; flex: 1;">
+                                        <span
+                                            style="font-size: 0.75vw; color: #fff; font-weight: bold; text-transform: uppercase;">Permitir
+                                            Pago a Plazos</span>
+                                        <span style="font-size: 0.6vw; color: #aaa;">Activa el sistema de financiación
+                                            automática. Los clientes pagarán una entrada inicial y cuotas cada hora
+                                            real.</span>
+                                    </div>
+                                    <label class="switch-container"
+                                        style="display: flex; align-items: center; cursor: pointer;">
+                                        <input type="checkbox" id="check-advanced-finance"
+                                            style="width: 1.1vw; height: 1.1vw; accent-color: #3498db; cursor: pointer;">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="disc-block"
+                                style="margin-bottom: 0;background: rgba(0,0,0,0.15);border: 1px solid rgba(255,255,255,0.05);padding: 10px;display: flex;flex-direction: column;gap: 7.5px;">
+                                <div class="disc-block-label" style="margin-bottom: 0.2vw;">
+                                    <i class="fa-solid fa-boxes-stacked"></i> STOCK Y RESERVAS EN VIVO
+                                    <span class="disc-block-hint">Configura las mecánicas operativas y limitaciones
+                                        comerciales del negocio.</span>
+                                </div>
+
+                                <div style="display: grid;grid-template-columns: repeat(2, 1fr);gap: 7.5px;">
+                                    <div
+                                        style="background: rgba(255,255,255,0.02);border: 1px solid rgba(255,255,255,0.03);padding: 10px;border-radius: 6px;display: flex;align-items: center;justify-content: space-between;gap: 7.5px;">
+                                        <div style="display: flex; flex-direction: column; gap: 0.2vw; flex: 1;">
+                                            <span
+                                                style="font-size: 0.75vw; color: #fff; font-weight: bold; text-transform: uppercase;">Permitir
+                                                Stock de Vehículos</span>
+                                            <span style="font-size: 0.6vw; color: #aaa;">Si se desactiva, las unidades
+                                                serán infinitas y no requerirán pedidos al por mayor.</span>
+                                        </div>
+                                        <label class="switch-container"
+                                            style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="check-advanced-stock"
+                                                style="width: 1.1vw; height: 1.1vw; accent-color: #3498db; cursor: pointer;">
+                                        </label>
+                                    </div>
+
+                                    <div
+                                        style="background: rgba(255,255,255,0.02);border: 1px solid rgba(255,255,255,0.03);padding: 10px;border-radius: 6px;display: flex;align-items: center;justify-content: space-between;gap: 7.5px;">
+                                        <div style="display: flex; flex-direction: column; gap: 0.2vw; flex: 1;">
+                                            <span
+                                                style="font-size: 0.75vw; color: #fff; font-weight: bold; text-transform: uppercase;">Permitir
+                                                Reservas de Vehículos</span>
+                                            <span style="font-size: 0.6vw; color: #aaa;">Permite a los clientes
+                                                solicitar modelos sin stock para que un empleado valide la
+                                                entrega.</span>
+                                        </div>
+                                        <label class="switch-container"
+                                            style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="check-advanced-reservations"
+                                                style="width: 1.1vw; height: 1.1vw; accent-color: #3498db; cursor: pointer;">
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="disc-block"
+                                style="margin-bottom: 0;background: rgba(0,0,0,0.15);border: 1px solid rgba(255,255,255,0.05);padding: 10px;display: flex;flex-direction: column;gap: 7.5px;">
+                                <div class="disc-block-label" style="margin-bottom: 0.2vw;">
+                                    <i class="fa-solid fa-building"></i> PROPIEDAD Y GESTIÓN CORPORATIVA
+                                    <span class="disc-block-hint">Establece el comportamiento comercial del
+                                        concesionario respecto a los jugadores.</span>
+                                </div>
+
+                                <div style="display: grid;grid-template-columns: repeat(2, 1fr);gap: 7.5px;">
+                                    <div
+                                        style="background: rgba(255,255,255,0.02);border: 1px solid rgba(255,255,255,0.03);padding: 10px;border-radius: 6px;display: flex;align-items: center;justify-content: space-between;gap: 7.5px;">
+                                        <div style="display: flex; flex-direction: column; gap: 0.2vw; flex: 1;">
+                                            <span
+                                                style="font-size: 0.75vw; color: #fff; font-weight: bold; text-transform: uppercase;">Permitir
+                                                Comprar Empresa</span>
+                                            <span style="font-size: 0.6vw; color: #aaa;">Habilita el punto de venta para
+                                                que cualquier ciudadano adquiera el negocio.</span>
+                                        </div>
+                                        <label class="switch-container"
+                                            style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="check-advanced-buyable"
+                                                style="width: 1.1vw; height: 1.1vw; accent-color: #3498db; cursor: pointer;">
+                                        </label>
+                                    </div>
+
+                                    <div
+                                        style="background: rgba(255,255,255,0.02);border: 1px solid rgba(255,255,255,0.03);padding: 10px;border-radius: 6px;display: flex;align-items: center;justify-content: space-between;gap: 7.5px;">
+                                        <div style="display: flex; flex-direction: column; gap: 0.2vw; flex: 1;">
+                                            <span
+                                                style="font-size: 0.75vw; color: #fff; font-weight: bold; text-transform: uppercase;">Permitir
+                                                Gestionar Empresa</span>
+                                            <span style="font-size: 0.6vw; color: #aaa;">Habilita el Boss Menu
+                                                corporativo (finanzas, rangos, stock, cupones, empleados).</span>
+                                        </div>
+                                        <label class="switch-container"
+                                            style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="check-advanced-management"
+                                                style="width: 1.1vw; height: 1.1vw; accent-color: #3498db; cursor: pointer;">
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div id="advanced-buyable-config-box"
+                                    style="display: flex;flex-direction: column;gap: 7.5px;background: rgba(0, 0, 0, 0.2);border: 1px solid rgba(255, 255, 255, 0.03);padding: 10px;border-radius: 6px;margin-top: 0.5vw;">
+                                    <div>
+                                        <label
+                                            style="font-size: 0.7vw; color: #aaa; text-transform: uppercase; font-weight: bold;">Texto
+                                            de Interacción (TextUI)</label>
+                                        <input type="text" id="input-advbuy-label" class="modal-input disc-input"
+                                            placeholder="Ej: Adquirir Concesionario" maxlength="40"
+                                            style="width: 100%; margin-top:0.3vw;">
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            style="font-size: 0.7vw; color: #aaa; text-transform: uppercase; font-weight: bold;">Ubicación
+                                            del Punto de Venta</label>
+                                        <div
+                                            style="display: flex; gap: 0.5vw; margin-top: 0.3vw; align-items: center; height: 2.2vw;">
+                                            <input type="number" id="input-advbuy-x" class="modal-input disc-input"
+                                                placeholder="X" style="flex:1; min-width:0; height: 100%;">
+                                            <input type="number" id="input-advbuy-y" class="modal-input disc-input"
+                                                placeholder="Y" style="flex:1; min-width:0; height: 100%;">
+                                            <input type="number" id="input-advbuy-z" class="modal-input disc-input"
+                                                placeholder="Z" style="flex:1; min-width:0; height: 100%;">
+                                            <input type="number" id="input-advbuy-h" class="modal-input disc-input"
+                                                placeholder="H" style="flex:1; min-width:0; height: 100%;">
+                                            <button id="btn-advbuy-get-coords" class="btn-secondary"
+                                                style="flex:0 0 3.5vw; min-width:3.5vw; height: 100%; margin: 0; padding: 0; display:flex; align-items:center; justify-content:center;"
+                                                title="Obtener mis coordenadas actuales">
+                                                <i class="fa-solid fa-location-crosshairs"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            style="font-size: 0.7vw; color: #aaa; text-transform: uppercase; font-weight: bold;">Tipo
+                                            de Entidad Visual</label>
+                                        <div class="selection-grid"
+                                            style="margin-top:0.3vw; display: flex; gap: 0.5vw;">
+                                            <button id="btn-advbuy-type-marker" class="selection-btn"
+                                                style="flex:1; padding: 0.4vw;">
+                                                <i class="fa-solid fa-location-dot"></i> <span>MARCADOR</span>
+                                            </button>
+                                            <button id="btn-advbuy-type-prop" class="selection-btn"
+                                                style="flex:1; padding: 0.4vw;">
+                                                <i class="fa-solid fa-box"></i> <span>OBJETO</span>
+                                            </button>
+                                            <button id="btn-advbuy-type-npc" class="selection-btn"
+                                                style="flex:1; padding: 0.4vw;">
+                                                <i class="fa-solid fa-user-tie"></i> <span>NPC</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div id="advbuy-container-marker"
+                                        style="display: none; flex-direction: column; gap: 0.8vw; background: rgba(0,0,0,0.15); padding: 0.8vw; border-radius: 4px;">
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8vw;">
+                                            <div style="display: flex; flex-direction: column; gap: 0.6vw;">
+                                                <div>
+                                                    <label style="font-size: 0.65vw; color: #999;">Tipo Marcador
+                                                        (0-44)</label>
+                                                    <input type="number" id="input-advbuy-marker-type"
+                                                        class="modal-input disc-input" value="2"
+                                                        style="width: 100%; margin-top:0.2vw;">
+                                                </div>
+                                                <div>
+                                                    <label style="font-size: 0.65vw; color: #999;">Escala (X, Y,
+                                                        Z)</label>
+                                                    <div style="display: flex; gap: 0.3vw; margin-top:0.2vw;">
+                                                        <input type="number" id="input-advbuy-marker-sx"
+                                                            class="modal-input disc-input" value="0.2"
+                                                            style="flex:1; min-width:0;">
+                                                        <input type="number" id="input-advbuy-marker-sy"
+                                                            class="modal-input disc-input" value="0.2"
+                                                            style="flex:1; min-width:0;">
+                                                        <input type="number" id="input-advbuy-marker-sz"
+                                                            class="modal-input disc-input" value="0.2"
+                                                            style="flex:1; min-width:0;">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; gap: 0.6vw;">
+                                                <div>
+                                                    <label style="font-size: 0.65vw; color: #999;">Color (R, G, B,
+                                                        Alpha)</label>
+                                                    <div style="display: flex; gap: 0.3vw; margin-top:0.2vw;">
+                                                        <input type="number" id="input-advbuy-marker-r"
+                                                            class="modal-input disc-input" value="0"
+                                                            style="flex:1; min-width:0;">
+                                                        <input type="number" id="input-advbuy-marker-g"
+                                                            class="modal-input disc-input" value="255"
+                                                            style="flex:1; min-width:0;">
+                                                        <input type="number" id="input-advbuy-marker-b"
+                                                            class="modal-input disc-input" value="0"
+                                                            style="flex:1; min-width:0;">
+                                                        <input type="number" id="input-advbuy-marker-a"
+                                                            class="modal-input disc-input" value="200"
+                                                            style="flex:1; min-width:0;">
+                                                    </div>
+                                                </div>
+                                                <div
+                                                    style="display: flex; justify-content: space-between; margin-top: 0.8vw; background: rgba(0,0,0,0.2); padding: 0.4vw 0.6vw; border-radius: 4px;">
+                                                    <label
+                                                        style="font-size: 0.65vw; color:#aaa; display:flex; align-items:center; gap:0.3vw; cursor:pointer;">
+                                                        <input type="checkbox" id="input-advbuy-marker-bob" checked>
+                                                        Subir/Bajar
+                                                    </label>
+                                                    <label
+                                                        style="font-size: 0.65vw; color:#aaa; display:flex; align-items:center; gap:0.3vw; cursor:pointer;">
+                                                        <input type="checkbox" id="input-advbuy-marker-rotate" checked>
+                                                        Rotar
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="advbuy-container-prop"
+                                        style="display: none; flex-direction: column; gap: 0.5vw;">
+                                        <label style="font-size: 0.65vw; color: #999;">Modelo del Objeto /
+                                            Cartel</label>
+                                        <input type="text" id="input-advbuy-prop-model" class="modal-input disc-input"
+                                            placeholder="Ej: prop_sign_road_03a" style="width: 100%;">
+                                    </div>
+
+                                    <div id="advbuy-container-npc"
+                                        style="display: none; grid-template-columns: repeat(2, 1fr); gap: 0.8vw;">
+                                        <div>
+                                            <label style="font-size: 0.65vw; color: #999;">Modelo del Ped (NPC)</label>
+                                            <input type="text" id="input-advbuy-npc-model"
+                                                class="modal-input disc-input" placeholder="Ej: a_m_y_business_03"
+                                                style="width: 100%; margin-top:0.2vw;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.65vw; color: #999;">Escenario / Animación</label>
+                                            <input type="text" id="input-advbuy-npc-scenario"
+                                                class="modal-input disc-input" value="WORLD_HUMAN_CLIPBOARD"
+                                                style="width: 100%; margin-top:0.2vw;">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2516,23 +2785,205 @@
     </div>
 
     <div id="dealer-showpoint-modal" class="modal-overlay" data-escapable="true" style="display:none; z-index:10001;">
-        <div class="modal-content" style="width: 52vw; max-height: 79vh;">
+        <div class="modal-content" style="width: 56vw; max-height: 85vh; display: flex; flex-direction: column;">
             <div class="disc-modal-header">
                 <div class="disc-modal-header-icon">
                     <i class="fa-solid fa-map-pin"></i>
                 </div>
                 <div class="disc-modal-header-text">
                     <h2 id="showpoint-modal-title">NUEVO PUNTO DE SHOWROOM</h2>
-                    <p id="showpoint-modal-desc">Completa las coordenadas, modelo de NPC y animación.</p>
+                    <p id="showpoint-modal-desc">Define el punto y elige qué tipo de entidad se mostrará.</p>
                 </div>
             </div>
 
-            <div class="disc-modal-body" style="display: flex; flex-direction: column; gap: 0.9vw; min-height: 33vh;">
-                <div class="disc-block" style="flex: 1; margin-bottom: 0;">
+            <div class="disc-modal-body" style="display: flex; flex-direction: column; gap: 7.5px; overflow-y: auto;">
+                <div class="disc-block" style="margin-bottom: 0; flex-shrink: 0;">
+                    <div class="disc-block-label">
+                        <i class="fa-solid fa-font"></i> TEXTO DE INTERACCIÓN
+                        <span class="disc-block-hint">El mensaje que verá el jugador al acercarse a este punto.</span>
+                    </div>
+                    <div style="margin-top:0.5vw;">
+                        <input type="text" id="input-showpoint-label" class="modal-input disc-input"
+                            placeholder="Ej: Ver Catálogo de Vehículos" maxlength="40" style="width: 100%;">
+                    </div>
+                </div>
+
+                <div class="disc-block" style="margin-bottom: 0; flex-shrink: 0;">
+                    <div class="disc-block-label">
+                        <i class="fa-solid fa-shapes"></i> TIPO DE ENTIDAD
+                        <span class="disc-block-hint">¿Qué elemento visual decorará este punto? (Obligatorio seleccionar
+                            uno)</span>
+                    </div>
+                    <div class="selection-grid" style="margin-top:0.5vw; display: flex; gap: 0.5vw;">
+                        <button id="btn-showpoint-type-marker" class="selection-btn" style="flex:1;">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>MARCADOR</span>
+                        </button>
+                        <button id="btn-showpoint-type-prop" class="selection-btn" style="flex:1;">
+                            <i class="fa-solid fa-box"></i>
+                            <span>OBJETO</span>
+                        </button>
+                        <button id="btn-showpoint-type-npc" class="selection-btn" style="flex:1;">
+                            <i class="fa-solid fa-user-tie"></i>
+                            <span>NPC</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="showpoint-container-marker"
+                    style="display: none; flex-direction: column; gap: 7.5px; flex-shrink: 0;">
+                    <div class="disc-block"
+                        style="margin-bottom: 0;background: rgba(0,0,0,0.15);border: 1px solid rgba(255,255,255,0.05);padding: 7.5px;">
+                        <div style="display: grid;grid-template-columns: repeat(2, 1fr);gap: 7.5px;">
+                            <div style="display: flex;flex-direction: column;gap: 7.5px;">
+                                <div>
+                                    <label style="font-size: 0.7vw; color: #aaa; text-transform: uppercase;">Tipo de
+                                        Marcador (0-44)</label>
+                                    <input type="number" id="input-marker-type" class="modal-input disc-input"
+                                        placeholder="Ej: 1 (Cilindro)" value="1" style="width: 100%; margin-top:0.3vw;">
+                                </div>
+
+                                <div>
+                                    <label style="font-size: 0.7vw; color: #aaa; text-transform: uppercase;">Escala (X,
+                                        Y, Z)</label>
+                                    <div style="display: flex; gap: 0.3vw; margin-top:0.3vw;">
+                                        <input type="number" id="input-marker-sx" class="modal-input disc-input"
+                                            placeholder="X" value="1.5" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-sy" class="modal-input disc-input"
+                                            placeholder="Y" value="1.5" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-sz" class="modal-input disc-input"
+                                            placeholder="Z" value="0.5" style="flex:1; min-width:0;">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label style="font-size: 0.7vw; color: #aaa; text-transform: uppercase;">Dirección
+                                        Vectorial (Dir X, Y, Z)</label>
+                                    <div style="display: flex; gap: 0.3vw; margin-top:0.3vw;">
+                                        <input type="number" id="input-marker-dx" class="modal-input disc-input"
+                                            placeholder="X" value="0.0" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-dy" class="modal-input disc-input"
+                                            placeholder="Y" value="0.0" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-dz" class="modal-input disc-input"
+                                            placeholder="Z" value="0.0" style="flex:1; min-width:0;">
+                                    </div>
+                                    <span style="font-size: 0.6vw; color: #777;">Si usas Rotación abajo, deja esto en
+                                        0.0</span>
+                                </div>
+                            </div>
+
+                            <div style="display: flex;flex-direction: column;gap: 7.5px;">
+                                <div>
+                                    <label style="font-size: 0.7vw; color: #aaa; text-transform: uppercase;">Color (R,
+                                        G, B, Alpha)</label>
+                                    <div style="display: flex; gap: 0.3vw; margin-top:0.3vw;">
+                                        <input type="number" id="input-marker-r" class="modal-input disc-input"
+                                            placeholder="R" value="255" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-g" class="modal-input disc-input"
+                                            placeholder="G" value="255" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-b" class="modal-input disc-input"
+                                            placeholder="B" value="255" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-a" class="modal-input disc-input"
+                                            placeholder="Alpha" value="150" style="flex:1; min-width:0;">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label style="font-size: 0.7vw; color: #aaa; text-transform: uppercase;">Rotación
+                                        (Rot X, Y, Z)</label>
+                                    <div style="display: flex; gap: 0.3vw; margin-top:0.3vw;">
+                                        <input type="number" id="input-marker-rx" class="modal-input disc-input"
+                                            placeholder="X" value="0.0" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-ry" class="modal-input disc-input"
+                                            placeholder="Y" value="0.0" style="flex:1; min-width:0;">
+                                        <input type="number" id="input-marker-rz" class="modal-input disc-input"
+                                            placeholder="Z" value="0.0" style="flex:1; min-width:0;">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label style="font-size: 0.7vw; color: #aaa; text-transform: uppercase;">Textura
+                                        (Opcional - Dict / Name)</label>
+                                    <div style="display: flex; gap: 0.3vw; margin-top:0.3vw;">
+                                        <input type="text" id="input-marker-tdict" class="modal-input disc-input"
+                                            placeholder="Dict (Ej: GolfPutting)" style="flex:1; min-width:0;">
+                                        <input type="text" id="input-marker-tname" class="modal-input disc-input"
+                                            placeholder="Name (Ej: PuttingMarker)" style="flex:1; min-width:0;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            style="display: flex;justify-content: space-between;margin-top: 10px;background: rgba(0,0,0,0.3);padding: 10px;border-radius: 8px;">
+                            <label
+                                style="display: flex; align-items: center; gap: 0.5vw; font-size: 0.75vw; color:#ccc; cursor:pointer;">
+                                <input type="checkbox" id="input-marker-bob" style="width: 1vw; height: 1vw;"> Animación
+                                Subir/Bajar
+                            </label>
+                            <label
+                                style="display: flex; align-items: center; gap: 0.5vw; font-size: 0.75vw; color:#ccc; cursor:pointer;">
+                                <input type="checkbox" id="input-marker-face" style="width: 1vw; height: 1vw;"> Mirar a
+                                Cámara
+                            </label>
+                            <label
+                                style="display: flex; align-items: center; gap: 0.5vw; font-size: 0.75vw; color:#ccc; cursor:pointer;">
+                                <input type="checkbox" id="input-marker-rotate" style="width: 1vw; height: 1vw;">
+                                Rotación Constante
+                            </label>
+                            <label
+                                style="display: flex; align-items: center; gap: 0.5vw; font-size: 0.75vw; color:#ccc; cursor:pointer;">
+                                <input type="checkbox" id="input-marker-drawents" style="width: 1vw; height: 1vw;">
+                                Dibujar en Entidades
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="showpoint-container-prop"
+                    style="display: none; flex-direction: column; gap: 7.5px; flex-shrink: 0;">
+                    <div class="disc-block" style="margin-bottom: 0;">
+                        <div class="disc-block-label">
+                            <i class="fa-solid fa-box"></i> MODELO DEL OBJETO (PROP)
+                            <span class="disc-block-hint">Introduce el nombre del modelo del objeto (Ej: prop_table_01).
+                                Las coordenadas/heading se aplican justo debajo.</span>
+                        </div>
+                        <div style="margin-top:0.5vw;">
+                            <input type="text" id="input-showpoint-prop-model" class="modal-input disc-input"
+                                placeholder="Ej: prop_table_01" maxlength="100" style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="showpoint-container-npc"
+                    style="display: none; flex-direction: column; gap: 7.5px; flex-shrink: 0;">
+                    <div class="disc-block" style="margin-bottom: 0;">
+                        <div class="disc-block-label">
+                            <i class="fa-solid fa-user"></i> MODELO DEL NPC
+                            <span class="disc-block-hint">Nombre del modelo del ped que aparecerá en el showroom.</span>
+                        </div>
+                        <div style="margin-top:0.5vw;">
+                            <input type="text" id="input-showpoint-npc-model" class="modal-input disc-input"
+                                placeholder="Ej: a_m_y_business_02" maxlength="100" style="width: 100%;">
+                        </div>
+                    </div>
+
+                    <div class="disc-block" style="margin-bottom: 0;">
+                        <div class="disc-block-label">
+                            <i class="fa-solid fa-person-walking"></i> ANIMACIÓN DEL NPC
+                            <span class="disc-block-hint">Escenario que ejecutará el NPC en esta ubicación.</span>
+                        </div>
+                        <div style="margin-top:0.5vw;">
+                            <input type="text" id="input-showpoint-npc-scenario" class="modal-input disc-input"
+                                placeholder="Ej: WORLD_HUMAN_CLIPBOARD" maxlength="100" style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="disc-block" style="margin-bottom: 0; flex-shrink: 0;">
                     <div class="disc-block-label">
                         <i class="fa-solid fa-map-pin"></i> UBICACIÓN EN EL MAPA
-                        <span class="disc-block-hint">Coordenadas exactas y orientación donde se ubicará el NPC del
-                            showroom.</span>
+                        <span class="disc-block-hint">Coordenadas exactas y orientación (X, Y, Z, Heading).</span>
                     </div>
                     <div style="display: flex; gap: 0.5vw; margin-top: 0.5vw; align-items: center; height: 2.5vw;">
                         <input type="number" id="input-showpoint-x" class="modal-input disc-input" placeholder="X"
@@ -2550,31 +3001,10 @@
                         </button>
                     </div>
                 </div>
-
-                <div class="disc-block" style="margin-bottom: 0;">
-                    <div class="disc-block-label">
-                        <i class="fa-solid fa-user"></i> MODELO DEL NPC
-                        <span class="disc-block-hint">Nombre del modelo del ped que aparecerá en el showroom.</span>
-                    </div>
-                    <div style="margin-top:0.5vw;">
-                        <input type="text" id="input-showpoint-model" class="modal-input disc-input"
-                            placeholder="Ej: a_m_y_business_02" maxlength="50" style="width: 100%;">
-                    </div>
-                </div>
-
-                <div class="disc-block" style="margin-bottom: 0;">
-                    <div class="disc-block-label">
-                        <i class="fa-solid fa-person-walking"></i> ANIMACIÓN DEL NPC
-                        <span class="disc-block-hint">Escenario que ejecutará el NPC en esta ubicación.</span>
-                    </div>
-                    <div style="margin-top:0.5vw;">
-                        <input type="text" id="input-showpoint-scenario" class="modal-input disc-input"
-                            placeholder="Ej: WORLD_HUMAN_CLIPBOARD" maxlength="50" style="width: 100%;">
-                    </div>
-                </div>
             </div>
 
-            <div class="disc-modal-footer" style="display:flex; justify-content:space-between; gap: 0.75vw;">
+            <div class="disc-modal-footer"
+                style="display:flex; justify-content:space-between; gap: 0.75vw; flex-shrink: 0; margin-top: 1vw;">
                 <button id="btn-showpoint-cancel" class="action-btn cancel-btn" style="flex:1;">
                     CANCELAR
                 </button>

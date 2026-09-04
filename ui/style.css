@@ -238,11 +238,11 @@ h2 {
 .showroom-point-card {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 0.8vw 1vw;
+    border-radius: 4px;
+    padding: 10px;
     display: flex;
     text-align: left;
-    gap: 1vw;
+    gap: 7.5px;
 }
 
 .showroom-point-card-left {
@@ -295,9 +295,9 @@ h2 {
 }
 
 .showroom-point-card-actions .btn-icon {
-    width: 2.2vw;
-    height: 2.2vw;
-    font-size: 0.75vw;
+    width: 1.75vw;
+    height: 1.75vw;
+    font-size: 0.85vw;
 }
 
 .showroom-point-card-actions .btn-icon.btn-danger {
@@ -307,7 +307,7 @@ h2 {
 }
 
 .showroom-point-card-actions .btn-icon.btn-danger:hover {
-    background: rgba(139, 26, 26, 0.9);
+    background: rgba(90, 17, 17, 0.7) !important;
 }
 
 .showroom-point-hint {
@@ -4540,7 +4540,7 @@ input:checked+.slider:before {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     color: #fff;
-    padding: 0.7vw 0.9vw;
+    padding: 5px 10px;
     border-radius: 4px;
     font-size: 0.75vw;
     font-family: inherit;
@@ -4640,13 +4640,70 @@ input:checked+.slider:before {
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-.dealer-options-tab {
+.dealer-side-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6vw;
+    padding-bottom: 0.6vw;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dealer-side-header-icon {
+    width: 1.9vw;
+    height: 1.9vw;
+    min-width: 1.9vw;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75vw;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.dealer-side-header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1vw;
+    min-width: 0;
+}
+
+.dealer-side-header-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.58vw;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.dealer-side-header-desc {
+    font-size: 0.55vw;
+    color: rgba(255, 255, 255, 0.2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dealer-options-tab {
+    display: flex;
+    align-items: center;
+    gap: 7.5px;
+    width: 100%;
+    padding: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 6px;
     background: transparent;
     color: #fff;
-    transition: all 0.2s ease;
     text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.dealer-options-tab:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .dealer-options-tab.active {
@@ -4654,8 +4711,54 @@ input:checked+.slider:before {
     border-color: rgba(255, 255, 255, 0.18);
 }
 
-.dealer-options-tab:hover {
-    border-color: rgba(255, 255, 255, 0.15);
+.dealer-tab-icon {
+    width: 1.7vw;
+    height: 1.7vw;
+    min-width: 1.7vw;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65vw;
+    color: rgba(255, 255, 255, 0.45);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dealer-options-tab.active .dealer-tab-icon {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.dealer-tab-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1vw;
+    min-width: 0;
+}
+
+.dealer-tab-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6vw;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.15s ease;
+}
+
+.dealer-options-tab.active .dealer-tab-label {
+    color: #fff;
+}
+
+.dealer-tab-desc {
+    font-size: 0.52vw;
+    color: rgba(255, 255, 255, 0.22);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dealer-options-side .dealer-options-tab {
